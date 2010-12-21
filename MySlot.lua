@@ -3,13 +3,16 @@ MySlot = LibStub:NewLibrary("MySlot-4.0", 4)
 local crc32 = LibStub:GetLibrary('CRC32-1.0')
 local base64 = LibStub:GetLibrary('BASE64-1.0')
 
-local MYSLOT_VER = 4
+local MYSLOT_AUTHOR = "T.G. <farmer1992@gmail.com>"
+
+local MYSLOT_VER = 5
 
 -- 不能大于 7 不含
 local MYSLOT_SPELL = 1
 local MYSLOT_ITEM = 4
 local MYSLOT_MACRO = 3
 local MYSLOT_FLYOUT = 5
+local MYSLOT_EQUIPMENTSET = 6
 local MYSLOT_EMPTY = 0
 local MYSLOT_NOTFOUND = "notfound"
 
@@ -21,6 +24,7 @@ MySlot.SLOT_TYPE = {
 	["flyout"] = MYSLOT_FLYOUT,	
 	["petaction"] = MYSLOT_EMPTY,
 	["futurespell"] = MYSLOT_EMPTY,
+	["equipmentset"] = MYSLOT_EQUIPMENTSET,
 	[MYSLOT_NOTFOUND] = MYSLOT_EMPTY,
 }
 
@@ -30,7 +34,16 @@ end
 
 function MySlot:GetActionInfo(slotId)
 	local slotType, index = GetActionInfo(slotId)
-	return slotType and { MySlot.SLOT_TYPE[slotType] * 32 + bit.rshift(index ,16) , bit.rshift(index,8) , bit.band(index, 255) } or nil
+	if MySlot.SLOT_TYPE[slotType] == MYSLOT_EQUIPMENTSET then
+		_, index = GetEquipmentSetInfoByName(index)
+		index = index + 1
+	elseif not MySlot.SLOT_TYPE[slotType] then
+		if slotType then 
+			self:Print("忽略不支持的按键类型[" .. slotType .."] 请通知作者" .. MYSLOT_AUTHOR)
+		end
+		return nil
+	end
+	return { MySlot.SLOT_TYPE[slotType] * 32 + bit.rshift(index ,16) , bit.rshift(index,8) , bit.band(index, 255) }
 end
 
 
@@ -219,6 +232,8 @@ function MySlot:RecoverData(s)
 				PickupMacro(index)
 			elseif slotType == MYSLOT_EMPTY then
 				PickupAction(slotId)
+			elseif slotType == MYSLOT_EQUIPMENTSET then
+				PickupEquipmentSet(slotId)
 			end
 			PlaceAction(slotId)	
 			ClearCursor()
