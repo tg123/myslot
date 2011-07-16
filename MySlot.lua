@@ -58,10 +58,10 @@ local function MergeTable(target, source)
 	end
 end
 
-function MySlot:Debug()
+--[[function MySlot:Debug()
 	_,_, body = GetMacroInfo("a")
-	print(body)
 end
+]]
 
 function MySlot:Print(msg)
 	DEFAULT_CHAT_FRAME:AddMessage("|CFFFF0000<|r|CFFFFD100My Slot 4 beta|r|CFFFF0000>|r"..(msg or "nil"))
@@ -104,7 +104,7 @@ function MySlot:GetActionInfo(slotId)
 		index = index + 1
 	elseif not MySlot.SLOT_TYPE[slotType] then
 		if slotType then 
-			self:Print("忽略不支持的按键类型[" .. slotType .."] 请通知作者" .. MYSLOT_AUTHOR)
+			self:Print("[WARN]忽略不支持的按键类型[" .. slotType .."] 请通知作者" .. MYSLOT_AUTHOR)
 		end
 		return nil
 	end
@@ -126,13 +126,13 @@ local function KeyToByte(key , command)
 	end
 
 	if not MySlot.KEYS[key] then
-		MySlot:Print("[WARN]忽略不支持的绑定 K = [" .. key .."]")
+		MySlot:Print("[WARN]忽略不支持的绑定 K = [" .. key .."] 请通知作者" .. MYSLOT_AUTHOR)
 		return nil
 	end
 	mod = mod or "NONE"
 
 	if not MySlot.MOD_KEYS[mod] then
-		MySlot:Print("[WARN]忽略不支持的绑定 MK = [" .. key .."]")
+		MySlot:Print("[WARN]忽略不支持的绑定 MK = [" .. key .."] 请通知作者" .. MYSLOT_AUTHOR)
 		return nil
 	end
 
@@ -152,7 +152,7 @@ function MySlot:GetBindingInfo(index)
 	local command = MySlot.BINDS[_command]
 
 	if not command then
-		--MySlot:Print("[WARN]忽略不支持的绑定 C = " .. _command)
+		MySlot:Print("[WARN]忽略不支持的绑定 C = [" .. _command .."] 请通知作者" .. MYSLOT_AUTHOR)
 		return nil
 	end
 
@@ -229,6 +229,7 @@ end
 function MySlot:Import()
 	if InCombatLockdown() then
 		MySlot:Print("请在非战斗时候使用导入功能")
+		return
 	end
 
 	local s = MYSLOT_ReportFrame_EditBox:GetText() or ""
@@ -259,7 +260,7 @@ function MySlot:FindOrCreateMacro(macroInfo)
 		local icon = macroInfo["icon"]
 		local body = macroInfo["body"]
 		local numglobal,numperchar = GetNumMacros()
-		local perchar = id > 36 and 0 or 1
+		local perchar = id > 36 and 1 or 0
 
 		local newid = CreateMacro(name, icon, body, perchar , 1)
 		if not newid then
@@ -318,7 +319,7 @@ function MySlot:RecoverData(s)
 	i = head
 	while i < tail - 1 do
 		macroId = s[i]
-		iconTexture = s[i+1] * 256 + s[i+2]
+		icon = s[i+1] * 256 + s[i+2]
 
 		-- move to name
 		i = i + 3
