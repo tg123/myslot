@@ -5,7 +5,8 @@ local base64 = LibStub:GetLibrary('BASE64-1.0')
 
 local MYSLOT_AUTHOR = "T.G. <farmer1992@gmail.com>"
 
-local MYSLOT_VER = 5
+local MYSLOT_VER = 10
+local MYSLOT_ALLOW_VER = {6,10}
 
 -- 不能大于 7 不含
 local MYSLOT_SPELL = 1
@@ -20,7 +21,7 @@ MySlot.SLOT_TYPE = {
 	["spell"] = MYSLOT_SPELL,
 	["companion"] = MYSLOT_SPELL,
 	["macro"]= MYSLOT_MACRO,
-	["item"]= MYSLOT_MACRO,
+	["item"]= MYSLOT_ITEM,
 	["flyout"] = MYSLOT_FLYOUT,	
 	["petaction"] = MYSLOT_EMPTY,
 	["futurespell"] = MYSLOT_EMPTY,
@@ -28,11 +29,86 @@ MySlot.SLOT_TYPE = {
 	[MYSLOT_NOTFOUND] = MYSLOT_EMPTY,
 }
 
+local function GetMacroIconTable()
+	local t = {}
+	for i =1,GetNumMacroIcons() do
+		t[GetMacroIconInfo(i)] = i
+	end
+	return t
+end
+MySlot.MACRO_ICON_TABLE = GetMacroIconTable()
+
+
+local function MergeTable(target, source)
+	if type target == 'Table' then
+		if source then
+			for _,b in ipairs(source) do
+				target[#target+1] = b
+			end
+		end
+	end
+end
+
+function MySlot:Debug()
+	
+--[[	for i= 1,54 do
+	local name, iconTexture, body, isLocal = MySlot:GetMacroInfo(i)
+	
+		if name then
+			--self:Print(i)
+			--self:Print(iconTexture)
+		end
+	end]]
+
+			--self:Print(GetNumMacroIcons())
+
+			s = '我'
+			--for i=1, string.len(s) do
+			
+			t = {}	
+			--for _,v in pairs({string.byte(s,1,string.len(s))}) do
+			--self:Print(v)
+			--t[#t + 1] = v
+			--end 
+			self:Print(string.char(unpack(t)))
+		--	for _,b in ipairs(string.byte(s,2,string.len(s))) do
+		--	end
+end
+
 function MySlot:Print(msg)
 	DEFAULT_CHAT_FRAME:AddMessage("|CFFFF0000<|r|CFFFFD100My Slot 4 beta|r|CFFFF0000>|r"..(msg or "nil"))
 end
 
+function MySlot:GetMacroInfo(i)
+	-- { icon high 8, icon low 8 , namelen, ..., bodylen, ...}
+
+	local t = {}	
+	local name, iconTexture, body, isLocal = GetMacroInfo(i)
+	iconTexture = MySlot.MACRO_ICON_TABLE[iconTexture]
+
+	-- icon
+	t[#t+1] = bit.rshift(iconTexture,8)
+	t[#t+1] = bit.band(iconTexture, 255)
+
+	-- name
+	local namelen = string.len(name)
+	t[#t + 1] = namelen
+	for _,b in pairs({string.byte(name ,1 ,namelen)}) do
+		t[#t + 1] = b
+	end 
+
+	-- body
+	local bodylen = string.len(body)
+	t[#t + 1] = bodylen 
+	for _,b in pairs({string.byte(body , 1 , bodylen)}) do
+		t[#t + 1] = b
+	end 
+	
+	return t
+end
+
 function MySlot:GetActionInfo(slotId)
+	-- { slotId, slotType and high 16 ,high 8 , low 8, }
 	local slotType, index = GetActionInfo(slotId)
 	if MySlot.SLOT_TYPE[slotType] == MYSLOT_EQUIPMENTSET then
 		_, index = GetEquipmentSetInfoByName(index)
@@ -43,11 +119,12 @@ function MySlot:GetActionInfo(slotId)
 		end
 		return nil
 	end
-	return { MySlot.SLOT_TYPE[slotType] * 32 + bit.rshift(index ,16) , bit.rshift(index,8) , bit.band(index, 255) }
+	return { slotId, MySlot.SLOT_TYPE[slotType] * 32 + bit.rshift(index ,16) , bit.rshift(index,8) , bit.band(index, 255) }
 end
 
 
 local function KeyToByte(key , command)
+	-- {mod , key , command high 8, command low 8}
 	if not key then
 		return nil
 	end
@@ -80,12 +157,13 @@ local function KeyToByte(key , command)
 end
 
 function MySlot:GetBindingInfo(index)
+	-- might more than 1
 	local t = {}
 	local _command, key1, key2 = GetBinding(index)
 	local command = MySlot.BINDS[_command]
 
 	if not command then
-		-- MySlot:Print("[WARN]忽略不支持的绑定 C = " .. _command)
+		MySlot:Print("[WARN]忽略不支持的绑定 C = " .. _command)
 		return nil
 	end
 
@@ -107,23 +185,36 @@ function MySlot:GetBindingInfo(index)
 end
 
 function MySlot:Export()
-	-- ver spell bind bind crc32 crc32 crc32 crc32
+	-- ver nop nop nop crc32 crc32 crc32 crc32
 	local t = {MYSLOT_VER,0,0,0,0,0,0,0}
+	
+	local head = 8
+	-- macro
+	local c = 0
+
+	-- move head
+	head = head + c*4 + 1
+
 	-- spell
+	t[head] = 0
 	local c = 0
 	for i = 1,120 do
 		local s = self:GetActionInfo(i)
 		if s then
-			t[#t+1] = i
 			for _,b in ipairs(s) do
 				t[#t+1] = b
 			end
 			c = c + 1
 		end
 	end
-	t[2] = c
+	t[head] = c
+
+	-- move head
+	head = head + c*4 + 1
 
 	-- keys
+	t[head] = 0
+	t[head + 1] = 0
 	local c = 0
 	for i = 1,GetNumBindings() do
 		local s = self:GetBindingInfo(i)
@@ -134,9 +225,10 @@ function MySlot:Export()
 			c = c + #s/4
 		end
 	end
+	t[head] = bit.rshift(c,8)
+	t[head + 1] = bit.band(c, 255)
 
-	t[3] = bit.rshift(c,8)
-	t[4] = bit.band(c, 255)
+	-- crc
 
 	local crc = crc32.enc(t)
 	t[5] = bit.rshift(crc , 24)
@@ -191,11 +283,17 @@ function MySlot:RecoverData(s)
 		MySlot:Print("导入字符码校验不合法 [CRC32]")
 		return 
 	end
+
+	if ver ~= MYSLOT_VER then
+		MySlot:Print("导出串版本不兼容")
+		return 
+	end
 	
 	local spells = {}
 	local head = 1
 	local tail
 
+	--cache spells
 	local i = 1
 	while true do
 		local spellType, spellId = GetSpellBookItemInfo(i, BOOKTYPE_SPELL)
@@ -206,6 +304,9 @@ function MySlot:RecoverData(s)
 		spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = i
 		i = i + 1
 	end 
+
+	-- cache macro
+	local macro
 
 	local spellCount = s[2]
 	head = head + 8
