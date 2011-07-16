@@ -6,7 +6,8 @@ local base64 = LibStub:GetLibrary('BASE64-1.0')
 local MYSLOT_AUTHOR = "T.G. <farmer1992@gmail.com>"
 
 local MYSLOT_VER = 10
-local MYSLOT_ALLOW_VER = {6,10}
+local MYSLOT_ALLOW_VER = {MYSLOT_VER, 6}
+local MYSLOT_IS_DEBUG = true
 
 -- 不能大于 7 不含
 local MYSLOT_SPELL = 1
@@ -29,8 +30,14 @@ MySlot.SLOT_TYPE = {
 	[MYSLOT_NOTFOUND] = MYSLOT_EMPTY,
 }
 
+local MYSLOT_SLOT_B_SIZE = 4
+local MYSLOT_BIND_B_SIZE = 4
+
+local MYSLOT_DEFAULT_MACRO_ID = "QUESTIONMARK"
 local function GetMacroIconTable()
-	local t = {}
+	local t = {
+		[MYSLOT_DEFAULT_MACRO_ID] = 1
+	}
 	for i =1,GetNumMacroIcons() do
 		t[GetMacroIconInfo(i)] = i
 	end
@@ -38,53 +45,39 @@ local function GetMacroIconTable()
 end
 MySlot.MACRO_ICON_TABLE = GetMacroIconTable()
 
-
+-- return item count merge into target
 local function MergeTable(target, source)
-	if type target == 'Table' then
-		if source then
-			for _,b in ipairs(source) do
-				target[#target+1] = b
-			end
+	if source then
+		assert(type(target) == 'table' and type(source) == 'table')
+		for _,b in ipairs(source) do
+			target[#target+1] = b
 		end
+		return #source
+	else
+		return 0
 	end
 end
 
 function MySlot:Debug()
-	
---[[	for i= 1,54 do
-	local name, iconTexture, body, isLocal = MySlot:GetMacroInfo(i)
-	
-		if name then
-			--self:Print(i)
-			--self:Print(iconTexture)
-		end
-	end]]
-
-			--self:Print(GetNumMacroIcons())
-
-			s = '我'
-			--for i=1, string.len(s) do
-			
-			t = {}	
-			--for _,v in pairs({string.byte(s,1,string.len(s))}) do
-			--self:Print(v)
-			--t[#t + 1] = v
-			--end 
-			self:Print(string.char(unpack(t)))
-		--	for _,b in ipairs(string.byte(s,2,string.len(s))) do
-		--	end
+	_,_, body = GetMacroInfo("a")
+	print(body)
 end
 
 function MySlot:Print(msg)
 	DEFAULT_CHAT_FRAME:AddMessage("|CFFFF0000<|r|CFFFFD100My Slot 4 beta|r|CFFFF0000>|r"..(msg or "nil"))
 end
 
-function MySlot:GetMacroInfo(i)
-	-- { icon high 8, icon low 8 , namelen, ..., bodylen, ...}
+function MySlot:GetMacroInfo(macroId)
+	-- {macroId ,icon high 8, icon low 8 , namelen, ..., bodylen, ...}
 
-	local t = {}	
-	local name, iconTexture, body, isLocal = GetMacroInfo(i)
-	iconTexture = MySlot.MACRO_ICON_TABLE[iconTexture]
+	local name, iconTexture, body, isLocal = GetMacroInfo(macroId)
+	
+	if not name then
+		return nil
+	end
+
+	local t = {macroId}	
+	iconTexture = MySlot.MACRO_ICON_TABLE[iconTexture or MYSLOT_DEFAULT_MACRO_ID]
 
 	-- icon
 	t[#t+1] = bit.rshift(iconTexture,8)
@@ -93,16 +86,12 @@ function MySlot:GetMacroInfo(i)
 	-- name
 	local namelen = string.len(name)
 	t[#t + 1] = namelen
-	for _,b in pairs({string.byte(name ,1 ,namelen)}) do
-		t[#t + 1] = b
-	end 
+	MergeTable(t, {string.byte(name ,1 ,namelen)})
 
 	-- body
 	local bodylen = string.len(body)
 	t[#t + 1] = bodylen 
-	for _,b in pairs({string.byte(body , 1 , bodylen)}) do
-		t[#t + 1] = b
-	end 
+	MergeTable(t, {string.byte(body , 1 , bodylen)})
 	
 	return t
 end
@@ -163,49 +152,42 @@ function MySlot:GetBindingInfo(index)
 	local command = MySlot.BINDS[_command]
 
 	if not command then
-		MySlot:Print("[WARN]忽略不支持的绑定 C = " .. _command)
+		--MySlot:Print("[WARN]忽略不支持的绑定 C = " .. _command)
 		return nil
 	end
 
-	local s  = KeyToByte(key1, command)
-	if s then
-		for _,b in ipairs(s) do
-			t[#t+1] = b
-		end
-	end
-
-	local s  = KeyToByte(key2, command)
-	if s then
-		for _,b in ipairs(s) do
-			t[#t+1] = b
-		end
-	end
+	MergeTable(t, KeyToByte(key1, command))
+	MergeTable(t, KeyToByte(key2, command))
 
 	return #t > 0 and t or nil
 end
 
 function MySlot:Export()
 	-- ver nop nop nop crc32 crc32 crc32 crc32
-	local t = {MYSLOT_VER,0,0,0,0,0,0,0}
+	local i
+	local t = {MYSLOT_VER,86,04,22,0,0,0,0}
 	
-	local head = 8
+	local head = 9
 	-- macro
+	-- name limit to 16 and body limit to 255 
+	-- (16 + 255 )* 3 *54 < 2 ^ 16 
 	local c = 0
+	t[head] = 0
+	t[head + 1] = 0
+	for i = 1,54 do
+		c = c + MergeTable(t, self:GetMacroInfo(i))
+	end
+	t[head] = bit.rshift(c,8)
+	t[head + 1] = bit.band(c, 255)
 
 	-- move head
-	head = head + c*4 + 1
+	head = head + c + 2
 
 	-- spell
 	t[head] = 0
 	local c = 0
 	for i = 1,120 do
-		local s = self:GetActionInfo(i)
-		if s then
-			for _,b in ipairs(s) do
-				t[#t+1] = b
-			end
-			c = c + 1
-		end
+		c = c + MergeTable(t,self:GetActionInfo(i)) / MYSLOT_SLOT_B_SIZE
 	end
 	t[head] = c
 
@@ -217,19 +199,12 @@ function MySlot:Export()
 	t[head + 1] = 0
 	local c = 0
 	for i = 1,GetNumBindings() do
-		local s = self:GetBindingInfo(i)
-		if s then
-			for _,b in ipairs(s) do
-				t[#t+1] = b
-			end
-			c = c + #s/4
-		end
+		c = c + MergeTable(t,self:GetBindingInfo(i)) / MYSLOT_BIND_B_SIZE
 	end
 	t[head] = bit.rshift(c,8)
 	t[head + 1] = bit.band(c, 255)
 
 	-- crc
-
 	local crc = crc32.enc(t)
 	t[5] = bit.rshift(crc , 24)
 	t[6] = bit.band(bit.rshift(crc , 16), 255)
@@ -267,10 +242,33 @@ function MySlot:Import()
 		return
 	end
 
-	StaticPopupDialogs["MYSLOT_MSGBOX"].OnAccept=function()
+	StaticPopupDialogs["MYSLOT_MSGBOX"].OnAccept = function()
 		MySlot:RecoverData(s)
 	end
 	StaticPopup_Show("MYSLOT_MSGBOX")
+end
+
+function MySlot:FindOrCreateMacro(macroInfo)
+	local localIndex = macroInfo["localindex"]
+
+	if localIndex then
+		return localIndex
+	else
+		local id = macroInfo["oldid"]
+		local name = macroInfo["name"]
+		local icon = macroInfo["icon"]
+		local body = macroInfo["body"]
+		local numglobal,numperchar = GetNumMacros()
+		local perchar = id > 36 and 0 or 1
+
+		local newid = CreateMacro(name, icon, body, perchar , 1)
+		if not newid then
+			self:Print("宏 ["..name.." ] 被忽略，请检查是否有足够的空格创建宏")
+			return nil
+		else
+			return newid
+		end
+	end
 end
 
 function MySlot:RecoverData(s)
@@ -284,16 +282,13 @@ function MySlot:RecoverData(s)
 		return 
 	end
 
-	if ver ~= MYSLOT_VER then
-		MySlot:Print("导出串版本不兼容")
+	if not tContains(MYSLOT_ALLOW_VER,ver) then
+		MySlot:Print("导入串版本不兼容当前Myslot版本 导入版本号" .. ver )
 		return 
 	end
 	
-	local spells = {}
-	local head = 1
-	local tail
-
 	--cache spells
+	local spells = {}
 	local i = 1
 	while true do
 		local spellType, spellId = GetSpellBookItemInfo(i, BOOKTYPE_SPELL)
@@ -305,12 +300,61 @@ function MySlot:RecoverData(s)
 		i = i + 1
 	end 
 
-	-- cache macro
-	local macro
+	-- cache local macro index
+	local localMacro = {}
+	for i = 1,54 do
+		local name, _, body = GetMacroInfo(i)
+		if name then
+			localMacro[ name .. "_" .. body ] = i
+			localMacro[ body ] = i
+		end
+	end
 
-	local spellCount = s[2]
-	head = head + 8
-	tail = spellCount * 4 + head
+	-- cache macro
+	local macro = {}
+	local macroSize = s[9] * 256 + s[10] -- hard code :P
+	local head = 11
+	local tail = head +  macroSize -- * 1
+	i = head
+	while i < tail - 1 do
+		macroId = s[i]
+		iconTexture = s[i+1] * 256 + s[i+2]
+
+		-- move to name
+		i = i + 3
+
+		local namelen = s[i]
+		local name = {}
+		for j = i + 1,i + namelen do
+			name[#name+1] = s[j]
+		end
+		local name = string.char(unpack(name))
+		
+		-- move to body
+		i = i + namelen + 1
+
+		local bodylen = s[i]
+		local body = {}
+		for j = i + 1,i + bodylen do
+			body[#body+1] = s[j]
+		end
+		local body = string.char(unpack(body))
+
+		-- move to next block
+		i = i + bodylen + 1
+
+		macro[macroId] = {
+			["oldid"] = macroId,
+			["name"] = name,
+			["icon"] = icon,
+			["body"] = body,
+			["localindex"] = localMacro[ name .. "_" .. body ] or localMacro[ body ]
+		}
+	end
+
+	local spellCount = s[tail]
+	head = tail + 1 -- 1 bit for spellCount
+	tail = spellCount * MYSLOT_SLOT_B_SIZE + head
 
 	for i = head, tail - 1 ,4 do
 		local slotId = s[i]
@@ -319,7 +363,7 @@ function MySlot:RecoverData(s)
 		
 		local curType, curIndex = GetActionInfo(slotId)
 		curType = MySlot.SLOT_TYPE[curType or MYSLOT_NOTFOUND]
-		if curIndex ~= index or curType ~= slotType then
+		if curIndex ~= index or curType ~= slotType or slotType == MYSLOT_MACRO then -- macro always test
 			if slotType == MYSLOT_SPELL or slotType == MYSLOT_FLYOUT then
 				local newId = spells[slotType .."_" ..index]
 				if newId then
@@ -330,7 +374,7 @@ function MySlot:RecoverData(s)
 			elseif slotType == MYSLOT_ITEM then
 				PickupItem(index)
 			elseif slotType == MYSLOT_MACRO then
-				PickupMacro(index)
+				PickupMacro(self:FindOrCreateMacro(macro[index]))
 			elseif slotType == MYSLOT_EMPTY then
 				PickupAction(slotId)
 			elseif slotType == MYSLOT_EQUIPMENTSET then
@@ -341,9 +385,9 @@ function MySlot:RecoverData(s)
 		end
 	end
 
-	local bindCount = s[3] * 256 + s[4]
-	head = tail
-	tail = bindCount * 4 + head
+	local bindCount = s[tail] * 256 + s[tail + 1]
+	head = tail + 2 -- 2 bit for bindCount
+	tail = bindCount * MYSLOT_BIND_B_SIZE + head
 	
 	local mode = GetCurrentBindingSet()
 	for i = head, tail - 1 ,4 do
