@@ -77,7 +77,8 @@ function MySlot:GetMacroInfo(macroId)
 	end
 
 	local t = {macroId}	
-	iconTexture = MySlot.MACRO_ICON_TABLE[iconTexture or MYSLOT_DEFAULT_MACRO_ID]
+
+	iconTexture = MySlot.MACRO_ICON_TABLE[iconTexture or MYSLOT_DEFAULT_MACRO_ID] or MySlot.MACRO_ICON_TABLE[MYSLOT_DEFAULT_MACRO_ID]
 
 	-- icon
 	t[#t+1] = bit.rshift(iconTexture,8)
@@ -171,6 +172,7 @@ function MySlot:Export()
 	-- macro
 	-- name limit to 16 and body limit to 255 
 	-- (16 + 255 )* 3 *54 < 2 ^ 16 
+	MySlot.MACRO_ICON_TABLE = GetMacroIconTable()
 	local c = 0
 	t[head] = 0
 	t[head + 1] = 0
