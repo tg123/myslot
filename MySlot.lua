@@ -280,7 +280,7 @@ function MySlot:RecoverData(s)
 	local crc = s[5] * 2^24 + s[6] * 2^16 + s[7] * 2^8 + s[8]
 	s[5], s[6], s[7] ,s[8] = 0, 0 ,0 ,0
 	
-	if ( crc ~= crc32.enc(s)) then
+	if ( crc ~= bit.band(crc32.enc(s), 2^32 - 1)) then
 		MySlot:Print("导入字符码校验不合法 [CRC32]")
 		return 
 	end
@@ -392,13 +392,12 @@ function MySlot:RecoverData(s)
 	head = tail + 2 -- 2 bit for bindCount
 	tail = bindCount * MYSLOT_BIND_B_SIZE + head
 	
-	local mode = GetCurrentBindingSet()
 	for i = head, tail - 1 ,4 do
 		local mod,key,command = MySlot.R_MOD_KEYS[s[i]] , MySlot.R_KEYS[s[i+1]] , MySlot.R_BINDS[s[i+2]*256 + s[i+3]]
 		local key = ( mod ~= "NONE" and (mod .. "-") or "" ) .. key
-		SetBinding(key ,command, mode)
+		SetBinding(key ,command, 1)
 	end
-	SaveBindings(mode)
+	SaveBindings(GetCurrentBindingSet())
 
 
 	MySlot:Print("所有按钮及按键邦定位置恢复完毕")
