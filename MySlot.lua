@@ -267,16 +267,29 @@ function MySlot:FindOrCreateMacro(macroInfo)
 		local name = macroInfo["name"]
 		local icon = macroInfo["icon"]
 		local body = macroInfo["body"]
-		local numglobal,numperchar = GetNumMacros()
-		local perchar = id > 36 and 1 or 0
 
-		local newid = CreateMacro(name, icon, body, perchar , 1)
-		if not newid then
-			self:Print("宏 ["..name.." ] 被忽略，请检查是否有足够的空格创建宏")
-			return nil
-		else
-			return newid
+		local numglobal, numperchar = GetNumMacros()
+		local perchar = id > 36 and 2 or 1
+
+		--[[
+			perchar    G = 01 P = 10 
+			testallow  allow 01 | allow 10 = 00 , 01 , 10 , 11
+			perchar & testallow = 01 , 10 , 00
+			perchar = testallow when not allow
+		]]
+		local testallow = bit.bor( numglobal < 36 and 1 or 0 , numperchar < 18 and 2 or 0)
+		perchar = bit.band( perchar, testallow)
+		perchar = perchar == 0 and testallow or perchar
+				
+		if perchar ~= 0 then
+			local newid = CreateMacro(name, icon, body, perchar - 1 , 1)
+			if newid then
+				return newid
+			end
 		end
+
+		self:Print("宏 ["..name.." ] 被忽略，请检查是否有足够的空格创建宏")
+		return nil
 	end
 end
 
@@ -383,7 +396,7 @@ function MySlot:RecoverData(s)
 			elseif slotType == MYSLOT_ITEM then
 				PickupItem(index)
 			elseif slotType == MYSLOT_MACRO then
-				if macro[index]["localindex"] ~= curIndex then
+				if not macro[index]["localindex"] or macro[index]["localindex"] ~= curIndex then
 					PickupMacro(self:FindOrCreateMacro(macro[index]))
 				end
 			elseif slotType == MYSLOT_EMPTY then
