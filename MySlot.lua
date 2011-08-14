@@ -9,6 +9,8 @@ local MYSLOT_VER = 10
 local MYSLOT_ALLOW_VER = {MYSLOT_VER, 6}
 local MYSLOT_IS_DEBUG = true
 
+local MYSLOT_LINE_SEP = IsWindowsClient() and "\r\n" or "\n"
+
 -- 不能大于 7 不含
 local MYSLOT_SPELL = 1
 local MYSLOT_ITEM = 4
@@ -58,13 +60,21 @@ local function MergeTable(target, source)
 	end
 end
 
---[[function MySlot:Debug()
-	_,_, body = GetMacroInfo("a")
+function MySlot:Debug()
+
+	for t = 1, GetNumTalentTabs() do
+		local x = 0
+		DEFAULT_CHAT_FRAME:AddMessage(select(2,GetTalentTabInfo(t))..":");
+		local numTalents = GetNumTalents(t);
+		for i=1, numTalents do
+			x = x +  select(5, GetTalentInfo(t,i))
+		end
+		print(x)
+	end
 end
-]]
 
 function MySlot:Print(msg)
-	DEFAULT_CHAT_FRAME:AddMessage("|CFFFF0000<|r|CFFFFD100My Slot 4 beta|r|CFFFF0000>|r"..(msg or "nil"))
+	DEFAULT_CHAT_FRAME:AddMessage("|CFFFF0000<|r|CFFFFD100My Slot 4|r|CFFFF0000>|r"..(msg or "nil"))
 end
 
 function MySlot:GetMacroInfo(macroId)
@@ -213,17 +223,26 @@ function MySlot:Export()
 	t[7] = bit.band(bit.rshift(crc , 8) , 255)
 	t[8] = bit.band(crc , 255)
 	
-	local s=""
-	s = "@ --------------------\n"..s
-	s = "@ 问题/建议请联系 farmer1992@gmail.com\n"..s
-	s = "@ \n"..s
-	s = "@ 等级："..UnitLevel("player").."\n"..s
-	s = "@ 职业："..UnitClass("player").."\n"..s
-	s = "@ 人物："..UnitName("player").."\n"..s
-	-- s = "@ 天赋："..select(3,GetTalentTabInfo(1)).."/"..select(3,GetTalentTabInfo(2)).."/"..select(3,GetTalentTabInfo(3)).."\n"..s
-	s = "@ Myslot 导出数据"..date().."\n"..s
+	local s = ""
+	s = "@ --------------------" .. MYSLOT_LINE_SEP .. s
+	s = "@ 问题/建议请联系 farmer1992@gmail.com" .. MYSLOT_LINE_SEP .. s
+	s = "@ " .. MYSLOT_LINE_SEP .. s
+	s = "@ 等级：" ..UnitLevel("player") .. MYSLOT_LINE_SEP .. s
+	s = MYSLOT_LINE_SEP .. s
+	for t = GetNumTalentTabs(), 1 ,-1 do
+		local x = 0
+		for i = 1, GetNumTalents(t) do
+			x = x +  select(5, GetTalentInfo(t,i))
+		end
+		s = select(2,GetTalentTabInfo(t)) .. ':' .. x .. ' ' .. s
+	end
+	s = "@ 天赋：" .. s .. MYSLOT_LINE_SEP
+	s = "@ 职业：" ..UnitClass("player") .. MYSLOT_LINE_SEP .. s
+	s = "@ 人物：" ..UnitName("player") .. MYSLOT_LINE_SEP .. s
+	s = "@ 时间：" .. date() .. MYSLOT_LINE_SEP .. s
+	s = "@ Myslot 导出数据" .. MYSLOT_LINE_SEP .. s
 
-	s = s..base64.enc(t)
+	s = s .. base64.enc(t)
 	MYSLOT_ReportFrame_EditBox:SetText(s)
 	MYSLOT_ReportFrame_EditBox:HighlightText()
 end
@@ -403,10 +422,10 @@ function MySlot:RecoverData(s)
 	MySlot:Print("所有按钮及按键邦定位置恢复完毕")
 end
 
-SlashCmdList["Myslot"] = function()
+SlashCmdList["MYSLOT"] = function()
 	MYSLOT_ReportFrame:Show()
 end
-SLASH_Myslot1 = "/Myslot"
+SLASH_MYSLOT1 = "/MYSLOT"
 
 StaticPopupDialogs["MYSLOT_MSGBOX"] = {
 	text = "你 确定 要导入么？？？",
