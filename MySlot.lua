@@ -60,19 +60,6 @@ local function MergeTable(target, source)
 	end
 end
 
-function MySlot:Debug()
-
-	for t = 1, GetNumTalentTabs() do
-		local x = 0
-		DEFAULT_CHAT_FRAME:AddMessage(select(2,GetTalentTabInfo(t))..":");
-		local numTalents = GetNumTalents(t);
-		for i=1, numTalents do
-			x = x +  select(5, GetTalentInfo(t,i))
-		end
-		print(x)
-	end
-end
-
 function MySlot:Print(msg)
 	DEFAULT_CHAT_FRAME:AddMessage("|CFFFF0000<|r|CFFFFD100My Slot 4|r|CFFFF0000>|r"..(msg or "nil"))
 end
@@ -396,7 +383,9 @@ function MySlot:RecoverData(s)
 			elseif slotType == MYSLOT_ITEM then
 				PickupItem(index)
 			elseif slotType == MYSLOT_MACRO then
-				PickupMacro(self:FindOrCreateMacro(macro[index]))
+				if macro[index]["localindex"] ~= curIndex then
+					PickupMacro(self:FindOrCreateMacro(macro[index]))
+				end
 			elseif slotType == MYSLOT_EMPTY then
 				PickupAction(slotId)
 			elseif slotType == MYSLOT_EQUIPMENTSET then
