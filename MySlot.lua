@@ -98,8 +98,12 @@ function MySlot:GetActionInfo(slotId)
 	-- { slotId, slotType and high 16 ,high 8 , low 8, }
 	local slotType, index = GetActionInfo(slotId)
 	if MySlot.SLOT_TYPE[slotType] == MYSLOT_EQUIPMENTSET then
-		_, index = GetEquipmentSetInfoByName(index)
-		index = index + 1
+		for i = 1, GetNumEquipmentSets() do
+			if GetEquipmentSetInfo(i) == index then
+				index = i
+				break
+			end
+		end
 	elseif not MySlot.SLOT_TYPE[slotType] then
 		if slotType then 
 			self:Print("[WARN]忽略不支持的按键类型[" .. slotType .."] 请通知作者" .. MYSLOT_AUTHOR)
@@ -402,7 +406,7 @@ function MySlot:RecoverData(s)
 			elseif slotType == MYSLOT_EMPTY then
 				PickupAction(slotId)
 			elseif slotType == MYSLOT_EQUIPMENTSET then
-				PickupEquipmentSet(slotId)
+				PickupEquipmentSet(index)
 			end
 			PlaceAction(slotId)	
 			ClearCursor()
