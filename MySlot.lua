@@ -7,10 +7,11 @@ local MYSLOT_AUTHOR = "T.G. <farmer1992@gmail.com>"
 
 local MYSLOT_VER = 10
 local MYSLOT_ALLOW_VER = {MYSLOT_VER, 6}
-local MYSLOT_IS_DEBUG = true
 
+-- local MYSLOT_IS_DEBUG = true
 local MYSLOT_LINE_SEP = IsWindowsClient() and "\r\n" or "\n"
 
+-- {{{ SLOT TYPE
 -- 不能大于 7 不含
 local MYSLOT_SPELL = 1
 local MYSLOT_ITEM = 4
@@ -31,10 +32,12 @@ MySlot.SLOT_TYPE = {
 	["equipmentset"] = MYSLOT_EQUIPMENTSET,
 	[MYSLOT_NOTFOUND] = MYSLOT_EMPTY,
 }
+-- }}}
 
 local MYSLOT_SLOT_B_SIZE = 4
 local MYSLOT_BIND_B_SIZE = 4
 
+-- {{{ MACRO ICON CACHE
 local MYSLOT_DEFAULT_MACRO_ID = "QUESTIONMARK"
 local function GetMacroIconTable()
 	local t = {
@@ -46,7 +49,9 @@ local function GetMacroIconTable()
 	return t
 end
 MySlot.MACRO_ICON_TABLE = GetMacroIconTable()
+-- }}}
 
+-- {{{ MergeTable
 -- return item count merge into target
 local function MergeTable(target, source)
 	if source then
@@ -59,11 +64,13 @@ local function MergeTable(target, source)
 		return 0
 	end
 end
+-- }}}
 
 function MySlot:Print(msg)
 	DEFAULT_CHAT_FRAME:AddMessage("|CFFFF0000<|r|CFFFFD100My Slot 4|r|CFFFF0000>|r"..(msg or "nil"))
 end
 
+-- {{{ GetMacroInfo
 function MySlot:GetMacroInfo(macroId)
 	-- {macroId ,icon high 8, icon low 8 , namelen, ..., bodylen, ...}
 
@@ -93,7 +100,9 @@ function MySlot:GetMacroInfo(macroId)
 	
 	return t
 end
+-- }}}
 
+-- {{{ GetActionInfo
 function MySlot:GetActionInfo(slotId)
 	-- { slotId, slotType and high 16 ,high 8 , low 8, }
 	local slotType, index = GetActionInfo(slotId)
@@ -113,7 +122,10 @@ function MySlot:GetActionInfo(slotId)
 	return { slotId, MySlot.SLOT_TYPE[slotType] * 32 + bit.rshift(index ,16) , bit.rshift(index,8) , bit.band(index, 255) }
 end
 
+-- }}}
 
+-- {{{ GetBindingInfo
+-- {{{ Serialzie Key
 local function KeyToByte(key , command)
 	-- {mod , key , command high 8, command low 8}
 	if not key then
@@ -146,6 +158,7 @@ local function KeyToByte(key , command)
 
 	return t
 end
+-- }}}
 
 function MySlot:GetBindingInfo(index)
 	-- might more than 1
@@ -163,6 +176,7 @@ function MySlot:GetBindingInfo(index)
 
 	return #t > 0 and t or nil
 end
+-- }}}
 
 function MySlot:Export()
 	-- ver nop nop nop crc32 crc32 crc32 crc32
@@ -170,6 +184,8 @@ function MySlot:Export()
 	local t = {MYSLOT_VER,86,04,22,0,0,0,0}
 	
 	local head = 9
+
+	-- {{{ Marco
 	-- macro
 	-- name limit to 16 and body limit to 255 
 	-- (16 + 255 )* 3 *54 < 2 ^ 16 
@@ -182,10 +198,12 @@ function MySlot:Export()
 	end
 	t[head] = bit.rshift(c,8)
 	t[head + 1] = bit.band(c, 255)
+	-- }}}
 
 	-- move head
 	head = head + c + 2
 
+	-- {{{ Spell
 	-- spell
 	t[head] = 0
 	local c = 0
@@ -193,10 +211,12 @@ function MySlot:Export()
 		c = c + MergeTable(t,self:GetActionInfo(i)) / MYSLOT_SLOT_B_SIZE
 	end
 	t[head] = c
+	-- }}}
 
 	-- move head
 	head = head + c*4 + 1
 
+	-- {{{ Binding
 	-- keys
 	t[head] = 0
 	t[head + 1] = 0
@@ -206,14 +226,18 @@ function MySlot:Export()
 	end
 	t[head] = bit.rshift(c,8)
 	t[head + 1] = bit.band(c, 255)
+	-- }}}
 
+	-- {{{ CRC32
 	-- crc
 	local crc = crc32.enc(t)
 	t[5] = bit.rshift(crc , 24)
 	t[6] = bit.band(bit.rshift(crc , 16), 255)
 	t[7] = bit.band(bit.rshift(crc , 8) , 255)
 	t[8] = bit.band(crc , 255)
+	-- }}}
 	
+	-- {{{ OUTPUT
 	local s = ""
 	s = "@ --------------------" .. MYSLOT_LINE_SEP .. s
 	s = "@ 问题/建议请联系 farmer1992@gmail.com" .. MYSLOT_LINE_SEP .. s
@@ -236,6 +260,7 @@ function MySlot:Export()
 	s = s .. base64.enc(t)
 	MYSLOT_ReportFrame_EditBox:SetText(s)
 	MYSLOT_ReportFrame_EditBox:HighlightText()
+	-- }}}
 end
 
 function MySlot:Import()
@@ -261,6 +286,7 @@ function MySlot:Import()
 	StaticPopup_Show("MYSLOT_MSGBOX")
 end
 
+-- {{{ FindOrCreateMacro
 function MySlot:FindOrCreateMacro(macroInfo)
 	local localIndex = macroInfo["localindex"]
 
@@ -296,6 +322,7 @@ function MySlot:FindOrCreateMacro(macroInfo)
 		return nil
 	end
 end
+-- }}}
 
 function MySlot:RecoverData(s)
 
@@ -313,6 +340,7 @@ function MySlot:RecoverData(s)
 		return 
 	end
 	
+	-- {{{ Cache Spells
 	--cache spells
 	local spells = {}
 	local i = 1
@@ -325,8 +353,11 @@ function MySlot:RecoverData(s)
 		spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = i
 		i = i + 1
 	end 
+	-- }}}
 
+	-- {{{ Macro
 	-- cache local macro index
+	-- {{{ 
 	local localMacro = {}
 	for i = 1,54 do
 		local name, _, body = GetMacroInfo(i)
@@ -335,6 +366,7 @@ function MySlot:RecoverData(s)
 			localMacro[ body ] = i
 		end
 	end
+	-- }}} 
 
 	-- cache macro
 	local macro = {}
@@ -377,6 +409,7 @@ function MySlot:RecoverData(s)
 			["localindex"] = localMacro[ name .. "_" .. body ] or localMacro[ body ]
 		}
 	end
+	-- }}} Macro
 
 	local spellCount = s[tail]
 	head = tail + 1 -- 1 bit for spellCount
