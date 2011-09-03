@@ -2,6 +2,7 @@ MySlot = LibStub:NewLibrary("MySlot-4.0", 11)
 
 local crc32 = LibStub:GetLibrary('CRC32-1.0')
 local base64 = LibStub:GetLibrary('BASE64-1.0')
+local compress = LibStub:GetLibrary('LibCompress')
 
 local MYSLOT_AUTHOR = "T.G. <farmer1992@gmail.com>"
 
@@ -58,6 +59,7 @@ local function MergeTable(target, source)
 	if source then
 		assert(type(target) == 'table' and type(source) == 'table')
 		for _,b in ipairs(source) do
+			assert(b < 256)
 			target[#target+1] = b
 		end
 		return #source
@@ -121,7 +123,7 @@ function MySlot:GetActionInfo(slotId)
 		end
 		return nil
 	end
-	return { slotId, MySlot.SLOT_TYPE[slotType] * 32 + bit.rshift(index ,16) , bit.rshift(index,8) , bit.band(index, 255) }
+	return { slotId, MySlot.SLOT_TYPE[slotType] * 32 + bit.rshift(index ,16) , bit.band(bit.rshift(index,8) ,255) , bit.band(index, 255) }
 end
 
 -- }}}
@@ -190,9 +192,10 @@ end
 function MySlot:Export()
 	-- ver nop nop nop crc32 crc32 crc32 crc32
 	local i
-	local t = {MYSLOT_VER,86,04,22,0,0,0,0}
+	local t = {}
+	-- t = {MYSLOT_VER,86,04,22,0,0,0,0}
 	
-	local head = 9
+	local head = #t + 1
 
 	-- {{{ Marco
 	-- macro
@@ -237,6 +240,10 @@ function MySlot:Export()
 	t[head + 1] = bit.band(c, 255)
 	-- }}}
 
+	local ct = compress:Compress(string.char(unpack(t)))
+	t = {MYSLOT_VER,86,04,22,0,0,0,0}
+	MergeTable(t, {string.byte(ct,1,string.len(ct))})
+
 	-- {{{ CRC32
 	-- crc
 	local crc = crc32.enc(t)
@@ -264,7 +271,7 @@ function MySlot:Export()
 	s = "@ 职业：" ..UnitClass("player") .. MYSLOT_LINE_SEP .. s
 	s = "@ 人物：" ..UnitName("player") .. MYSLOT_LINE_SEP .. s
 	s = "@ 时间：" .. date() .. MYSLOT_LINE_SEP .. s
-	s = "@ Myslot 导出数据" .. MYSLOT_LINE_SEP .. s
+	s = "@ Myslot 导出数据 ( V" .. MYSLOT_VER .. ")" .. MYSLOT_LINE_SEP .. s
 
 	s = s .. base64.enc(t)
 	MYSLOT_ReportFrame_EditBox:SetText(s)
@@ -351,6 +358,16 @@ function MySlot:RecoverData(s)
 	if not tContains(MYSLOT_ALLOW_VER,ver) then
 		MySlot:Print("导入串版本不兼容当前Myslot版本 导入版本号" .. ver )
 		return 
+	end
+
+	if ver > 10 then
+		local ct = {}
+		for i = 9, #s do
+			ct[#ct + 1] = s[i]
+		end
+		ct = compress:Decompress(string.char(unpack(ct)))
+		s = {0,0,0,0,0,0,0,0}
+		MergeTable(s, {string.byte(ct, 1, string.len(ct))})
 	end
 	
 	-- {{{ Cache Spells
