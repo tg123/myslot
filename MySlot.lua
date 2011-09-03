@@ -36,6 +36,7 @@ MySlot.SLOT_TYPE = {
 
 local MYSLOT_SLOT_B_SIZE = 4
 local MYSLOT_BIND_B_SIZE = 4
+local MYSLOT_BIND_CUSTOM_FLAG = 0xFFFF
 
 -- {{{ MACRO ICON CACHE
 local MYSLOT_DEFAULT_MACRO_ID = "QUESTIONMARK"
@@ -81,7 +82,6 @@ function MySlot:GetMacroInfo(macroId)
 	end
 
 	local t = {macroId}	
-	print(macroId)
 
 	iconTexture = MySlot.MACRO_ICON_TABLE[iconTexture or MYSLOT_DEFAULT_MACRO_ID] or MySlot.MACRO_ICON_TABLE[MYSLOT_DEFAULT_MACRO_ID]
 
@@ -96,7 +96,6 @@ function MySlot:GetMacroInfo(macroId)
 
 	-- body
 	local bodylen = string.len(body)
-	print(macroId ..' = ' ..bodylen)
 	t[#t+1] = bit.rshift(bodylen ,8)
 	t[#t+1] = bit.band(bodylen, 255)
 	MergeTable(t, {string.byte(body , 1 , bodylen)})
@@ -153,11 +152,11 @@ local function KeyToByte(key , command)
 		return nil
 	end
 
-	t[#t+1] = MySlot.MOD_KEYS[mod]
-	t[#t+1] = MySlot.KEYS[key]
+	t[#t + 1] = MySlot.MOD_KEYS[mod]
+	t[#t + 1] = MySlot.KEYS[key]
 
-	t[#t+1] = bit.rshift(command,8)
-	t[#t+1] = bit.band(command, 255)
+	t[#t + 1] = bit.rshift(command,8)
+	t[#t + 1] = bit.band(command, 255)
 
 	return t
 end
@@ -170,8 +169,15 @@ function MySlot:GetBindingInfo(index)
 	local command = MySlot.BINDS[_command]
 
 	if not command then
-		MySlot:Print("[WARN]忽略不支持的绑定 C = [" .. _command .."] 请通知作者" .. MYSLOT_AUTHOR)
-		return nil
+		local cmdlen = string.len(_command)
+		t[#t + 1] = bit.rshift(MYSLOT_BIND_CUSTOM_FLAG,8)
+		t[#t + 1] = bit.band(MYSLOT_BIND_CUSTOM_FLAG, 255)
+		t[#t + 1] = cmdlen 
+		MergeTable(t, {string.byte(_command,1 ,cmdlen)})
+		command = MYSLOT_BIND_CUSTOM_FLAG
+
+		-- MySlot:Print("[WARN]忽略不支持的绑定 C = [" .. _command .."] 请通知作者" .. MYSLOT_AUTHOR)
+		-- return nil
 	end
 
 	MergeTable(t, KeyToByte(key1, command))
@@ -217,15 +223,15 @@ function MySlot:Export()
 	-- }}}
 
 	-- move head
-	head = head + c*4 + 1
+	head = head + c * MYSLOT_SLOT_B_SIZE + 1
 
 	-- {{{ Binding
 	-- keys
 	t[head] = 0
 	t[head + 1] = 0
 	local c = 0
-	for i = 1,GetNumBindings() do
-		c = c + MergeTable(t,self:GetBindingInfo(i)) / MYSLOT_BIND_B_SIZE
+	for i = 1, GetNumBindings() do
+		c = c + MergeTable(t,self:GetBindingInfo(i))
 	end
 	t[head] = bit.rshift(c,8)
 	t[head + 1] = bit.band(c, 255)
@@ -327,6 +333,10 @@ function MySlot:FindOrCreateMacro(macroInfo)
 end
 -- }}}
 
+
+-- local function PackString(s,i,j)
+-- end
+
 function MySlot:RecoverData(s)
 
 	local ver = s[1]
@@ -397,7 +407,7 @@ function MySlot:RecoverData(s)
 		local bodylen = 0
 		if ver == 10 then -- this is a fuckly bug version
 			bodylen = s[i]
-			while not ( s[i + bodylen + 1] == macroId or s[i + bodylen + 1] == 37 ) do
+			while not ( s[i + bodylen + 1] == macroId + 1 or s[i + bodylen + 1] == 37 ) do
 				bodylen = bodylen + 1	
 			end
 		else
@@ -413,8 +423,6 @@ function MySlot:RecoverData(s)
 		-- move to next block
 		i = i + bodylen + 1
 
-		--print(macroId .. name .. body)
-		print(macroId)
 		macro[macroId] = {
 			["oldid"] = macroId,
 			["name"] = name,
@@ -423,8 +431,8 @@ function MySlot:RecoverData(s)
 			["localindex"] = localMacro[ name .. "_" .. body ] or localMacro[ body ]
 		}
 
-		if not macro["localindex"] then
-			self:FindOrCreateMacro(macro[macroId])
+		if not macro[macroId]["localindex"] then
+			macro[macroId]["localindex"] = self:FindOrCreateMacro(macro[macroId])
 		end
 	end
 	-- }}} Macro
@@ -433,7 +441,7 @@ function MySlot:RecoverData(s)
 	head = tail + 1 -- 1 bit for spellCount
 	tail = spellCount * MYSLOT_SLOT_B_SIZE + head
 
-	for i = head, tail - 1 ,4 do
+	for i = head, tail - 1 ,MYSLOT_SLOT_B_SIZE do
 		local slotId = s[i]
 		local slotType = bit.rshift(s[i+1], 5)
 		local index = bit.band(s[i+1],31) * 65536  + (s[i+2] * 256 + s[i+3])
@@ -451,9 +459,14 @@ function MySlot:RecoverData(s)
 			elseif slotType == MYSLOT_ITEM then
 				PickupItem(index)
 			elseif slotType == MYSLOT_MACRO then
-				print(index)
-				if not macro[index]["localindex"] or macro[index]["localindex"] ~= curIndex then
-					PickupMacro(self:FindOrCreateMacro(macro[index]))
+				if index ~= 0 then
+					if macro[index] then
+						if not macro[index]["localindex"] or macro[index]["localindex"] ~= curIndex then
+							PickupMacro(self:FindOrCreateMacro(macro[index]))
+						end
+					else
+						self:Print('你的导入字符串含有无法识别的宏信息 这个宏被忽略 升级最新版本重新导出可以解决这个问题')	
+					end
 				end
 			elseif slotType == MYSLOT_EMPTY then
 				PickupAction(slotId)
@@ -465,14 +478,29 @@ function MySlot:RecoverData(s)
 		end
 	end
 
-	local bindCount = s[tail] * 256 + s[tail + 1]
+	local bindSize = s[tail] * 256 + s[tail + 1]
 	head = tail + 2 -- 2 bit for bindCount
-	tail = bindCount * MYSLOT_BIND_B_SIZE + head
-	
-	for i = head, tail - 1 ,4 do
-		local mod,key,command = MySlot.R_MOD_KEYS[s[i]] , MySlot.R_KEYS[s[i+1]] , MySlot.R_BINDS[s[i+2]*256 + s[i+3]]
-		local key = ( mod ~= "NONE" and (mod .. "-") or "" ) .. key
-		SetBinding(key ,command, 1)
+	tail = bindSize + head
+	i = head
+
+	while i < tail - 1 do
+		if s[i] * 256 + s[i+1] == MYSLOT_BIND_CUSTOM_FLAG then
+			i = i + 1
+			local cmdlen = s[i]
+			local _command = {}
+			for j = i + 1,i + cmdlen do
+				_command[#_command+1] = s[j]
+			end
+			MySlot.R_BINDS[MYSLOT_BIND_CUSTOM_FLAG] = string.char(unpack(_command))
+
+			i = i + cmdlen + 1
+		else
+			local mod,key,command = MySlot.R_MOD_KEYS[s[i]] , MySlot.R_KEYS[s[i+1]] , MySlot.R_BINDS[s[i+2]*256 + s[i+3]]
+			local key = ( mod ~= "NONE" and (mod .. "-") or "" ) .. key
+			SetBinding(key ,command, 1)
+
+			i = i + MYSLOT_BIND_B_SIZE
+		end
 	end
 	SaveBindings(GetCurrentBindingSet())
 

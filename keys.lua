@@ -442,6 +442,7 @@ local MYSLOT_MOD_KEYS = {
 	["ALT-SHIFT"] = 109,
 	["SHIFT-CTRL"] = 100,
 	["SHIFT-ALT"] = 101,
+	["CUSTOM"] = 255,
 }
 
 local function r(d)
