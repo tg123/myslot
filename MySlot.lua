@@ -1,12 +1,12 @@
-MySlot = LibStub:NewLibrary("MySlot-4.0", 4)
+MySlot = LibStub:NewLibrary("MySlot-4.0", 11)
 
 local crc32 = LibStub:GetLibrary('CRC32-1.0')
 local base64 = LibStub:GetLibrary('BASE64-1.0')
 
 local MYSLOT_AUTHOR = "T.G. <farmer1992@gmail.com>"
 
-local MYSLOT_VER = 10
-local MYSLOT_ALLOW_VER = {MYSLOT_VER, 6}
+local MYSLOT_VER = 11
+local MYSLOT_ALLOW_VER = {MYSLOT_VER, 10, 6}
 
 -- local MYSLOT_IS_DEBUG = true
 local MYSLOT_LINE_SEP = IsWindowsClient() and "\r\n" or "\n"
@@ -81,6 +81,7 @@ function MySlot:GetMacroInfo(macroId)
 	end
 
 	local t = {macroId}	
+	print(macroId)
 
 	iconTexture = MySlot.MACRO_ICON_TABLE[iconTexture or MYSLOT_DEFAULT_MACRO_ID] or MySlot.MACRO_ICON_TABLE[MYSLOT_DEFAULT_MACRO_ID]
 
@@ -95,7 +96,9 @@ function MySlot:GetMacroInfo(macroId)
 
 	-- body
 	local bodylen = string.len(body)
-	t[#t + 1] = bodylen 
+	print(macroId ..' = ' ..bodylen)
+	t[#t+1] = bit.rshift(bodylen ,8)
+	t[#t+1] = bit.band(bodylen, 255)
 	MergeTable(t, {string.byte(body , 1 , bodylen)})
 	
 	return t
@@ -375,8 +378,8 @@ function MySlot:RecoverData(s)
 	local tail = head +  macroSize -- * 1
 	i = head
 	while i < tail - 1 do
-		macroId = s[i]
-		icon = s[i+1] * 256 + s[i+2]
+		local macroId = s[i]
+		local icon = s[i+1] * 256 + s[i+2]
 
 		-- move to name
 		i = i + 3
@@ -390,8 +393,17 @@ function MySlot:RecoverData(s)
 		
 		-- move to body
 		i = i + namelen + 1
-
-		local bodylen = s[i]
+		
+		local bodylen = 0
+		if ver == 10 then -- this is a fuckly bug version
+			bodylen = s[i]
+			while not ( s[i + bodylen + 1] == macroId or s[i + bodylen + 1] == 37 ) do
+				bodylen = bodylen + 1	
+			end
+		else
+			bodylen = s[i] * 256 + s[i+1]
+			i = i + 1
+		end
 		local body = {}
 		for j = i + 1,i + bodylen do
 			body[#body+1] = s[j]
@@ -401,6 +413,8 @@ function MySlot:RecoverData(s)
 		-- move to next block
 		i = i + bodylen + 1
 
+		--print(macroId .. name .. body)
+		print(macroId)
 		macro[macroId] = {
 			["oldid"] = macroId,
 			["name"] = name,
@@ -408,6 +422,10 @@ function MySlot:RecoverData(s)
 			["body"] = body,
 			["localindex"] = localMacro[ name .. "_" .. body ] or localMacro[ body ]
 		}
+
+		if not macro["localindex"] then
+			self:FindOrCreateMacro(macro[macroId])
+		end
 	end
 	-- }}} Macro
 
@@ -433,6 +451,7 @@ function MySlot:RecoverData(s)
 			elseif slotType == MYSLOT_ITEM then
 				PickupItem(index)
 			elseif slotType == MYSLOT_MACRO then
+				print(index)
 				if not macro[index]["localindex"] or macro[index]["localindex"] ~= curIndex then
 					PickupMacro(self:FindOrCreateMacro(macro[index]))
 				end
