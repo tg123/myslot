@@ -524,7 +524,7 @@ function MySlot:RecoverData(s)
 
 	while i < tail - 1 do
 		if s[i] * 256 + s[i+1] == MYSLOT_BIND_CUSTOM_FLAG then
-			i = i + 1
+			i = i + 2
 			local cmdlen = s[i]
 			local _command = {}
 			for j = i + 1,i + cmdlen do
@@ -534,7 +534,6 @@ function MySlot:RecoverData(s)
 
 			i = i + cmdlen + 1
 		else
-			print(s[i])
 			local mod,key,command = MySlot.R_MOD_KEYS[s[i]] , MySlot.R_KEYS[s[i+1]] , MySlot.R_BINDS[s[i+2]*256 + s[i+3]]
 			local key = ( mod ~= "NONE" and (mod .. "-") or "" ) .. key
 			SetBinding(key ,command, 1)
