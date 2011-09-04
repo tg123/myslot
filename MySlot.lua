@@ -69,6 +69,29 @@ local function MergeTable(target, source)
 end
 -- }}}
 
+-- fix unpack stackoverflow
+local function StringToTable(s)
+	if type(s) ~= 'string' then
+		return {}
+	end 
+	local r = {}
+	for i = 1, string.len(s) do
+		r[#r + 1] = string.byte(s, i)
+	end
+	return r
+end
+
+local function TableToString(s)
+	if type(s) ~= 'table' then
+		return ''
+	end 
+	local r = ''
+	for _,c in pairs(s) do
+		r = r .. string.char(c)
+	end
+	return r
+end
+
 function MySlot:Print(msg)
 	DEFAULT_CHAT_FRAME:AddMessage("|CFFFF0000<|r|CFFFFD100My Slot 4|r|CFFFF0000>|r"..(msg or "nil"))
 end
@@ -94,13 +117,13 @@ function MySlot:GetMacroInfo(macroId)
 	-- name
 	local namelen = string.len(name)
 	t[#t + 1] = namelen
-	MergeTable(t, {string.byte(name ,1 ,namelen)})
+	MergeTable(t, StringToTable(name))
 
 	-- body
 	local bodylen = string.len(body)
 	t[#t+1] = bit.rshift(bodylen ,8)
 	t[#t+1] = bit.band(bodylen, 255)
-	MergeTable(t, {string.byte(body , 1 , bodylen)})
+	MergeTable(t, StringToTable(body))
 	
 	return t
 end
@@ -175,7 +198,7 @@ function MySlot:GetBindingInfo(index)
 		t[#t + 1] = bit.rshift(MYSLOT_BIND_CUSTOM_FLAG,8)
 		t[#t + 1] = bit.band(MYSLOT_BIND_CUSTOM_FLAG, 255)
 		t[#t + 1] = cmdlen 
-		MergeTable(t, {string.byte(_command,1 ,cmdlen)})
+		MergeTable(t, StringToTable(_command))
 		command = MYSLOT_BIND_CUSTOM_FLAG
 
 		-- MySlot:Print("[WARN]忽略不支持的绑定 C = [" .. _command .."] 请通知作者" .. MYSLOT_AUTHOR)
@@ -188,6 +211,7 @@ function MySlot:GetBindingInfo(index)
 	return #t > 0 and t or nil
 end
 -- }}}
+
 
 function MySlot:Export()
 	-- ver nop nop nop crc32 crc32 crc32 crc32
@@ -240,9 +264,9 @@ function MySlot:Export()
 	t[head + 1] = bit.band(c, 255)
 	-- }}}
 
-	local ct = compress:Compress(string.char(unpack(t)))
+	local ct = compress:Compress(TableToString(t))
 	t = {MYSLOT_VER,86,04,22,0,0,0,0}
-	MergeTable(t, {string.byte(ct,1,string.len(ct))})
+	MergeTable(t, StringToTable(ct))
 
 	-- {{{ CRC32
 	-- crc
@@ -341,9 +365,6 @@ end
 -- }}}
 
 
--- local function PackString(s,i,j)
--- end
-
 function MySlot:RecoverData(s)
 
 	local ver = s[1]
@@ -365,9 +386,9 @@ function MySlot:RecoverData(s)
 		for i = 9, #s do
 			ct[#ct + 1] = s[i]
 		end
-		ct = compress:Decompress(string.char(unpack(ct)))
+		ct = compress:Decompress(TableToString(ct))
 		s = {0,0,0,0,0,0,0,0}
-		MergeTable(s, {string.byte(ct, 1, string.len(ct))})
+		MergeTable(s, StringToTable(ct))
 	end
 	
 	-- {{{ Cache Spells
@@ -416,7 +437,7 @@ function MySlot:RecoverData(s)
 		for j = i + 1,i + namelen do
 			name[#name+1] = s[j]
 		end
-		local name = string.char(unpack(name))
+		local name = TableToString(name)
 		
 		-- move to body
 		i = i + namelen + 1
@@ -435,7 +456,7 @@ function MySlot:RecoverData(s)
 		for j = i + 1,i + bodylen do
 			body[#body+1] = s[j]
 		end
-		local body = string.char(unpack(body))
+		local body = TableToString(body)
 
 		-- move to next block
 		i = i + bodylen + 1
@@ -449,7 +470,8 @@ function MySlot:RecoverData(s)
 		}
 
 		if not macro[macroId]["localindex"] then
-			macro[macroId]["localindex"] = self:FindOrCreateMacro(macro[macroId])
+			-- here is bug that change macroid after created
+			-- self:FindOrCreateMacro(macro[macroId])
 		end
 	end
 	-- }}} Macro
@@ -508,10 +530,11 @@ function MySlot:RecoverData(s)
 			for j = i + 1,i + cmdlen do
 				_command[#_command+1] = s[j]
 			end
-			MySlot.R_BINDS[MYSLOT_BIND_CUSTOM_FLAG] = string.char(unpack(_command))
+			MySlot.R_BINDS[MYSLOT_BIND_CUSTOM_FLAG] = TableToString(_command)
 
 			i = i + cmdlen + 1
 		else
+			print(s[i])
 			local mod,key,command = MySlot.R_MOD_KEYS[s[i]] , MySlot.R_KEYS[s[i+1]] , MySlot.R_BINDS[s[i+2]*256 + s[i+3]]
 			local key = ( mod ~= "NONE" and (mod .. "-") or "" ) .. key
 			SetBinding(key ,command, 1)
