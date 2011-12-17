@@ -40,16 +40,58 @@ local MYSLOT_BIND_B_SIZE = 4
 local MYSLOT_BIND_CUSTOM_FLAG = 0xFFFF
 
 -- {{{ MACRO ICON CACHE
-local MYSLOT_DEFAULT_MACRO_ID = "QUESTIONMARK"
-local function GetMacroIconTable()
-	local t = {
-		[MYSLOT_DEFAULT_MACRO_ID] = 1
-	}
-	for i =1,GetNumMacroIcons() do
-		t[GetMacroIconInfo(i)] = i
+local function upperr(d)
+	local t = {}
+	for k,v in pairs(d) do
+		t[strupper(v)] = k	
 	end
 	return t
 end
+-- copy from blizzard ui
+local function GetMacroIconTable()
+
+        local MACRO_ICON_FILENAMES = {}; 
+        -- MACRO_ICON_FILENAMES["INV_MISC_QUESTIONMARK"] = 1;
+        MACRO_ICON_FILENAMES[1] = "INV_MISC_QUESTIONMARK";
+        local index = 2;
+        local numFlyouts = 0;
+
+        for i = 1, GetNumSpellTabs() do
+                tab, tabTex, offset, numSpells, _ = GetSpellTabInfo(i);
+                offset = offset + 1;
+                tabEnd = offset + numSpells;
+                for j = offset, tabEnd - 1 do
+                        --to get spell info by slot, you have to pass in a pet argument
+                        local spellType, ID = GetSpellBookItemInfo(j, "player"); 
+                        if (spellType ~= "FUTURESPELL") then
+                                local spellTexture = strupper(GetSpellBookItemTexture(j, "player"));
+                                if ( not string.match( spellTexture, "INTERFACE\\BUTTONS\\") ) then
+                                        -- MACRO_ICON_FILENAMES[gsub( spellTexture, "INTERFACE\\ICONS\\", "")] = index;
+                                        MACRO_ICON_FILENAMES[index] = gsub( spellTexture, "INTERFACE\\ICONS\\", "");
+                                        index = index + 1;
+                                end 
+                        end 
+                        if (spellType == "FLYOUT") then
+                                local _, _, numSlots, isKnown = GetFlyoutInfo(ID);
+                                if (isKnown and numSlots > 0) then
+                                        for k = 1, numSlots do  
+                                                local spellID, isKnown = GetFlyoutSlotInfo(ID, k)
+                                                if (isKnown) then
+                                                        -- MACRO_ICON_FILENAMES[gsub( strupper(GetSpellTexture(spellID)), "INTERFACE\\ICONS\\", "")] = index; 
+                                                        MACRO_ICON_FILENAMES[index] = gsub( strupper(GetSpellTexture(spellID)), "INTERFACE\\ICONS\\", ""); 
+                                                        index = index + 1;
+                                                end 
+                                        end 
+                                end 
+                        end 
+                end 
+        end 
+        GetMacroIcons( MACRO_ICON_FILENAMES );
+        GetMacroItemIcons( MACRO_ICON_FILENAMES );
+	return upperr(MACRO_ICON_FILENAMES);
+end
+
+local MYSLOT_DEFAULT_MACRO_ID = "INV_MISC_QUESTIONMARK"
 MySlot.MACRO_ICON_TABLE = GetMacroIconTable()
 -- }}}
 
@@ -108,6 +150,7 @@ function MySlot:GetMacroInfo(macroId)
 
 	local t = {macroId}	
 
+	iconTexture = gsub( strupper(iconTexture) , "INTERFACE\\ICONS\\", "");
 	iconTexture = MySlot.MACRO_ICON_TABLE[iconTexture or MYSLOT_DEFAULT_MACRO_ID] or MySlot.MACRO_ICON_TABLE[MYSLOT_DEFAULT_MACRO_ID]
 
 	-- icon
@@ -480,6 +523,7 @@ function MySlot:RecoverData(s)
 	head = tail + 1 -- 1 bit for spellCount
 	tail = spellCount * MYSLOT_SLOT_B_SIZE + head
 
+	local slotBucket = {}
 	for i = head, tail - 1 ,MYSLOT_SLOT_B_SIZE do
 		local slotId = s[i]
 		local slotType = bit.rshift(s[i+1], 5)
@@ -487,6 +531,7 @@ function MySlot:RecoverData(s)
 		
 		local curType, curIndex = GetActionInfo(slotId)
 		curType = MySlot.SLOT_TYPE[curType or MYSLOT_NOTFOUND]
+		slotBucket[slotId] = true
 		if curIndex ~= index or curType ~= slotType or slotType == MYSLOT_MACRO then -- macro always test
 			if slotType == MYSLOT_SPELL or slotType == MYSLOT_FLYOUT then
 				local newId = spells[slotType .."_" ..index]
@@ -514,6 +559,15 @@ function MySlot:RecoverData(s)
 			end
 			PlaceAction(slotId)	
 			ClearCursor()
+		end
+	end
+
+	for i = 1, 120 do
+		if not slotBucket[i] then
+			if GetActionInfo(i) then
+				PickupAction(i)
+				ClearCursor()
+			end
 		end
 	end
 
