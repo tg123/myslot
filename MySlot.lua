@@ -88,11 +88,17 @@ local function GetMacroIconTable()
         end 
         GetMacroIcons( MACRO_ICON_FILENAMES );
         GetMacroItemIcons( MACRO_ICON_FILENAMES );
-	return upperr(MACRO_ICON_FILENAMES);
+	return MACRO_ICON_FILENAMES;
 end
 
 local MYSLOT_DEFAULT_MACRO_ID = "INV_MISC_QUESTIONMARK"
-MySlot.MACRO_ICON_TABLE = GetMacroIconTable()
+
+local function RefreshMacroIconTable()
+	MySlot.MACRO_ICON_TABLE_I = GetMacroIconTable()
+	MySlot.MACRO_ICON_TABLE = upperr(MySlot.MACRO_ICON_TABLE_I)
+end
+
+RefreshMacroIconTable()
 -- }}}
 
 -- {{{ MergeTable
@@ -268,7 +274,7 @@ function MySlot:Export()
 	-- macro
 	-- name limit to 16 and body limit to 255 
 	-- (16 + 255 )* 3 *54 < 2 ^ 16 
-	MySlot.MACRO_ICON_TABLE = GetMacroIconTable()
+	RefreshMacroIconTable()
 	local c = 0
 	t[head] = 0
 	t[head + 1] = 0
@@ -379,6 +385,7 @@ function MySlot:FindOrCreateMacro(macroInfo)
 		local id = macroInfo["oldid"]
 		local name = macroInfo["name"]
 		local icon = macroInfo["icon"]
+		icon = MySlot.MACRO_ICON_TABLE_I[icon] or MYSLOT_DEFAULT_MACRO_ID
 		local body = macroInfo["body"]
 
 		local numglobal, numperchar = GetNumMacros()
@@ -517,6 +524,8 @@ function MySlot:RecoverData(s)
 			-- self:FindOrCreateMacro(macro[macroId])
 		end
 	end
+
+	RefreshMacroIconTable()
 	-- }}} Macro
 
 	local spellCount = s[tail]

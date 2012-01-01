@@ -1,6 +1,6 @@
 #!/bin/bash
 
-git archive --prefix=MySlot/ --format=tar master | bzip2 > myslot.tar.bz2
-git archive --prefix=MySlot/ --format=zip master > myslot.zip
+git archive --prefix=MySlot/ --format=tar master | bzip2 > Myslot.tar.bz2
+git archive --prefix=MySlot/ --format=zip master > Myslot.zip
 
-md5sum myslot.tar.bz2 myslot.zip
+md5sum Myslot.tar.bz2 Myslot.zip
