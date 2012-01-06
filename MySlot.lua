@@ -444,16 +444,20 @@ function MySlot:RecoverData(s)
 	-- {{{ Cache Spells
 	--cache spells
 	local spells = {}
-	local i = 1
-	while true do
+
+	for i = 1,MAX_SPELLS do
 		local spellType, spellId = GetSpellBookItemInfo(i, BOOKTYPE_SPELL)
-		if not spellType then
-			break 
+		if spellType then
+			spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = {i, BOOKTYPE_SPELL}
 		end
-		
-		spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = i
-		i = i + 1
 	end 
+
+	for _, companionsType in pairs({"CRITTER", "MOUNT"}) do
+		for i =1,GetNumCompanions(companionsType) do
+			local _,_,spellId = GetCompanionInfo( companionsType, i)
+			spells[MYSLOT_SPELL .. "_" .. spellId] = {i, companionsType}
+		end
+	end
 	-- }}}
 
 	-- {{{ Macro
@@ -543,9 +547,13 @@ function MySlot:RecoverData(s)
 		slotBucket[slotId] = true
 		if curIndex ~= index or curType ~= slotType or slotType == MYSLOT_MACRO then -- macro always test
 			if slotType == MYSLOT_SPELL or slotType == MYSLOT_FLYOUT then
-				local newId = spells[slotType .."_" ..index]
+				local newId, spellType = unpack(spells[slotType .."_" ..index])
 				if newId then
-					PickupSpellBookItem(newId, BOOKTYPE_SPELL)
+					if spellType == BOOKTYPE_SPELL then
+						PickupSpellBookItem(newId, BOOKTYPE_SPELL)
+					else
+						PickupCompanion(spellType , newId)
+					end
 				else
 					MySlot:Print("忽略未掌握技能：" .. GetSpellLink(index))	
 				end
