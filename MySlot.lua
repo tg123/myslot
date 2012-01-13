@@ -547,14 +547,14 @@ function MySlot:RecoverData(s)
 		slotBucket[slotId] = true
 		if curIndex ~= index or curType ~= slotType or slotType == MYSLOT_MACRO then -- macro always test
 			if slotType == MYSLOT_SPELL or slotType == MYSLOT_FLYOUT then
-				local newId, spellType = unpack(spells[slotType .."_" ..index])
+				local newId, spellType = unpack(spells[slotType .."_" ..index] or {})
 				if newId then
 					if spellType == BOOKTYPE_SPELL then
 						PickupSpellBookItem(newId, BOOKTYPE_SPELL)
 					else
 						PickupCompanion(spellType , newId)
 					end
-				else
+				elseif slotType == MYSLOT_SPELL then
 					MySlot:Print("忽略未掌握技能：" .. GetSpellLink(index))	
 				end
 			elseif slotType == MYSLOT_ITEM then
