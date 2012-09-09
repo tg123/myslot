@@ -1,25 +1,28 @@
-MySlot = LibStub:NewLibrary("MySlot-4.0", 11)
+MySlot = LibStub:GetLibrary('MySlot-5.0')
 
 local crc32 = LibStub:GetLibrary('CRC32-1.0')
 local base64 = LibStub:GetLibrary('BASE64-1.0')
-local compress = LibStub:GetLibrary('LibCompress')
+
+local pblua = LibStub:GetLibrary('pblua')
+local _MySlot = pblua.load_proto_ast(MySlot.ast)
+
 
 local MYSLOT_AUTHOR = "T.G. <farmer1992@gmail.com>"
 
-local MYSLOT_VER = 11
-local MYSLOT_ALLOW_VER = {MYSLOT_VER, 10, 6}
+local MYSLOT_VER = 20
+local MYSLOT_ALLOW_VER = {MYSLOT_VER}
 
 -- local MYSLOT_IS_DEBUG = true
 local MYSLOT_LINE_SEP = IsWindowsClient() and "\r\n" or "\n"
 
 -- {{{ SLOT TYPE
 -- 不能大于 7 不含
-local MYSLOT_SPELL = 1
-local MYSLOT_ITEM = 4
-local MYSLOT_MACRO = 3
-local MYSLOT_FLYOUT = 5
-local MYSLOT_EQUIPMENTSET = 6
-local MYSLOT_EMPTY = 0
+local MYSLOT_SPELL = _MySlot.Slot.SlotType.SPELL
+local MYSLOT_ITEM = _MySlot.Slot.SlotType.ITEM
+local MYSLOT_MACRO = _MySlot.Slot.SlotType.MACRO
+local MYSLOT_FLYOUT = _MySlot.Slot.SlotType.FLYOUT
+local MYSLOT_EQUIPMENTSET = _MySlot.Slot.SlotType.EQUIPMENTSET
+local MYSLOT_EMPTY = _MySlot.Slot.SlotType.EMPTY
 local MYSLOT_NOTFOUND = "notfound"
 
 MySlot.SLOT_TYPE = {
@@ -133,15 +136,15 @@ local function TableToString(s)
 	if type(s) ~= 'table' then
 		return ''
 	end 
-	local r = ''
+	local t = {}
 	for _,c in pairs(s) do
-		r = r .. string.char(c)
+		t[#t + 1] = string.char(c)
 	end
-	return r
+	return table.concat(t)
 end
 
 function MySlot:Print(msg)
-	DEFAULT_CHAT_FRAME:AddMessage("|CFFFF0000<|r|CFFFFD100My Slot 4|r|CFFFF0000>|r"..(msg or "nil"))
+	DEFAULT_CHAT_FRAME:AddMessage("|CFFFF0000<|r|CFFFFD100My Slot 5 Beta|r|CFFFF0000>|r"..(msg or "nil"))
 end
 
 -- {{{ GetMacroInfo
@@ -157,24 +160,17 @@ function MySlot:GetMacroInfo(macroId)
 	local t = {macroId}	
 
 	iconTexture = gsub( strupper(iconTexture) , "INTERFACE\\ICONS\\", "");
-	iconTexture = MySlot.MACRO_ICON_TABLE[iconTexture or MYSLOT_DEFAULT_MACRO_ID] or MySlot.MACRO_ICON_TABLE[MYSLOT_DEFAULT_MACRO_ID]
+	--iconTexture = MySlot.MACRO_ICON_TABLE[iconTexture or MYSLOT_DEFAULT_MACRO_ID] or MySlot.MACRO_ICON_TABLE[MYSLOT_DEFAULT_MACRO_ID]
 
-	-- icon
-	t[#t+1] = bit.rshift(iconTexture,8)
-	t[#t+1] = bit.band(iconTexture, 255)
-
-	-- name
-	local namelen = string.len(name)
-	t[#t + 1] = namelen
-	MergeTable(t, StringToTable(name))
-
-	-- body
-	local bodylen = string.len(body)
-	t[#t+1] = bit.rshift(bodylen ,8)
-	t[#t+1] = bit.band(bodylen, 255)
-	MergeTable(t, StringToTable(body))
 	
-	return t
+	local msg = _MySlot.Macro()
+	
+	msg.id = macroId
+	msg.icon = iconTexture
+	msg.name = name
+	msg.body = body
+
+	return msg
 end
 -- }}}
 
@@ -195,7 +191,12 @@ function MySlot:GetActionInfo(slotId)
 		end
 		return nil
 	end
-	return { slotId, MySlot.SLOT_TYPE[slotType] * 32 + bit.rshift(index ,16) , bit.band(bit.rshift(index,8) ,255) , bit.band(index, 255) }
+
+	local msg = _MySlot.Slot()
+	msg.id = slotId
+	msg.type = MySlot.SLOT_TYPE[slotType]
+	msg.index = index
+	return msg
 end
 
 -- }}}
@@ -226,94 +227,77 @@ local function KeyToByte(key , command)
 		return nil
 	end
 
-	t[#t + 1] = MySlot.MOD_KEYS[mod]
-	t[#t + 1] = MySlot.KEYS[key]
+	local msg = _MySlot.Key()
+	msg.key = MySlot.KEYS[key]
+	msg.mod = MySlot.MOD_KEYS[mod]
 
-	t[#t + 1] = bit.rshift(command,8)
-	t[#t + 1] = bit.band(command, 255)
-
-	return t
+	return msg
 end
 -- }}}
 
 function MySlot:GetBindingInfo(index)
 	-- might more than 1
-	local t = {}
 	local _command, key1, key2 = GetBinding(index)
-	local command = MySlot.BINDS[_command]
 
-	if not command then
-		local cmdlen = string.len(_command)
-		t[#t + 1] = bit.rshift(MYSLOT_BIND_CUSTOM_FLAG,8)
-		t[#t + 1] = bit.band(MYSLOT_BIND_CUSTOM_FLAG, 255)
-		t[#t + 1] = cmdlen 
-		MergeTable(t, StringToTable(_command))
-		command = MYSLOT_BIND_CUSTOM_FLAG
-
-		-- MySlot:Print("[WARN]忽略不支持的绑定 C = [" .. _command .."] 请通知作者" .. MYSLOT_AUTHOR)
-		-- return nil
+	if not _command then
+		return
 	end
 
-	MergeTable(t, KeyToByte(key1, command))
-	MergeTable(t, KeyToByte(key2, command))
+	local command = MySlot.BINDS[_command]
 
-	return #t > 0 and t or nil
+	local msg = _MySlot.Bind()
+
+	if not command then
+		msg.command = command
+		command = MYSLOT_BIND_CUSTOM_FLAG
+	end
+
+	msg.id = command
+
+	msg.key1 = KeyToByte(key1)
+	msg.key2 = KeyToByte(key2)
+
+	return msg
 end
 -- }}}
 
 
 function MySlot:Export()
 	-- ver nop nop nop crc32 crc32 crc32 crc32
-	local i
-	local t = {}
-	-- t = {MYSLOT_VER,86,04,22,0,0,0,0}
+
+	local msg = _MySlot.Charactor()
+
+	msg.ver = MYSLOT_VER
+	--msg.name = 'a'
 	
-	local head = #t + 1
+	msg.macro = {}
 
-	-- {{{ Marco
-	-- macro
-	-- name limit to 16 and body limit to 255 
-	-- (16 + 255 )* 3 *54 < 2 ^ 16 
-	RefreshMacroIconTable()
-	local c = 0
-	t[head] = 0
-	t[head + 1] = 0
 	for i = 1,54 do
-		c = c + MergeTable(t, self:GetMacroInfo(i))
+		local m = self:GetMacroInfo(i)
+		if m then
+			msg.macro[#msg.macro + 1] = m
+		end
 	end
-	t[head] = bit.rshift(c,8)
-	t[head + 1] = bit.band(c, 255)
-	-- }}}
 
-	-- move head
-	head = head + c + 2
-
-	-- {{{ Spell
-	-- spell
-	t[head] = 0
-	local c = 0
+	msg.slot = {}
 	for i = 1,120 do
-		c = c + MergeTable(t,self:GetActionInfo(i)) / MYSLOT_SLOT_B_SIZE
+		local m = self:GetActionInfo(i)
+		if m then
+			msg.slot[#msg.slot + 1] = m
+		end
 	end
-	t[head] = c
-	-- }}}
 
-	-- move head
-	head = head + c * MYSLOT_SLOT_B_SIZE + 1
-
-	-- {{{ Binding
-	-- keys
-	t[head] = 0
-	t[head + 1] = 0
-	local c = 0
+	msg.bind = {}
 	for i = 1, GetNumBindings() do
-		c = c + MergeTable(t,self:GetBindingInfo(i))
+		local m = self:GetBindingInfo(i)
+		if m then
+			msg.bind[#msg.bind + 1] = m
+		end
 	end
-	t[head] = bit.rshift(c,8)
-	t[head + 1] = bit.band(c, 255)
-	-- }}}
 
-	local ct = compress:Compress(TableToString(t))
+	local ct = msg:Serialize()
+	--print(msg:SerializePartial('text'))
+	-- compress:Compress(TableToString(t))
 	t = {MYSLOT_VER,86,04,22,0,0,0,0}
 	MergeTable(t, StringToTable(ct))
 
@@ -333,14 +317,14 @@ function MySlot:Export()
 	s = "@ " .. MYSLOT_LINE_SEP .. s
 	s = "@ 等级：" ..UnitLevel("player") .. MYSLOT_LINE_SEP .. s
 	s = MYSLOT_LINE_SEP .. s
-	for t = GetNumTalentTabs(), 1 ,-1 do
-		local x = 0
-		for i = 1, GetNumTalents(t) do
-			x = x +  select(5, GetTalentInfo(t,i))
-		end
-		s = select(2,GetTalentTabInfo(t)) .. ':' .. x .. ' ' .. s
-	end
-	s = "@ 天赋：" .. s .. MYSLOT_LINE_SEP
+	--for t = GetNumTalentTabs(), 1 ,-1 do
+	--	local x = 0
+	--	for i = 1, GetNumTalents(t) do
+	--		x = x +  select(5, GetTalentInfo(t,i))
+	--	end
+	--	-- s = select(2,GetTalentTabInfo(t)) .. ':' .. x .. ' ' .. s
+	--end
+	-- s = "@ 天赋：" .. s .. MYSLOT_LINE_SEP
 	s = "@ 职业：" ..UnitClass("player") .. MYSLOT_LINE_SEP .. s
 	s = "@ 人物：" ..UnitName("player") .. MYSLOT_LINE_SEP .. s
 	s = "@ 时间：" .. date() .. MYSLOT_LINE_SEP .. s
@@ -431,26 +415,33 @@ function MySlot:RecoverData(s)
 		return 
 	end
 
-	if ver > 10 then
-		local ct = {}
-		for i = 9, #s do
-			ct[#ct + 1] = s[i]
-		end
-		ct = compress:Decompress(TableToString(ct))
-		s = {0,0,0,0,0,0,0,0}
-		MergeTable(s, StringToTable(ct))
+	local ct = {}
+	for i = 9, #s do
+		ct[#ct + 1] = s[i]
 	end
+	ct = TableToString(ct)
 	
+	local msg = _MySlot.Charactor():Parse(ct)
+
+
 	-- {{{ Cache Spells
 	--cache spells
 	local spells = {}
 
-	for i = 1,MAX_SPELLS do
-		local spellType, spellId = GetSpellBookItemInfo(i, BOOKTYPE_SPELL)
-		if spellType then
-			spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = {i, BOOKTYPE_SPELL}
+
+	for i = 1, GetNumSpellTabs() do
+	        local tab, tabTex, offset, numSpells, _ = GetSpellTabInfo(i);
+	        offset = offset + 1;
+	        local tabEnd = offset + numSpells;
+	        for j = offset, tabEnd - 1 do
+	                --to get spell info by slot, you have to pass in a pet argument
+	                --local spellType, ID = GetSpellBookItemInfo(j, BOOKTYPE_SPELL);
+			local spellType, spellId = GetSpellBookItemInfo(i, "player")
+			if spellType then
+				spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = {i, BOOKTYPE_SPELL}
+			end
 		end
-	end 
+	end
 
 	for _, companionsType in pairs({"CRITTER", "MOUNT"}) do
 		for i =1,GetNumCompanions(companionsType) do
@@ -465,6 +456,7 @@ function MySlot:RecoverData(s)
 	-- {{{ 
 	local localMacro = {}
 	for i = 1,54 do
+		
 		local name, _, body = GetMacroInfo(i)
 		if name then
 			localMacro[ name .. "_" .. body ] = i
@@ -474,46 +466,17 @@ function MySlot:RecoverData(s)
 	-- }}} 
 
 	-- cache macro
+
+	
+
 	local macro = {}
-	local macroSize = s[9] * 256 + s[10] -- hard code :P
-	local head = 11
-	local tail = head +  macroSize -- * 1
-	i = head
-	while i < tail - 1 do
-		local macroId = s[i]
-		local icon = s[i+1] * 256 + s[i+2]
+	for _, m in pairs(msg.macro) do
 
-		-- move to name
-		i = i + 3
+		local macroId = m.id
+		local icon = m.icon
 
-		local namelen = s[i]
-		local name = {}
-		for j = i + 1,i + namelen do
-			name[#name+1] = s[j]
-		end
-		local name = TableToString(name)
-		
-		-- move to body
-		i = i + namelen + 1
-		
-		local bodylen = 0
-		if ver == 10 then -- this is a fuckly bug version
-			bodylen = s[i]
-			while not ( s[i + bodylen + 1] == macroId + 1 or s[i + bodylen + 1] == 37 ) do
-				bodylen = bodylen + 1	
-			end
-		else
-			bodylen = s[i] * 256 + s[i+1]
-			i = i + 1
-		end
-		local body = {}
-		for j = i + 1,i + bodylen do
-			body[#body+1] = s[j]
-		end
-		local body = TableToString(body)
-
-		-- move to next block
-		i = i + bodylen + 1
+		local name = m.name
+		local body = m.body
 
 		macro[macroId] = {
 			["oldid"] = macroId,
@@ -532,15 +495,12 @@ function MySlot:RecoverData(s)
 	RefreshMacroIconTable()
 	-- }}} Macro
 
-	local spellCount = s[tail]
-	head = tail + 1 -- 1 bit for spellCount
-	tail = spellCount * MYSLOT_SLOT_B_SIZE + head
-
 	local slotBucket = {}
-	for i = head, tail - 1 ,MYSLOT_SLOT_B_SIZE do
-		local slotId = s[i]
-		local slotType = bit.rshift(s[i+1], 5)
-		local index = bit.band(s[i+1],31) * 65536  + (s[i+2] * 256 + s[i+3])
+
+	for _, s in pairs(msg.slot) do
+		local slotId = s.id
+		local slotType = s.type
+		local index = s.index
 		
 		local curType, curIndex = GetActionInfo(slotId)
 		curType = MySlot.SLOT_TYPE[curType or MYSLOT_NOTFOUND]
@@ -588,29 +548,25 @@ function MySlot:RecoverData(s)
 		end
 	end
 
-	local bindSize = s[tail] * 256 + s[tail + 1]
-	head = tail + 2 -- 2 bit for bindCount
-	tail = bindSize + head
-	i = head
+	for _, b in pairs(msg.bind) do
+		
+		local command = b.command
+		if b.id ~= MYSLOT_BIND_CUSTOM_FLAG then
+			command = MySlot.R_BINDS[b.id]
+		end
 
-	while i < tail - 1 do
-		if s[i] * 256 + s[i+1] == MYSLOT_BIND_CUSTOM_FLAG then
-			i = i + 2
-			local cmdlen = s[i]
-			local _command = {}
-			for j = i + 1,i + cmdlen do
-				_command[#_command+1] = s[j]
-			end
-			MySlot.R_BINDS[MYSLOT_BIND_CUSTOM_FLAG] = TableToString(_command)
-
-			i = i + cmdlen + 1
-		else
-			local mod,key,command = MySlot.R_MOD_KEYS[s[i]] , MySlot.R_KEYS[s[i+1]] , MySlot.R_BINDS[s[i+2]*256 + s[i+3]]
+		if b.key1 then
+			local mod, key = MySlot.R_MOD_KEYS[ b.key1.mod], MySlot.R_KEYS[ b.key1.key]
 			local key = ( mod ~= "NONE" and (mod .. "-") or "" ) .. key
 			SetBinding(key ,command, 1)
-
-			i = i + MYSLOT_BIND_B_SIZE
 		end
+
+		if b.key2 then
+			local mod, key = MySlot.R_MOD_KEYS[ b.key2.mod], MySlot.R_KEYS[ b.key2.key]
+			local key = ( mod ~= "NONE" and (mod .. "-") or "" ) .. key
+			SetBinding(key ,command, 1)
+		end
+
 	end
 	SaveBindings(GetCurrentBindingSet())
 

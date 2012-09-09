@@ -1,13 +1,31 @@
-## Interface: 40300
+## Interface: 50001
 ## Title: MySlot 按键导出插件
 ## Notes: 保存你的技能按钮位置 farmer1992@gmail.com
 ## Author: tg123
-## Version: 4.0
+## Version: 5.0
 
 libs\LibStub\LibStub.lua
 libs\base64.lua
 libs\crc32.lua
-libs\LibCompress.lua
+
+libs\lua-pb\pb\fakerequire.lua
+libs\lua-pb\pb\utils.lua
+libs\lua-pb\pb\handlers.lua
+libs\lua-pb\pb\standard\buffer.lua
+libs\lua-pb\pb\standard\unknown.lua
+libs\lua-pb\pb\standard\repeated.lua
+
+libs\lua-pb\pb\standard\dump.lua
+libs\lua-pb\pb\standard\message.lua
+
+libs\lua-pb\pb\standard\pack.lua
+libs\lua-pb\pb\standard\unpack.lua
+libs\lua-pb\pb\standard.lua
+
+libs\lua-pb\pb-wow.lua
+
+MySlotStub.lua
+PbMySlot.lua
 
 MySlot.lua
 keys.lua

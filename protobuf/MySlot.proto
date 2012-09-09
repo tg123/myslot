@@ -1,0 +1,51 @@
+message Charactor {
+	repeated Slot slot = 1;
+
+	repeated Bind bind = 2;
+
+	repeated Macro macro = 3;
+
+	optional uint32 ver = 14;
+	optional string name = 15;
+}
+
+
+message Slot {
+	required uint32 id = 1;
+
+	enum SlotType {
+		SPELL = 1;
+		ITEM = 2;
+		MACRO = 3;
+		FLYOUT = 4;
+		EMPTY = 5;
+		EQUIPMENTSET = 6;
+	}
+
+	required SlotType type = 2;
+
+	required uint32 index = 3;
+}
+
+message Macro {
+	required string name = 1;
+	required string body = 2;
+	required uint32 id = 3;
+	required string icon = 4;
+
+}
+
+message Bind {
+	required uint32 id = 1;
+
+	optional string command = 15;
+
+	optional Key key1 = 2;
+	optional Key key2 = 3;
+
+}
+
+message Key {
+	required uint32 key = 1;
+	required uint32 mod = 2;
+}
