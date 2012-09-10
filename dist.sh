@@ -1,6 +1,10 @@
 #!/bin/bash
 
-git archive --prefix=MySlot/ --format=tar master | bzip2 > Myslot.tar.bz2
-git archive --prefix=MySlot/ --format=zip master > Myslot.zip
+TARGET=Myslot.zip
+TOC=`ls *.toc`
 
-md5sum Myslot.tar.bz2 Myslot.zip
+rm -f $TARGET
+
+grep '\.(lua)|(xml)$' $TOC -P | sed -e 's/\\/\//g' |xargs zip -p Myslot $TARGET $TOC
+
+md5sum $TARGET

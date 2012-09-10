@@ -35,7 +35,7 @@
 						</Anchor>
 					</Anchors>
 				</Texture>
-				<FontString name="$parentHeaderText" inherits="GameFontNormal" text="My Slot 4">
+				<FontString name="$parentHeaderText" inherits="GameFontNormal" text="My Slot 5">
 					<Anchors>
 						<Anchor point="TOP" relativeTo="$parentHeaderTexture">
 							<Offset>
