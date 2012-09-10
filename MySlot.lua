@@ -38,71 +38,14 @@ MySlot.SLOT_TYPE = {
 }
 -- }}}
 
-local MYSLOT_SLOT_B_SIZE = 4
-local MYSLOT_BIND_B_SIZE = 4
 local MYSLOT_BIND_CUSTOM_FLAG = 0xFFFF
 
 -- {{{ MACRO ICON CACHE
-local function upperr(d)
-	local t = {}
-	for k,v in pairs(d) do
-		t[strupper(v)] = k	
-	end
-	return t
-end
--- copy from blizzard ui
-local function GetMacroIconTable()
-
-        local MACRO_ICON_FILENAMES = {}; 
-        -- MACRO_ICON_FILENAMES["INV_MISC_QUESTIONMARK"] = 1;
-        MACRO_ICON_FILENAMES[1] = "INV_MISC_QUESTIONMARK";
-        local index = 2;
-        local numFlyouts = 0;
-
-        for i = 1, GetNumSpellTabs() do
-                tab, tabTex, offset, numSpells, _ = GetSpellTabInfo(i);
-                offset = offset + 1;
-                tabEnd = offset + numSpells;
-                for j = offset, tabEnd - 1 do
-                        --to get spell info by slot, you have to pass in a pet argument
-                        local spellType, ID = GetSpellBookItemInfo(j, "player"); 
-                        if (spellType ~= "FUTURESPELL") then
-                                local spellTexture = strupper(GetSpellBookItemTexture(j, "player"));
-                                if ( not string.match( spellTexture, "INTERFACE\\BUTTONS\\") ) then
-                                        -- MACRO_ICON_FILENAMES[gsub( spellTexture, "INTERFACE\\ICONS\\", "")] = index;
-                                        MACRO_ICON_FILENAMES[index] = gsub( spellTexture, "INTERFACE\\ICONS\\", "");
-                                        index = index + 1;
-                                end 
-                        end 
-                        if (spellType == "FLYOUT") then
-                                local _, _, numSlots, isKnown = GetFlyoutInfo(ID);
-                                if (isKnown and numSlots > 0) then
-                                        for k = 1, numSlots do  
-                                                local spellID, isKnown = GetFlyoutSlotInfo(ID, k)
-                                                if (isKnown) then
-                                                        -- MACRO_ICON_FILENAMES[gsub( strupper(GetSpellTexture(spellID)), "INTERFACE\\ICONS\\", "")] = index; 
-                                                        MACRO_ICON_FILENAMES[index] = gsub( strupper(GetSpellTexture(spellID)), "INTERFACE\\ICONS\\", ""); 
-                                                        index = index + 1;
-                                                end 
-                                        end 
-                                end 
-                        end 
-                end 
-        end 
-        GetMacroIcons( MACRO_ICON_FILENAMES );
-        GetMacroItemIcons( MACRO_ICON_FILENAMES );
-	return MACRO_ICON_FILENAMES;
-end
 
 local MYSLOT_DEFAULT_MACRO_ID = "INV_MISC_QUESTIONMARK"
 
-local function RefreshMacroIconTable()
-	MySlot.MACRO_ICON_TABLE_I = GetMacroIconTable()
-	MySlot.MACRO_ICON_TABLE = upperr(MySlot.MACRO_ICON_TABLE_I)
-end
-
-RefreshMacroIconTable()
 -- }}}
+
 
 -- {{{ MergeTable
 -- return item count merge into target
@@ -296,8 +239,6 @@ function MySlot:Export()
 	end
 
 	local ct = msg:Serialize()
-	--print(msg:SerializePartial('text'))
-	-- compress:Compress(TableToString(t))
 	t = {MYSLOT_VER,86,04,22,0,0,0,0}
 	MergeTable(t, StringToTable(ct))
 
@@ -361,16 +302,29 @@ end
 
 -- {{{ FindOrCreateMacro
 function MySlot:FindOrCreateMacro(macroInfo)
-	local localIndex = macroInfo["localindex"]
+	-- cache local macro index
+	-- {{{ 
+	local localMacro = {}
+	for i = 1,54 do
+		
+		local name, _, body = GetMacroInfo(i)
+		if name then
+			localMacro[ name .. "_" .. body ] = i
+			localMacro[ body ] = i
+		end
+	end
+	-- }}} 
+
+	local id = macroInfo["oldid"]
+	local name = macroInfo["name"]
+	local icon = macroInfo["icon"]
+	local body = macroInfo["body"]
+
+	local localIndex = localMacro[ name .. "_" .. body ] or localMacro[ body ]
 
 	if localIndex then
 		return localIndex
 	else
-		local id = macroInfo["oldid"]
-		local name = macroInfo["name"]
-		local icon = macroInfo["icon"]
-		icon = MySlot.MACRO_ICON_TABLE_I[icon] or MYSLOT_DEFAULT_MACRO_ID
-		local body = macroInfo["body"]
 
 		local numglobal, numperchar = GetNumMacros()
 		local perchar = id > 36 and 2 or 1
@@ -435,10 +389,9 @@ function MySlot:RecoverData(s)
 	        local tabEnd = offset + numSpells;
 	        for j = offset, tabEnd - 1 do
 	                --to get spell info by slot, you have to pass in a pet argument
-	                --local spellType, ID = GetSpellBookItemInfo(j, BOOKTYPE_SPELL);
-			local spellType, spellId = GetSpellBookItemInfo(i, "player")
+			local spellType, spellId = GetSpellBookItemInfo(j, BOOKTYPE_SPELL)
 			if spellType then
-				spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = {i, BOOKTYPE_SPELL}
+				spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = {j, BOOKTYPE_SPELL}
 			end
 		end
 	end
@@ -452,18 +405,6 @@ function MySlot:RecoverData(s)
 	-- }}}
 
 	-- {{{ Macro
-	-- cache local macro index
-	-- {{{ 
-	local localMacro = {}
-	for i = 1,54 do
-		
-		local name, _, body = GetMacroInfo(i)
-		if name then
-			localMacro[ name .. "_" .. body ] = i
-			localMacro[ body ] = i
-		end
-	end
-	-- }}} 
 
 	-- cache macro
 
@@ -483,31 +424,29 @@ function MySlot:RecoverData(s)
 			["name"] = name,
 			["icon"] = icon,
 			["body"] = body,
-			["localindex"] = localMacro[ name .. "_" .. body ] or localMacro[ body ]
 		}
 
-		if not macro[macroId]["localindex"] then
-			-- here is bug that change macroid after created
-			-- self:FindOrCreateMacro(macro[macroId])
-		end
+		self:FindOrCreateMacro(macro[macroId])
 	end
 
-	RefreshMacroIconTable()
 	-- }}} Macro
 
 	local slotBucket = {}
 
 	for _, s in pairs(msg.slot) do
 		local slotId = s.id
-		local slotType = s.type
+		local slotType = _MySlot.Slot.SlotType[s.type]
 		local index = s.index
-		
+
 		local curType, curIndex = GetActionInfo(slotId)
 		curType = MySlot.SLOT_TYPE[curType or MYSLOT_NOTFOUND]
 		slotBucket[slotId] = true
+
 		if curIndex ~= index or curType ~= slotType or slotType == MYSLOT_MACRO then -- macro always test
 			if slotType == MYSLOT_SPELL or slotType == MYSLOT_FLYOUT then
+				
 				local newId, spellType = unpack(spells[slotType .."_" ..index] or {})
+
 				if newId then
 					if spellType == BOOKTYPE_SPELL then
 						PickupSpellBookItem(newId, BOOKTYPE_SPELL)
@@ -520,14 +459,10 @@ function MySlot:RecoverData(s)
 			elseif slotType == MYSLOT_ITEM then
 				PickupItem(index)
 			elseif slotType == MYSLOT_MACRO then
-				if index ~= 0 then
-					if macro[index] then
-						if not macro[index]["localindex"] or macro[index]["localindex"] ~= curIndex then
-							PickupMacro(self:FindOrCreateMacro(macro[index]))
-						end
-					else
-						self:Print('你的导入字符串含有无法识别的宏信息 这个宏被忽略 升级最新版本重新导出可以解决这个问题')	
-					end
+				local macroid = self:FindOrCreateMacro(macro[index])
+
+				if curType ~= MYSLOT_MACRO or curIndex ~=index then
+					PickupMacro(macroid)
 				end
 			elseif slotType == MYSLOT_EMPTY then
 				PickupAction(slotId)
@@ -569,7 +504,6 @@ function MySlot:RecoverData(s)
 
 	end
 	SaveBindings(GetCurrentBindingSet())
-
 
 	MySlot:Print("所有按钮及按键邦定位置恢复完毕")
 end
