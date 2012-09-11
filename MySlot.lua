@@ -384,14 +384,20 @@ function MySlot:RecoverData(s)
 
 
 	for i = 1, GetNumSpellTabs() do
-	        local tab, tabTex, offset, numSpells, _ = GetSpellTabInfo(i);
-	        offset = offset + 1;
-	        local tabEnd = offset + numSpells;
-	        for j = offset, tabEnd - 1 do
-	                --to get spell info by slot, you have to pass in a pet argument
-			local spellType, spellId = GetSpellBookItemInfo(j, BOOKTYPE_SPELL)
-			if spellType then
-				spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = {j, BOOKTYPE_SPELL}
+	        local tab, tabTex, offset, numSpells, isGuild, offSpecID = GetSpellTabInfo(i);
+		offSpecID = (offSpecID ~= 0)
+		if not offSpecID then
+
+			offset = offset + 1;
+			local tabEnd = offset + numSpells;
+			for j = offset, tabEnd - 1 do
+				--to get spell info by slot, you have to pass in a pet argument
+				local spellType, spellId = GetSpellBookItemInfo(j, BOOKTYPE_SPELL)
+				if spellType then
+					--#local relativeSlot = id + ( SPELLS_PER_PAGE * (SPELLBOOK_PAGENUMBERS[SpellBookFrame.selectedSkillLine] - 1));
+					local slot = j + ( SPELLS_PER_PAGE * (SPELLBOOK_PAGENUMBERS[i] - 1));
+					spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = {slot, BOOKTYPE_SPELL}
+				end
 			end
 		end
 	end
