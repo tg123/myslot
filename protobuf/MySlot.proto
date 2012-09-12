@@ -20,6 +20,7 @@ message Slot {
 		FLYOUT = 4;
 		EMPTY = 5;
 		EQUIPMENTSET = 6;
+		SUMMONPET = 7;
 	}
 
 	required SlotType type = 2;

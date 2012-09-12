@@ -9,8 +9,8 @@ local _MySlot = pblua.load_proto_ast(MySlot.ast)
 
 local MYSLOT_AUTHOR = "T.G. <farmer1992@gmail.com>"
 
-local MYSLOT_VER = 20
-local MYSLOT_ALLOW_VER = {MYSLOT_VER}
+local MYSLOT_VER = 21
+local MYSLOT_ALLOW_VER = {MYSLOT_VER, 20}
 
 -- local MYSLOT_IS_DEBUG = true
 local MYSLOT_LINE_SEP = IsWindowsClient() and "\r\n" or "\n"
@@ -23,6 +23,7 @@ local MYSLOT_MACRO = _MySlot.Slot.SlotType.MACRO
 local MYSLOT_FLYOUT = _MySlot.Slot.SlotType.FLYOUT
 local MYSLOT_EQUIPMENTSET = _MySlot.Slot.SlotType.EQUIPMENTSET
 local MYSLOT_EMPTY = _MySlot.Slot.SlotType.EMPTY
+local MYSLOT_SUMMONPET = _MySlot.Slot.SlotType.SUMMONPET
 local MYSLOT_NOTFOUND = "notfound"
 
 MySlot.SLOT_TYPE = {
@@ -34,6 +35,7 @@ MySlot.SLOT_TYPE = {
 	["petaction"] = MYSLOT_EMPTY,
 	["futurespell"] = MYSLOT_EMPTY,
 	["equipmentset"] = MYSLOT_EQUIPMENTSET,
+	["summonpet"] = MYSLOT_SUMMONPET,
 	[MYSLOT_NOTFOUND] = MYSLOT_EMPTY,
 }
 -- }}}
@@ -133,6 +135,8 @@ function MySlot:GetActionInfo(slotId)
 			self:Print("[WARN]忽略不支持的按键类型[" .. slotType .."] 请通知作者" .. MYSLOT_AUTHOR)
 		end
 		return nil
+	elseif not index then
+		return nil
 	end
 
 	local msg = _MySlot.Slot()
@@ -191,7 +195,7 @@ function MySlot:GetBindingInfo(index)
 	local msg = _MySlot.Bind()
 
 	if not command then
-		msg.command = command
+		msg.command = _command
 		command = MYSLOT_BIND_CUSTOM_FLAG
 	end
 
@@ -200,7 +204,11 @@ function MySlot:GetBindingInfo(index)
 	msg.key1 = KeyToByte(key1)
 	msg.key2 = KeyToByte(key2)
 
-	return msg
+	if msg.key1 or msg.key2 then
+		return msg
+	else
+		return nil
+	end
 end
 -- }}}
 
@@ -394,23 +402,34 @@ function MySlot:RecoverData(s)
 			offset = offset + 1;
 			local tabEnd = offset + numSpells;
 			for j = offset, tabEnd - 1 do
-				--to get spell info by slot, you have to pass in a pet argument
-				local spellType, spellId = GetSpellBookItemInfo(j, BOOKTYPE_SPELL)
 				if spellType then
-					--#local relativeSlot = id + ( SPELLS_PER_PAGE * (SPELLBOOK_PAGENUMBERS[SpellBookFrame.selectedSkillLine] - 1));
 					local slot = j + ( SPELLS_PER_PAGE * (SPELLBOOK_PAGENUMBERS[i] - 1));
-					spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = {slot, BOOKTYPE_SPELL}
+					spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = {slot, BOOKTYPE_SPELL, "spell"}
 				end
 			end
 		end
 	end
+	--end
 
 	for _, companionsType in pairs({"CRITTER", "MOUNT"}) do
 		for i =1,GetNumCompanions(companionsType) do
 			local _,_,spellId = GetCompanionInfo( companionsType, i)
-			spells[MYSLOT_SPELL .. "_" .. spellId] = {i, companionsType}
+			spells[MYSLOT_SPELL .. "_" .. spellId] = {i, companionsType, "companions"}
 		end
 	end
+
+
+	for _, p in pairs({GetProfessions()}) do
+		local _, _, _, _, numSpells, spelloffset = GetProfessionInfo(p)
+		for i = 1,numSpells do
+			local slot = i + spelloffset
+			local spellType, spellId = GetSpellBookItemInfo(slot, BOOKTYPE_PROFESSION)
+			if spellType then
+				spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = {slot, BOOKTYPE_PROFESSION, "spell"}
+			end
+		end
+	end
+	
 	-- }}}
 
 	-- {{{ Macro
@@ -455,16 +474,21 @@ function MySlot:RecoverData(s)
 			if curIndex ~= index or curType ~= slotType or slotType == MYSLOT_MACRO then -- macro always test
 				if slotType == MYSLOT_SPELL or slotType == MYSLOT_FLYOUT then
 					
-					local newId, spellType = unpack(spells[slotType .."_" ..index] or {})
+					local newId, spellType, pickType = unpack(spells[slotType .."_" ..index] or {})
 
 					if newId then
-						if spellType == BOOKTYPE_SPELL then
-							PickupSpellBookItem(newId, BOOKTYPE_SPELL)
-						else
+						if pickType == "spell" then
+							PickupSpellBookItem(newId, spellType)
+						elseif pickType == "companions" then
 							PickupCompanion(spellType , newId)
 						end
 					elseif slotType == MYSLOT_SPELL then
-						MySlot:Print("忽略未掌握技能：" .. GetSpellLink(index))	
+						-- fail over
+						if IsUsableSpell(index) then
+							PickupSpell(index)
+						else
+							MySlot:Print("忽略未掌握技能：" .. GetSpellLink(index))	
+						end
 					end
 				elseif slotType == MYSLOT_ITEM then
 					PickupItem(index)
@@ -522,6 +546,13 @@ function MySlot:RecoverData(s)
 	MySlot:Print("所有按钮及按键邦定位置恢复完毕")
 end
 
+function MySlot:Clear()
+	for i = 1, 120 do
+		PickupAction(i)
+		ClearCursor()
+	end
+end
+
 SlashCmdList["MYSLOT"] = function()
 	MYSLOT_ReportFrame:Show()
 end
@@ -536,3 +567,32 @@ StaticPopupDialogs["MYSLOT_MSGBOX"] = {
 	hideOnEscape = 1,
 	multiple = 1,
 }
+
+
+
+
+
+function xxxx()
+
+	
+	for _, p in pairs({GetProfessions()}) do
+		local _, _, _, _, numSpells, spelloffset = GetProfessionInfo(p)
+		for i = 1,numSpells do
+			local spellType, spellId = GetSpellBookItemInfo(i + spelloffset, BOOKTYPE_PROFESSION)
+			print(spellId)
+		end
+	end
+
+
+
+
+
+
+end
+
+local old = PickupSpellBookItem
+PickupSpellBookItem = function(arg1,arg2,...)
+	print(arg1)
+	print(arg2)
+	old(arg1,arg2,...)
+end
