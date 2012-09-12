@@ -498,6 +498,8 @@ function MySlot:RecoverData(s)
 					if curType ~= MYSLOT_MACRO or curIndex ~=index then
 						PickupMacro(macroid)
 					end
+				elseif slotType == MYSLOT_SUMMONPET then
+					C_PetJournal.PickupPet(index, PetJournal.isWild)
 				elseif slotType == MYSLOT_EMPTY then
 					PickupAction(slotId)
 				elseif slotType == MYSLOT_EQUIPMENTSET then
@@ -553,8 +555,12 @@ function MySlot:Clear()
 	end
 end
 
-SlashCmdList["MYSLOT"] = function()
-	MYSLOT_ReportFrame:Show()
+SlashCmdList["MYSLOT"] = function(arg1, ...)
+	if arg1 == "clear" then
+		MySlot:Clear()
+	else
+		MYSLOT_ReportFrame:Show()
+	end
 end
 SLASH_MYSLOT1 = "/MYSLOT"
 
@@ -567,32 +573,3 @@ StaticPopupDialogs["MYSLOT_MSGBOX"] = {
 	hideOnEscape = 1,
 	multiple = 1,
 }
-
-
-
-
-
-function xxxx()
-
-	
-	for _, p in pairs({GetProfessions()}) do
-		local _, _, _, _, numSpells, spelloffset = GetProfessionInfo(p)
-		for i = 1,numSpells do
-			local spellType, spellId = GetSpellBookItemInfo(i + spelloffset, BOOKTYPE_PROFESSION)
-			print(spellId)
-		end
-	end
-
-
-
-
-
-
-end
-
-local old = PickupSpellBookItem
-PickupSpellBookItem = function(arg1,arg2,...)
-	print(arg1)
-	print(arg2)
-	old(arg1,arg2,...)
-end
