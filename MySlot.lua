@@ -302,6 +302,9 @@ end
 
 -- {{{ FindOrCreateMacro
 function MySlot:FindOrCreateMacro(macroInfo)
+	if not macroInfo then
+		return
+	end
 	-- cache local macro index
 	-- {{{ 
 	local localMacro = {}
@@ -417,7 +420,7 @@ function MySlot:RecoverData(s)
 	
 
 	local macro = {}
-	for _, m in pairs(msg.macro) do
+	for _, m in pairs(msg.macro or {}) do
 
 		local macroId = m.id
 		local icon = m.icon
@@ -439,7 +442,7 @@ function MySlot:RecoverData(s)
 
 	local slotBucket = {}
 
-	for _, s in pairs(msg.slot) do
+	for _, s in pairs(msg.slot or {}) do
 		local slotId = s.id
 		local slotType = _MySlot.Slot.SlotType[s.type]
 		local index = s.index
@@ -448,35 +451,40 @@ function MySlot:RecoverData(s)
 		curType = MySlot.SLOT_TYPE[curType or MYSLOT_NOTFOUND]
 		slotBucket[slotId] = true
 
-		if curIndex ~= index or curType ~= slotType or slotType == MYSLOT_MACRO then -- macro always test
-			if slotType == MYSLOT_SPELL or slotType == MYSLOT_FLYOUT then
-				
-				local newId, spellType = unpack(spells[slotType .."_" ..index] or {})
+		if not pcall(function()
+			if curIndex ~= index or curType ~= slotType or slotType == MYSLOT_MACRO then -- macro always test
+				if slotType == MYSLOT_SPELL or slotType == MYSLOT_FLYOUT then
+					
+					local newId, spellType = unpack(spells[slotType .."_" ..index] or {})
 
-				if newId then
-					if spellType == BOOKTYPE_SPELL then
-						PickupSpellBookItem(newId, BOOKTYPE_SPELL)
-					else
-						PickupCompanion(spellType , newId)
+					if newId then
+						if spellType == BOOKTYPE_SPELL then
+							PickupSpellBookItem(newId, BOOKTYPE_SPELL)
+						else
+							PickupCompanion(spellType , newId)
+						end
+					elseif slotType == MYSLOT_SPELL then
+						MySlot:Print("忽略未掌握技能：" .. GetSpellLink(index))	
 					end
-				elseif slotType == MYSLOT_SPELL then
-					MySlot:Print("忽略未掌握技能：" .. GetSpellLink(index))	
-				end
-			elseif slotType == MYSLOT_ITEM then
-				PickupItem(index)
-			elseif slotType == MYSLOT_MACRO then
-				local macroid = self:FindOrCreateMacro(macro[index])
+				elseif slotType == MYSLOT_ITEM then
+					PickupItem(index)
+				elseif slotType == MYSLOT_MACRO then
+					local macroid = self:FindOrCreateMacro(macro[index])
 
-				if curType ~= MYSLOT_MACRO or curIndex ~=index then
-					PickupMacro(macroid)
+					if curType ~= MYSLOT_MACRO or curIndex ~=index then
+						PickupMacro(macroid)
+					end
+				elseif slotType == MYSLOT_EMPTY then
+					PickupAction(slotId)
+				elseif slotType == MYSLOT_EQUIPMENTSET then
+					PickupEquipmentSet(index)
 				end
-			elseif slotType == MYSLOT_EMPTY then
-				PickupAction(slotId)
-			elseif slotType == MYSLOT_EQUIPMENTSET then
-				PickupEquipmentSet(index)
+				PlaceAction(slotId)	
+				ClearCursor()
 			end
-			PlaceAction(slotId)	
-			ClearCursor()
+		end) then
+			
+			MySlot:Print("[WARN] 忽略出错技能 SLOT = [" .. slotId .."] 请将出错的字符和 SLOT 发给作者" .. MYSLOT_AUTHOR)
 		end
 	end
 
@@ -489,7 +497,7 @@ function MySlot:RecoverData(s)
 		end
 	end
 
-	for _, b in pairs(msg.bind) do
+	for _, b in pairs(msg.bind or {}) do
 		
 		local command = b.command
 		if b.id ~= MYSLOT_BIND_CUSTOM_FLAG then
