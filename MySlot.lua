@@ -406,7 +406,11 @@ function MySlot:RecoverData(s)
 				local spellType, spellId = GetSpellBookItemInfo(j, BOOKTYPE_SPELL)
 				if spellType then
 					local slot = j + ( SPELLS_PER_PAGE * (SPELLBOOK_PAGENUMBERS[i] - 1));
+					local spellName = GetSpellInfo(spellId)
 					spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = {slot, BOOKTYPE_SPELL, "spell"}
+					if spellName then -- flyout 
+						spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellName] = {slot, BOOKTYPE_SPELL, "spell"}
+					end
 				end
 			end
 		end
@@ -481,7 +485,9 @@ function MySlot:RecoverData(s)
 
 					if not GetCursorInfo() then
 						-- flyout and failover
-						local newId, spellType, pickType = unpack(spells[slotType .."_" ..index] or {})
+
+						local spellName = GetSpellInfo(index) or "NOSUCHSPELL"
+						local newId, spellType, pickType = unpack(spells[slotType .."_" ..index] or spells[slotType .."_" ..spellName] or {})
 
 						if newId then
 							if pickType == "spell" then
