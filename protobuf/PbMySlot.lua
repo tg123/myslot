@@ -265,6 +265,8 @@ local t = {
    "EMPTY",
    "EQUIPMENTSET",
    "SUMMONPET",
+   "COMPANION",
+   ["COMPANION"]=8,
    ["ITEM"]=2,
    ["EMPTY"]=5,
    ["EQUIPMENTSET"]=6,

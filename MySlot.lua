@@ -18,6 +18,7 @@ local MYSLOT_LINE_SEP = IsWindowsClient() and "\r\n" or "\n"
 -- {{{ SLOT TYPE
 -- 不能大于 7 不含
 local MYSLOT_SPELL = _MySlot.Slot.SlotType.SPELL
+local MYSLOT_COMPANION = _MySlot.Slot.SlotType.COMPANION
 local MYSLOT_ITEM = _MySlot.Slot.SlotType.ITEM
 local MYSLOT_MACRO = _MySlot.Slot.SlotType.MACRO
 local MYSLOT_FLYOUT = _MySlot.Slot.SlotType.FLYOUT
@@ -28,7 +29,7 @@ local MYSLOT_NOTFOUND = "notfound"
 
 MySlot.SLOT_TYPE = {
 	["spell"] = MYSLOT_SPELL,
-	["companion"] = MYSLOT_SPELL,
+	["companion"] = MYSLOT_COMPANION,
 	["macro"]= MYSLOT_MACRO,
 	["item"]= MYSLOT_ITEM,
 	["flyout"] = MYSLOT_FLYOUT,	
@@ -402,6 +403,7 @@ function MySlot:RecoverData(s)
 			offset = offset + 1;
 			local tabEnd = offset + numSpells;
 			for j = offset, tabEnd - 1 do
+				local spellType, spellId = GetSpellBookItemInfo(j, BOOKTYPE_SPELL)
 				if spellType then
 					local slot = j + ( SPELLS_PER_PAGE * (SPELLBOOK_PAGENUMBERS[i] - 1));
 					spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = {slot, BOOKTYPE_SPELL, "spell"}
@@ -409,7 +411,6 @@ function MySlot:RecoverData(s)
 			end
 		end
 	end
-	--end
 
 	for _, companionsType in pairs({"CRITTER", "MOUNT"}) do
 		for i =1,GetNumCompanions(companionsType) do
@@ -472,22 +473,25 @@ function MySlot:RecoverData(s)
 
 		if not pcall(function()
 			if curIndex ~= index or curType ~= slotType or slotType == MYSLOT_MACRO then -- macro always test
-				if slotType == MYSLOT_SPELL or slotType == MYSLOT_FLYOUT then
+				if slotType == MYSLOT_SPELL or slotType == MYSLOT_FLYOUT or slotType == MYSLOT_COMPANION then
 					
-					local newId, spellType, pickType = unpack(spells[slotType .."_" ..index] or {})
+					if slotType == MYSLOT_SPELL or slotType == MYSLOT_COMPANION then
+						PickupSpell(index)
+					end
 
-					if newId then
-						if pickType == "spell" then
-							PickupSpellBookItem(newId, spellType)
-						elseif pickType == "companions" then
-							PickupCompanion(spellType , newId)
-						end
-					elseif slotType == MYSLOT_SPELL then
-						-- fail over
-						if IsUsableSpell(index) then
-							PickupSpell(index)
+					if not GetCursorInfo() then
+						-- flyout and failover
+						local newId, spellType, pickType = unpack(spells[slotType .."_" ..index] or {})
+						print (newId)
+
+						if newId then
+							if pickType == "spell" then
+								PickupSpellBookItem(newId, spellType)
+							elseif pickType == "companions" then
+								PickupCompanion(spellType , newId)
+							end
 						else
-							MySlot:Print("忽略未掌握技能：" .. GetSpellLink(index))	
+							MySlot:Print("忽略未掌握技能[id=" .. index .."]：" .. GetSpellLink(index) )	
 						end
 					end
 				elseif slotType == MYSLOT_ITEM then
@@ -499,7 +503,13 @@ function MySlot:RecoverData(s)
 						PickupMacro(macroid)
 					end
 				elseif slotType == MYSLOT_SUMMONPET then
-					C_PetJournal.PickupPet(index, PetJournal.isWild)
+					C_PetJournal.PickupPet(index, false)
+					if not GetCursorInfo() then
+						C_PetJournal.PickupPet(index, true)
+					end
+					-- if not GetCursorInfo() then
+					--	MySlot:Print("忽略未开启的战斗宠物[id=" .. index .."]：" .. C_PetJournal.GetBattlePetLink(index) )
+					-- end
 				elseif slotType == MYSLOT_EMPTY then
 					PickupAction(slotId)
 				elseif slotType == MYSLOT_EQUIPMENTSET then
@@ -510,7 +520,7 @@ function MySlot:RecoverData(s)
 			end
 		end) then
 			
-			MySlot:Print("[WARN] 忽略出错技能 SLOT = [" .. slotId .."] 请将出错的字符和 SLOT 发给作者" .. MYSLOT_AUTHOR)
+			MySlot:Print("[WARN] 忽略出错技能 DEBUG INFO = [S=" .. slotId .. " T=".. slotType .. " I=" .. index .."] 请将出错的字符和 DEBUG INFO 发给作者" .. MYSLOT_AUTHOR)
 		end
 	end
 
