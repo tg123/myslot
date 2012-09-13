@@ -482,7 +482,6 @@ function MySlot:RecoverData(s)
 					if not GetCursorInfo() then
 						-- flyout and failover
 						local newId, spellType, pickType = unpack(spells[slotType .."_" ..index] or {})
-						print (newId)
 
 						if newId then
 							if pickType == "spell" then
