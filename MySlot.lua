@@ -14,9 +14,9 @@ local MYSLOT_ALLOW_VER = {MYSLOT_VER, 20}
 
 -- local MYSLOT_IS_DEBUG = true
 local MYSLOT_LINE_SEP = IsWindowsClient() and "\r\n" or "\n"
+local MYSLOT_MAX_ACTIONBAR = 120
 
 -- {{{ SLOT TYPE
--- 不能大于 7 不含
 local MYSLOT_SPELL = _MySlot.Slot.SlotType.SPELL
 local MYSLOT_COMPANION = _MySlot.Slot.SlotType.COMPANION
 local MYSLOT_ITEM = _MySlot.Slot.SlotType.ITEM
@@ -42,13 +42,6 @@ MySlot.SLOT_TYPE = {
 -- }}}
 
 local MYSLOT_BIND_CUSTOM_FLAG = 0xFFFF
-
--- {{{ MACRO ICON CACHE
-
-local MYSLOT_DEFAULT_MACRO_ID = "INV_MISC_QUESTIONMARK"
-
--- }}}
-
 
 -- {{{ MergeTable
 -- return item count merge into target
@@ -106,8 +99,6 @@ function MySlot:GetMacroInfo(macroId)
 	local t = {macroId}	
 
 	iconTexture = gsub( strupper(iconTexture) , "INTERFACE\\ICONS\\", "");
-	--iconTexture = MySlot.MACRO_ICON_TABLE[iconTexture or MYSLOT_DEFAULT_MACRO_ID] or MySlot.MACRO_ICON_TABLE[MYSLOT_DEFAULT_MACRO_ID]
-
 	
 	local msg = _MySlot.Macro()
 	
@@ -220,7 +211,7 @@ function MySlot:Export()
 	local msg = _MySlot.Charactor()
 
 	msg.ver = MYSLOT_VER
-	--msg.name = 'a'
+	msg.name = UnitName("player")
 	
 	msg.macro = {}
 
@@ -232,7 +223,7 @@ function MySlot:Export()
 	end
 
 	msg.slot = {}
-	for i = 1,120 do
+	for i = 1,MYSLOT_MAX_ACTIONBAR do
 		local m = self:GetActionInfo(i)
 		if m then
 			msg.slot[#msg.slot + 1] = m
@@ -266,9 +257,9 @@ function MySlot:Export()
 	s = "@ 问题/建议请联系 farmer1992@gmail.com" .. MYSLOT_LINE_SEP .. s
 	s = "@ " .. MYSLOT_LINE_SEP .. s
 	s = "@ " .. LEVEL .. "：" ..UnitLevel("player") .. MYSLOT_LINE_SEP .. s
-	s = "@ 专精：" .. ( GetSpecialization() and select(2, GetSpecializationInfo(GetSpecialization())) or "无" ) .. MYSLOT_LINE_SEP .. s
+	s = "@ " .. SPECIALIZATION .."：" .. ( GetSpecialization() and select(2, GetSpecializationInfo(GetSpecialization())) or "无" ) .. MYSLOT_LINE_SEP .. s
 	s = "@ " .. CLASS .. "：" ..UnitClass("player") .. MYSLOT_LINE_SEP .. s
-	s = "@ 人物：" ..UnitName("player") .. MYSLOT_LINE_SEP .. s
+	s = "@ " .. PLAYER .."：" ..UnitName("player") .. MYSLOT_LINE_SEP .. s
 	s = "@ 时间：" .. date() .. MYSLOT_LINE_SEP .. s
 	s = "@ Myslot 导出数据 ( V" .. MYSLOT_VER .. ")" .. MYSLOT_LINE_SEP .. s
 
@@ -295,9 +286,31 @@ function MySlot:Import()
 		return
 	end
 
+	local ver = s[1]
+	local crc = s[5] * 2^24 + s[6] * 2^16 + s[7] * 2^8 + s[8]
+	s[5], s[6], s[7] ,s[8] = 0, 0 ,0 ,0
+	
+	if ( crc ~= bit.band(crc32.enc(s), 2^32 - 1)) then
+		MySlot:Print("导入字符码校验不合法 [CRC32]")
+		return 
+	end
+
+	if not tContains(MYSLOT_ALLOW_VER,ver) then
+		MySlot:Print("导入串版本不兼容当前Myslot版本 导入版本号" .. ver )
+		return 
+	end
+
+	local ct = {}
+	for i = 9, #s do
+		ct[#ct + 1] = s[i]
+	end
+	ct = TableToString(ct)
+	
+	local msg = _MySlot.Charactor():Parse(ct)
+
 	StaticPopupDialogs["MYSLOT_MSGBOX"].OnAccept = function()
 		StaticPopup_Hide("MYSLOT_MSGBOX")
-		MySlot:RecoverData(s)
+		MySlot:RecoverData(msg)
 	end
 	StaticPopup_Show("MYSLOT_MSGBOX")
 end
@@ -358,30 +371,7 @@ end
 -- }}}
 
 
-function MySlot:RecoverData(s)
-
-	local ver = s[1]
-	local crc = s[5] * 2^24 + s[6] * 2^16 + s[7] * 2^8 + s[8]
-	s[5], s[6], s[7] ,s[8] = 0, 0 ,0 ,0
-	
-	if ( crc ~= bit.band(crc32.enc(s), 2^32 - 1)) then
-		MySlot:Print("导入字符码校验不合法 [CRC32]")
-		return 
-	end
-
-	if not tContains(MYSLOT_ALLOW_VER,ver) then
-		MySlot:Print("导入串版本不兼容当前Myslot版本 导入版本号" .. ver )
-		return 
-	end
-
-	local ct = {}
-	for i = 9, #s do
-		ct[#ct + 1] = s[i]
-	end
-	ct = TableToString(ct)
-	
-	local msg = _MySlot.Charactor():Parse(ct)
-
+function MySlot:RecoverData(msg)
 
 	-- {{{ Cache Spells
 	--cache spells
@@ -522,7 +512,7 @@ function MySlot:RecoverData(s)
 		end
 	end
 
-	for i = 1, 120 do
+	for i = 1, MYSLOT_MAX_ACTIONBAR do
 		if not slotBucket[i] then
 			if GetActionInfo(i) then
 				PickupAction(i)
@@ -557,7 +547,7 @@ function MySlot:RecoverData(s)
 end
 
 function MySlot:Clear()
-	for i = 1, 120 do
+	for i = 1, MYSLOT_MAX_ACTIONBAR do
 		PickupAction(i)
 		ClearCursor()
 	end
@@ -574,10 +564,10 @@ SLASH_MYSLOT1 = "/MYSLOT"
 
 StaticPopupDialogs["MYSLOT_MSGBOX"] = {
 	text = "你 确定 要导入么？？？",
-	button1 = "确定",
-	button2 = "取消",
+	button1 = ACCEPT,
+	button2 = CANCEL,
 	timeout = 0,
 	whileDead = 1,
 	hideOnEscape = 1,
-	multiple = 1,
+	multiple = 0,
 }
