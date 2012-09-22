@@ -265,17 +265,9 @@ function MySlot:Export()
 	s = "@ --------------------" .. MYSLOT_LINE_SEP .. s
 	s = "@ 问题/建议请联系 farmer1992@gmail.com" .. MYSLOT_LINE_SEP .. s
 	s = "@ " .. MYSLOT_LINE_SEP .. s
-	s = "@ 等级：" ..UnitLevel("player") .. MYSLOT_LINE_SEP .. s
-	s = MYSLOT_LINE_SEP .. s
-	--for t = GetNumTalentTabs(), 1 ,-1 do
-	--	local x = 0
-	--	for i = 1, GetNumTalents(t) do
-	--		x = x +  select(5, GetTalentInfo(t,i))
-	--	end
-	--	-- s = select(2,GetTalentTabInfo(t)) .. ':' .. x .. ' ' .. s
-	--end
-	-- s = "@ 天赋：" .. s .. MYSLOT_LINE_SEP
-	s = "@ 职业：" ..UnitClass("player") .. MYSLOT_LINE_SEP .. s
+	s = "@ " .. LEVEL .. "：" ..UnitLevel("player") .. MYSLOT_LINE_SEP .. s
+	s = "@ 专精：" .. ( GetSpecialization() and select(2, GetSpecializationInfo(GetSpecialization())) or "无" ) .. MYSLOT_LINE_SEP .. s
+	s = "@ " .. CLASS .. "：" ..UnitClass("player") .. MYSLOT_LINE_SEP .. s
 	s = "@ 人物：" ..UnitName("player") .. MYSLOT_LINE_SEP .. s
 	s = "@ 时间：" .. date() .. MYSLOT_LINE_SEP .. s
 	s = "@ Myslot 导出数据 ( V" .. MYSLOT_VER .. ")" .. MYSLOT_LINE_SEP .. s
@@ -304,6 +296,7 @@ function MySlot:Import()
 	end
 
 	StaticPopupDialogs["MYSLOT_MSGBOX"].OnAccept = function()
+		StaticPopup_Hide("MYSLOT_MSGBOX")
 		MySlot:RecoverData(s)
 	end
 	StaticPopup_Show("MYSLOT_MSGBOX")
