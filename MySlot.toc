@@ -1,4 +1,4 @@
-## Interface: 50001
+## Interface: 50100
 ## Title: MySlot 按键导出插件
 ## Notes: 保存你的技能按钮位置 farmer1992@gmail.com
 ## Author: tg123
