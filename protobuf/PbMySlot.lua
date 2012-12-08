@@ -27,9 +27,9 @@ local t = {
 },
 -- Table: {4}
 {
-   [".type"]="message",
    ["fields"]={9},
    ["name"]="Slot",
+   [".type"]="message",
    ["types"]={10},
 },
 -- Table: {5}
@@ -68,43 +68,45 @@ local t = {
    {19},
    {20},
    {21},
+   {22},
    ["id"]={19},
    ["type"]={20},
    ["index"]={21},
+   ["strindex"]={22},
 },
 -- Table: {10}
 {
-   {22},
-   ["SlotType"]={22},
+   {23},
+   ["SlotType"]={23},
 },
 -- Table: {11}
 {
-   {23},
    {24},
    {25},
    {26},
-   ["id"]={25},
-   ["icon"]={26},
-   ["name"]={23},
-   ["body"]={24},
+   {27},
+   ["id"]={26},
+   ["icon"]={27},
+   ["name"]={24},
+   ["body"]={25},
 },
 -- Table: {12}
 {
-   {27},
    {28},
    {29},
    {30},
-   ["command"]={30},
-   ["key1"]={28},
-   ["id"]={27},
-   ["key2"]={29},
+   {31},
+   ["command"]={31},
+   ["key1"]={29},
+   ["id"]={28},
+   ["key2"]={30},
 },
 -- Table: {13}
 {
-   {31},
    {32},
-   ["key"]={31},
-   ["mod"]={32},
+   {33},
+   ["key"]={32},
+   ["mod"]={33},
 },
 -- Table: {14}
 {
@@ -172,11 +174,19 @@ local t = {
 },
 -- Table: {22}
 {
-   [".type"]="enum",
-   ["name"]="SlotType",
-   ["values"]={33},
+   ["ftype"]="string",
+   ["name"]="strindex",
+   [".type"]="field",
+   ["rule"]="optional",
+   ["tag"]=4,
 },
 -- Table: {23}
+{
+   [".type"]="enum",
+   ["name"]="SlotType",
+   ["values"]={34},
+},
+-- Table: {24}
 {
    ["ftype"]="string",
    ["name"]="name",
@@ -184,7 +194,7 @@ local t = {
    ["rule"]="required",
    ["tag"]=1,
 },
--- Table: {24}
+-- Table: {25}
 {
    ["ftype"]="string",
    ["name"]="body",
@@ -192,7 +202,7 @@ local t = {
    ["rule"]="required",
    ["tag"]=2,
 },
--- Table: {25}
+-- Table: {26}
 {
    ["ftype"]="uint32",
    ["name"]="id",
@@ -200,7 +210,7 @@ local t = {
    ["rule"]="required",
    ["tag"]=3,
 },
--- Table: {26}
+-- Table: {27}
 {
    ["ftype"]="string",
    ["name"]="icon",
@@ -208,7 +218,7 @@ local t = {
    ["rule"]="required",
    ["tag"]=4,
 },
--- Table: {27}
+-- Table: {28}
 {
    ["ftype"]="uint32",
    ["name"]="id",
@@ -216,7 +226,7 @@ local t = {
    ["rule"]="required",
    ["tag"]=1,
 },
--- Table: {28}
+-- Table: {29}
 {
    ["ftype"]="Key",
    ["name"]="key1",
@@ -224,7 +234,7 @@ local t = {
    ["rule"]="optional",
    ["tag"]=2,
 },
--- Table: {29}
+-- Table: {30}
 {
    ["ftype"]="Key",
    ["name"]="key2",
@@ -232,7 +242,7 @@ local t = {
    ["rule"]="optional",
    ["tag"]=3,
 },
--- Table: {30}
+-- Table: {31}
 {
    ["ftype"]="string",
    ["name"]="command",
@@ -240,7 +250,7 @@ local t = {
    ["rule"]="optional",
    ["tag"]=15,
 },
--- Table: {31}
+-- Table: {32}
 {
    ["ftype"]="uint32",
    ["name"]="key",
@@ -248,7 +258,7 @@ local t = {
    ["rule"]="required",
    ["tag"]=1,
 },
--- Table: {32}
+-- Table: {33}
 {
    ["ftype"]="uint32",
    ["name"]="mod",
@@ -256,7 +266,7 @@ local t = {
    ["rule"]="required",
    ["tag"]=2,
 },
--- Table: {33}
+-- Table: {34}
 {
    "SPELL",
    "ITEM",

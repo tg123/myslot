@@ -27,6 +27,7 @@ message Slot {
 	required SlotType type = 2;
 
 	required uint32 index = 3;
+	optional string strindex = 4;
 }
 
 message Macro {

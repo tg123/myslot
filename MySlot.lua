@@ -9,7 +9,7 @@ local _MySlot = pblua.load_proto_ast(MySlot.ast)
 
 local MYSLOT_AUTHOR = "T.G. <farmer1992@gmail.com>"
 
-local MYSLOT_VER = 21
+local MYSLOT_VER = 22
 local MYSLOT_ALLOW_VER = {MYSLOT_VER, 20}
 
 -- local MYSLOT_IS_DEBUG = true
@@ -134,7 +134,12 @@ function MySlot:GetActionInfo(slotId)
 	local msg = _MySlot.Slot()
 	msg.id = slotId
 	msg.type = MySlot.SLOT_TYPE[slotType]
-	msg.index = index
+	if type(index) == 'string' then
+		msg.strindex = index
+		msg.index = 0
+	else
+		msg.index = index
+	end
 	return msg
 end
 
@@ -453,6 +458,7 @@ function MySlot:RecoverData(msg)
 		local slotId = s.id
 		local slotType = _MySlot.Slot.SlotType[s.type]
 		local index = s.index
+		local strindex = s.strindex
 
 		local curType, curIndex = GetActionInfo(slotId)
 		curType = MySlot.SLOT_TYPE[curType or MYSLOT_NOTFOUND]
@@ -490,14 +496,14 @@ function MySlot:RecoverData(msg)
 					if curType ~= MYSLOT_MACRO or curIndex ~=index then
 						PickupMacro(macroid)
 					end
-				elseif slotType == MYSLOT_SUMMONPET then
-					C_PetJournal.PickupPet(index, false)
+				elseif slotType == MYSLOT_SUMMONPET and strindex and strindex ~=curIndex then
+					C_PetJournal.PickupPet(strindex , false)
 					if not GetCursorInfo() then
-						C_PetJournal.PickupPet(index, true)
+						C_PetJournal.PickupPet(strindex, true)
 					end
-					-- if not GetCursorInfo() then
-					--	MySlot:Print("忽略未开启的战斗宠物[id=" .. index .."]：" .. C_PetJournal.GetBattlePetLink(index) )
-					-- end
+					if not GetCursorInfo() then
+					       MySlot:Print("忽略未开启的战斗宠物[id=" .. strindex .."]：" .. C_PetJournal.GetBattlePetLink(strindex) )
+					end
 				elseif slotType == MYSLOT_EMPTY then
 					PickupAction(slotId)
 				elseif slotType == MYSLOT_EQUIPMENTSET then
