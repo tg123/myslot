@@ -10,7 +10,7 @@ local _MySlot = pblua.load_proto_ast(MySlot.ast)
 local MYSLOT_AUTHOR = "T.G. <farmer1992@gmail.com>"
 
 local MYSLOT_VER = 22
-local MYSLOT_ALLOW_VER = {MYSLOT_VER, 20}
+local MYSLOT_ALLOW_VER = {MYSLOT_VER, 21, 20}
 
 -- local MYSLOT_IS_DEBUG = true
 local MYSLOT_LINE_SEP = IsWindowsClient() and "\r\n" or "\n"
