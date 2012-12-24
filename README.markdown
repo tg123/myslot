@@ -1,6 +1,13 @@
 MySlot
 ======
 
+Introduction
+------------
+Myslot is a World of Warcraft Addon to transfer settings between accounts.
+
+Myslot is used to export your ActionBar Layout, Marcos and Key Bindings as a transfer-friendly text. 
+Any character, even different class, can use Myslot to import the setting from the 'Exported text'
+
 Usage
 -----
 
@@ -21,6 +28,10 @@ Copyright and License
 
 MySlot
 ======
+MySlot 是一个帐号间配置复制插件
+
+Myslot可以帮你把 按键布局 宏 按键绑定 导出成方便传递的字符串
+任何人物都可以使用Myslot从导出字符恢复这些配置
 
 使用方法
 --------
