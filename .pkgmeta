@@ -1,3 +1,4 @@
+enable-nolib-creation: false
 externals:
   libs/lua-pb:
     tag: beta1.0
@@ -5,7 +6,7 @@ externals:
 ignore:
 - libs/lua-pb/saveast.lua
 - protobuf/lua-pb/lua-pb-scm-0.rockspec
-- libs/LibCompress.lua
+- protobuf/lua-pb/example_person.lua
 - libs/lua-pb/example_person.lua
 - protobuf/lua-pb/bench_enc.lua
 - protobuf/lua-pb/saveast.lua
@@ -23,7 +24,6 @@ ignore:
 - libs/lua-pb/API.md
 - protobuf/lua-pb/person.proto
 - README.markdown
-- protobuf/lua-pb/example_person.lua
 - libs/lua-pb/lua-pb-scm-0.rockspec
 - protobuf/lua-pb/bench_media_pb.lua
 - protobuf/lua-pb/pb-wow.lua
@@ -35,3 +35,4 @@ ignore:
 - libs/lua-pb/wowace.pkgmeta.gen.py
 - libs/lua-pb/utils.lua
 - protobuf/MySlot.proto
+package-as: MySlot
