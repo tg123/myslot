@@ -1,0 +1,37 @@
+externals:
+  libs/lua-pb:
+    tag: beta1.0
+    url: git://git.wowace.com/wow/lua-pb/mainline.git
+ignore:
+- libs/lua-pb/saveast.lua
+- protobuf/lua-pb/lua-pb-scm-0.rockspec
+- libs/LibCompress.lua
+- libs/lua-pb/example_person.lua
+- protobuf/lua-pb/bench_enc.lua
+- protobuf/lua-pb/saveast.lua
+- libs/LibStub/LibStub.toc
+- protobuf/lua-pb/README.md
+- libs/lua-pb/README.md
+- protobuf/buildast.lua
+- libs/lua-pb/pb.lua
+- protobuf/lua-pb/utils.lua
+- libs/lua-pb/person.proto
+- protobuf/lua-pb/lua-pb.toc
+- protobuf/lua-pb/pb.lua
+- dist.sh
+- protobuf/PbMySlot.lua
+- libs/lua-pb/API.md
+- protobuf/lua-pb/person.proto
+- README.markdown
+- protobuf/lua-pb/example_person.lua
+- libs/lua-pb/lua-pb-scm-0.rockspec
+- protobuf/lua-pb/bench_media_pb.lua
+- protobuf/lua-pb/pb-wow.lua
+- protobuf/lua-pb/API.md
+- libs/lua-pb/lua-pb.toc
+- libs/lua-pb/bench_enc.lua
+- protobuf/lua-pb/wowace.pkgmeta.gen.py
+- libs/lua-pb/bench_media_pb.lua
+- libs/lua-pb/wowace.pkgmeta.gen.py
+- libs/lua-pb/utils.lua
+- protobuf/MySlot.proto
