@@ -35,4 +35,4 @@ ignore:
 - libs/lua-pb/wowace.pkgmeta.gen.py
 - libs/lua-pb/utils.lua
 - protobuf/MySlot.proto
-package-as: MySlot
+package-as: Myslot
