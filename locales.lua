@@ -12,6 +12,8 @@ local L = setmetatable({}, {
 
 MySlot.L = L
 
+--
+-- Use http://www.wowace.com/addons/myslot/localization/ to translate thanks
 -- 
 local locale = GetLocale()
 
@@ -25,8 +27,12 @@ elseif locale == 'esMX' then
 --@localization(locale="esMX", format="lua_additive_table", handle-unlocalized="comment")@
 elseif locale == 'frFR' then
 --@localization(locale="frFR", format="lua_additive_table", handle-unlocalized="comment")@
+elseif locale == 'itIT' then
+--@localization(locale="itIT", format="lua_additive_table", handle-unlocalized="comment")@
 elseif locale == 'koKR' then
 --@localization(locale="koKR", format="lua_additive_table", handle-unlocalized="comment")@
+elseif locale == 'ptBR' then
+--@localization(locale="ptBR", format="lua_additive_table", handle-unlocalized="comment")@
 elseif locale == 'ruRU' then
 --@localization(locale="ruRU", format="lua_additive_table", handle-unlocalized="comment")@
 elseif locale == 'zhCN' then
@@ -44,7 +50,9 @@ L="deDE
 esES
 esMX
 frFR
+itIT
 koKR
+ptBR
 ruRU
 zhCN
 zhTW
@@ -60,4 +68,9 @@ done
 
 # import to wowace
 grep "L\[.*\]"  -Po MySlot.lua | sed -e s/$/=true/g
+
+for i in $L ;do 
+echo "## Notes-$i: @localization(locale=\"$i\", key=\"TOC_NOTES\")@"
+done
+
 ]]
