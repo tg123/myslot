@@ -2,7 +2,7 @@
 ## Title: MySlot 按键导出插件
 ## Notes: 保存你的技能按钮位置 farmer1992@gmail.com
 ## Author: tg123
-## Version: 5.0
+## Version: 5.1.2
 
 libs\LibStub\LibStub.lua
 libs\base64.lua
@@ -24,9 +24,9 @@ libs\lua-pb\pb\standard.lua
 
 libs\lua-pb\pb-wow.lua
 
-MySlotStub.lua
-PbMySlot.lua
-
-MySlot.lua
+locales.lua
 keys.lua
 MySlot.xml
+
+PbMySlot.lua
+MySlot.lua

@@ -1,3 +1,5 @@
+local _, MySlot = ...
+
 local MYSLOT_BINDS = {
 	["MOVEANDSTEER"] = 1,
 	["MOVEFORWARD"] = 2,
