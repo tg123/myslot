@@ -1,8 +1,18 @@
 ## Interface: 50100
-## Title: MySlot 按键导出插件
-## Notes: 保存你的技能按钮位置 farmer1992@gmail.com
+## Title: MySlot
+## Notes: @localization(locale="enUS", key="TOC_NOTES")@
+## Notes-deDE: @localization(locale="deDE", key="TOC_NOTES")@
+## Notes-esES: @localization(locale="esES", key="TOC_NOTES")@
+## Notes-esMX: @localization(locale="esMX", key="TOC_NOTES")@
+## Notes-frFR: @localization(locale="frFR", key="TOC_NOTES")@
+## Notes-itIT: @localization(locale="itIT", key="TOC_NOTES")@
+## Notes-koKR: @localization(locale="koKR", key="TOC_NOTES")@
+## Notes-ptBR: @localization(locale="ptBR", key="TOC_NOTES")@
+## Notes-ruRU: @localization(locale="ruRU", key="TOC_NOTES")@
+## Notes-zhCN: @localization(locale="zhCN", key="TOC_NOTES")@
+## Notes-zhTW: @localization(locale="zhTW", key="TOC_NOTES")@
 ## Author: tg123
-## Version: 5.1.2
+## Version: @project-version@
 
 libs\LibStub\LibStub.lua
 libs\base64.lua

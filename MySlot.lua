@@ -85,7 +85,7 @@ local function TableToString(s)
 end
 
 function MySlot:Print(msg)
-	DEFAULT_CHAT_FRAME:AddMessage("|CFFFF0000<|r|CFFFFD100My Slot 5 Beta|r|CFFFF0000>|r"..(msg or "nil"))
+	DEFAULT_CHAT_FRAME:AddMessage("|CFFFF0000<|r|CFFFFD100My Slot 5|r|CFFFF0000>|r"..(msg or "nil"))
 end
 
 -- {{{ GetMacroInfo
