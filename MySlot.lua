@@ -504,7 +504,7 @@ function MySlot:RecoverData(msg)
 						C_PetJournal.PickupPet(strindex, true)
 					end
 					if not GetCursorInfo() then
-						MySlot:Print(L["Ignore actived pet[id=%s], %s"]:format(strindex, C_PetJournal.GetBattlePetLink(strindex)))	
+						MySlot:Print(L["Ignore unactived pet[id=%s], %s"]:format(strindex, C_PetJournal.GetBattlePetLink(strindex)))	
 					end
 				elseif slotType == MYSLOT_EMPTY then
 					PickupAction(slotId)
