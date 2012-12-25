@@ -99,7 +99,7 @@
 					</Frame>
 				</ScrollChild>
 			</ScrollFrame>
-			<Button name="$parentCloseButton" hidden="false" inherits="GameMenuButtonTemplate" text="关闭">
+			<Button name="$parentCloseButton" hidden="false" inherits="GameMenuButtonTemplate" text="Close">
 				<Size>
 					<AbsDimension x="125" y="25"/>
 				</Size>
@@ -110,13 +110,8 @@
 						</Offset>
 					</Anchor>
 				</Anchors>
-				<Scripts>
-					<OnClick>
-						MYSLOT_ReportFrame:Hide();
-					</OnClick>
-				</Scripts>
 			</Button>
-			<Button name="$parentImportButton" hidden="false" inherits="GameMenuButtonTemplate" text="导入">
+			<Button name="$parentImportButton" hidden="false" inherits="GameMenuButtonTemplate" text="Import">
 				<Size>
 					<AbsDimension x="125" y="25"/>
 				</Size>
@@ -127,13 +122,8 @@
 						</Offset>
 					</Anchor>
 				</Anchors>
-				<Scripts>
-					<OnClick>
-						MySlot:Import()
-					</OnClick>
-				</Scripts>
 			</Button>						
-			<Button name="$parentGetButton" hidden="false" inherits="GameMenuButtonTemplate" text="导出">
+			<Button name="$parentExportButton" hidden="false" inherits="GameMenuButtonTemplate" text="Export">
 				<Size>
 					<AbsDimension x="125" y="25"/>
 				</Size>
@@ -145,6 +135,9 @@
 					</Anchor>
 				</Anchors>
 				<Scripts>
+					<OnLoad>
+						self:SetText('x')
+					</OnLoad>
 					<OnClick>
 						MySlot:Export()
 					</OnClick>

@@ -14,9 +14,9 @@ f:close()
 
 local ast = proto_parser.parse(text)
 s.save(ast, 'PbMySlot.lua', [[
-local myslot = LibStub:GetLibrary('MySlot-5.0')
+local _, MySlot = ...
 ]],[[
-myslot.ast = loadast()
+MySlot.ast = loadast()
 ]])
 
 
