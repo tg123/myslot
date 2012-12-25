@@ -68,6 +68,7 @@ done
 
 # import to wowace
 grep "L\[.*\]"  -Po MySlot.lua | sed -e s/$/=true/g
+echo L[\"TOC_NOTES\"] = true
 
 for i in $L ;do 
 echo "## Notes-$i: @localization(locale=\"$i\", key=\"TOC_NOTES\")@"
