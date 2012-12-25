@@ -57,4 +57,7 @@ echo "elseif locale == '$i' then"
 echo "--@localization(locale=\"$i\", format=\"lua_additive_table\", handle-unlocalized=\"comment\")@"
 
 done
+
+# import to wowace
+grep "L\[.*\]"  -Po MySlot.lua | sed -e s/$/=true/g
 ]]
