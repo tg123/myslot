@@ -127,7 +127,6 @@ function MySlot:GetActionInfo(slotId)
 	elseif not MySlot.SLOT_TYPE[slotType] then
 		if slotType then 
 			self:Print(L["[WARN] Ignore unsupported Slot Type [ %s ] , contact %s please"]:format(slotType , MYSLOT_AUTHOR))
-			-- self:Print("[WARN]忽略不支持的按键类型[" .. slotType .."] 请通知作者" .. MYSLOT_AUTHOR)
 		end
 		return nil
 	elseif not index then
@@ -165,14 +164,12 @@ local function KeyToByte(key , command)
 
 	if not MySlot.KEYS[key] then
 		MySlot:Print(L["[WARN] Ignore unsupported Key Binding [ %s ] , contact %s please"]:format(slotType , MYSLOT_AUTHOR))
-		-- MySlot:Print("[WARN]忽略不支持的绑定 K = [" .. key .."] 请通知作者" .. MYSLOT_AUTHOR)
 		return nil
 	end
 	mod = mod or "NONE"
 
 	if not MySlot.MOD_KEYS[mod] then
 		MySlot:Print(L["[WARN] Ignore unsupported Key Binding [ %s ] , contact %s please"]:format(slotType , MYSLOT_AUTHOR))
-		-- MySlot:Print("[WARN]忽略不支持的绑定 MK = [" .. key .."] 请通知作者" .. MYSLOT_AUTHOR)
 		return nil
 	end
 
@@ -282,7 +279,6 @@ end
 function MySlot:Import()
 	if InCombatLockdown() then
 		MySlot:Print(L["Import is not allowed when you are in combat"])
-		-- MySlot:Print("请在非战斗时候使用导入功能")
 		return
 	end
 
@@ -294,7 +290,6 @@ function MySlot:Import()
 	
 	if #s < 8  then
 		MySlot:Print(L["Bad importing text [TEXT]"])
-		-- MySlot:Print("导入字符不合法 [TEXT]")
 		return
 	end
 
@@ -304,13 +299,11 @@ function MySlot:Import()
 	
 	if ( crc ~= bit.band(crc32.enc(s), 2^32 - 1)) then
 		MySlot:Print(L["Bad importing text [CRC32]"])
-		-- MySlot:Print("导入字符码校验不合法 [CRC32]")
 		return 
 	end
 
 	if not tContains(MYSLOT_ALLOW_VER,ver) then
 		MySlot:Print(L["Importing text [ver:%s] is not compatible with current version"]:format(ver))
-		--MySlot:Print("导入串版本不兼容当前Myslot版本 导入版本号" .. ver )
 		return 
 	end
 
@@ -379,7 +372,6 @@ function MySlot:FindOrCreateMacro(macroInfo)
 		end
 
 		self:Print(L["Macro %s was ignored, check if there is enough space to create"]:format(name))
-		-- self:Print("宏 ["..name.." ] 被忽略，请检查是否有足够的空格创建宏")
 		return nil
 	end
 end
@@ -496,7 +488,6 @@ function MySlot:RecoverData(msg)
 							end
 						else
 							MySlot:Print(L["Ignore unlearned skill [id=%s], %s"]:format(index, GetSpellLink(index)))	
-							-- MySlot:Print("忽略未掌握技能[id=" .. index .."]：" .. GetSpellLink(index) )	
 						end
 					end
 				elseif slotType == MYSLOT_ITEM then
@@ -514,7 +505,6 @@ function MySlot:RecoverData(msg)
 					end
 					if not GetCursorInfo() then
 						MySlot:Print(L["Ignore actived pet[id=%s], %s"]:format(strindex, C_PetJournal.GetBattlePetLink(strindex)))	
-						--MySlot:Print("忽略未开启的战斗宠物[id=" .. strindex .."]：" .. C_PetJournal.GetBattlePetLink(strindex) )
 					end
 				elseif slotType == MYSLOT_EMPTY then
 					PickupAction(slotId)
@@ -527,7 +517,6 @@ function MySlot:RecoverData(msg)
 		end) then
 			
 			MySlot:Print(L["[WARN] Ignore slot due to an unknown error DEBUG INFO = [S=%s T=%s I=%s] Please send Importing Text and DEBUG INFO to %s"]:format(slotId,slotType,index,MYSLOT_AUTHOR))
-			--MySlot:Print("[WARN] 忽略出错技能 DEBUG INFO = [S=" .. slotId .. " T=".. slotType .. " I=" .. index .."] 请将出错的字符和 DEBUG INFO 发给作者" .. MYSLOT_AUTHOR)
 		end
 	end
 
@@ -563,7 +552,6 @@ function MySlot:RecoverData(msg)
 	SaveBindings(GetCurrentBindingSet())
 
 	MySlot:Print(L["All slots were restored"])
-	--MySlot:Print("所有按钮及按键邦定位置恢复完毕")
 end
 
 function MySlot:Clear()
@@ -584,7 +572,6 @@ SLASH_MYSLOT1 = "/MYSLOT"
 
 StaticPopupDialogs["MYSLOT_MSGBOX"] = {
 	text = L["Are you SURE to import ?"],
-	-- text = L["你 确定 要导入么？？？"],
 	button1 = ACCEPT,
 	button2 = CANCEL,
 	timeout = 0,
