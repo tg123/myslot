@@ -1,18 +1,26 @@
 #!/bin/bash
 
-TARGET=Myslot.zip
+
+
+TARGET=`grep package-as .pkgmeta | cut -d ' ' -f 2`
 TOC=`ls *.toc`
 
-rm -f $TARGET
+rm -f $TARGET.zip
+rm -rf $TARGET
 
 grep '\.(lua)|(xml)$' $TOC -P | sed -e 's/\\/\//g' |xargs zip $TARGET $TOC
 
-unzip -d Myslot $TARGET
+unzip -d $TARGET $TARGET.zip
 
-rm -f $TARGET
+rm -f $TARGET.zip
 
-zip -r $TARGET Myslot # fuck !
+if [ ! -e locales.lua.wowace ] || [ ! -e MySlot.toc.wowace ];then
+	./update_locale.sh
+	/bin/cp locales.lua.wowace $TARGET/locales.lua
+	/bin/cp MySlot.toc.wowace $TARGET/MySlot.toc
+fi 
 
-rm -rf Myslot
+zip -r $TARGET.zip $TARGET
+rm -rf $TARGET
 
-md5sum $TARGET
+md5sum $TARGET.zip
