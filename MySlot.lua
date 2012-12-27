@@ -365,6 +365,10 @@ function MySlot:FindOrCreateMacro(macroInfo)
 		perchar = perchar == 0 and testallow or perchar
 				
 		if perchar ~= 0 then
+			-- fix icon using #showtooltip
+			if strsub(body,0, 12) == '#showtooltip' then
+				icon = 'INV_Misc_QuestionMark'
+			end
 			local newid = CreateMacro(name, icon, body, perchar - 1 , 1)
 			if newid then
 				return newid
