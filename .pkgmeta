@@ -4,17 +4,19 @@ externals:
     tag: beta1.0
     url: git://git.wowace.com/wow/lua-pb/mainline.git
 ignore:
+- update_locale.sh
 - libs/lua-pb/saveast.lua
 - protobuf/lua-pb/lua-pb-scm-0.rockspec
 - libs/lua-pb/example_person.lua
 - libs/LibStub/LibStub.toc
 - protobuf/lua-pb/pb-wow.lua
 - protobuf/lua-pb/README.md
-- libs/lua-pb/pb.lua
+- libs/lua-pb/README.md
 - protobuf/lua-pb/person.proto
 - protobuf/buildast.lua
-- libs/lua-pb/README.md
+- libs/lua-pb/pb.lua
 - protobuf/lua-pb/utils.lua
+- extract_locale.sh
 - libs/lua-pb/wowace.pkgmeta.gen.py
 - libs/lua-pb/person.proto
 - protobuf/lua-pb/lua-pb.toc
@@ -28,6 +30,7 @@ ignore:
 - libs/lua-pb/bench_enc.lua
 - protobuf/lua-pb/bench_enc.lua
 - protobuf/lua-pb/API.md
+- MySlot.ver
 - libs/lua-pb/lua-pb.toc
 - protobuf/lua-pb/wowace.pkgmeta.gen.py
 - libs/lua-pb/bench_media_pb.lua
