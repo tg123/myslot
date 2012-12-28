@@ -584,19 +584,25 @@ StaticPopupDialogs["MYSLOT_MSGBOX"] = {
 	multiple = 0,
 }
 
--- TODO clean up code
-local FRAMENAME = 'MYSLOT_ReportFrame'
-_G[FRAMENAME..'CloseButton']:SetText(L["Close"])
-_G[FRAMENAME..'CloseButton']:SetScript('OnClick', function()
-	MYSLOT_ReportFrame:Hide()
+local f = CreateFrame('Frame')
+f:RegisterEvent('ADDON_LOADED')
+
+f:SetScript("OnEvent", function()
+	-- TODO clean up code
+	local FRAMENAME = 'MYSLOT_ReportFrame'
+	_G[FRAMENAME..'CloseButton']:SetText(L["Close"])
+	_G[FRAMENAME..'CloseButton']:SetScript('OnClick', function()
+		MYSLOT_ReportFrame:Hide()
+	end)
+
+	_G[FRAMENAME..'ImportButton']:SetText(L["Import"])
+	_G[FRAMENAME..'ImportButton']:SetScript('OnClick', function()
+		MySlot:Import()
+	end)
+
+	_G[FRAMENAME..'ExportButton']:SetText(L["Export"])
+	_G[FRAMENAME..'ExportButton']:SetScript('OnClick', function()
+		MySlot:Export()
+	end)
 end)
 
-_G[FRAMENAME..'ImportButton']:SetText(L["Import"])
-_G[FRAMENAME..'ImportButton']:SetScript('OnClick', function()
-	MySlot:Import()
-end)
-
-_G[FRAMENAME..'ExportButton']:SetText(L["Export"])
-_G[FRAMENAME..'ExportButton']:SetScript('OnClick', function()
-	MySlot:Export()
-end)
