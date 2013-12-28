@@ -24,7 +24,7 @@ Get Myslot
 
 Copyright and License
 ---------------------
-1. Copyright (C) 2009-2012 by T.G. <farmer1992@gmail.com>
+1. Copyright (C) 2009-2014 by T.G. <farmer1992@gmail.com>
 1. Use of this software for profit purposes are NOT allowed except by prior arrangement and written consent of the author.
 1. This software is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html)
 1. All rights of **Exported text** are owned by end-users.
@@ -49,7 +49,7 @@ Myslot可以帮你把 按键布局 宏 按键绑定 导出成方便传递的字�
 
 授权
 ----
-1. 作者 T.G. <farmer1992@gmail.com> 2009-2012
+1. 作者 T.G. <farmer1992@gmail.com> 2009-2014
 1. 将本软件用于盈利性目的时需征得作者书面同意
 1. 本软件在[Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html)下授权使用
 1. 本软件产生的 **导出字符** 的所有权利用户所有
