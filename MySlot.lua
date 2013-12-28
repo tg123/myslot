@@ -163,13 +163,13 @@ local function KeyToByte(key , command)
 	end
 
 	if not MySlot.KEYS[key] then
-		MySlot:Print(L["[WARN] Ignore unsupported Key Binding [ %s ] , contact %s please"]:format(slotType , MYSLOT_AUTHOR))
+		MySlot:Print(L["[WARN] Ignore unsupported Key Binding [ %s ] , contact %s please"]:format(key, MYSLOT_AUTHOR))
 		return nil
 	end
 	mod = mod or "NONE"
 
 	if not MySlot.MOD_KEYS[mod] then
-		MySlot:Print(L["[WARN] Ignore unsupported Key Binding [ %s ] , contact %s please"]:format(slotType , MYSLOT_AUTHOR))
+		MySlot:Print(L["[WARN] Ignore unsupported Key Binding [ %s ] , contact %s please"]:format(mod, MYSLOT_AUTHOR))
 		return nil
 	end
 
