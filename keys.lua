@@ -444,6 +444,12 @@ local MYSLOT_MOD_KEYS = {
 	["ALT-SHIFT"] = 109,
 	["SHIFT-CTRL"] = 100,
 	["SHIFT-ALT"] = 101,
+	["ALT-CTRL-SHIFT"] = 110,
+	["ALT-SHIFT-CTRL"] = 111,
+	["CTRL-ALT-SHIFT"] = 112,
+	["CTRL-SHIFT-ALT"] = 113,
+	["SHIFT-ALT-CTRL"] = 114,
+	["SHIFT-CTRL-ALT"] = 115,
 	["CUSTOM"] = 255,
 }
 
