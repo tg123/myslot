@@ -16,9 +16,10 @@ rm -f $TARGET.zip
 
 if [ ! -e locales.lua.wowace ] || [ ! -e MySlot.toc.wowace ];then
 	./update_locale.sh
-	/bin/cp locales.lua.wowace $TARGET/locales.lua
-	/bin/cp MySlot.toc.wowace $TARGET/MySlot.toc
 fi 
+
+/bin/cp locales.lua.wowace $TARGET/locales.lua
+/bin/cp MySlot.toc.wowace $TARGET/MySlot.toc
 
 zip -r $TARGET.zip $TARGET
 rm -rf $TARGET

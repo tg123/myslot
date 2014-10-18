@@ -28,12 +28,12 @@ while read -r r; do
 			note=`grep "L\[\"$TOCNOTE_KEY\"\]" $LOCALE.$REPLACING_SURFIX | tail -n 1 | cut -d = -f 2 | sed 's/"//g'`
 
 			TOCNOTEMAP[$lang]="$note"
+
+            continue
 		fi
-		
-	else
-		:
-		echo $r >> $LOCALE.$REPLACING_SURFIX
 	fi	
+
+    echo $r >> $LOCALE.$REPLACING_SURFIX
 
 done< <(cat $LOCALE)
 
