@@ -224,7 +224,7 @@ function MySlot:Export()
 	
 	msg.macro = {}
 
-	for i = 1,54 do
+	for i = 1, MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS do
 		local m = self:GetMacroInfo(i)
 		if m then
 			msg.macro[#msg.macro + 1] = m
@@ -332,7 +332,7 @@ function MySlot:FindOrCreateMacro(macroInfo)
 	-- cache local macro index
 	-- {{{ 
 	local localMacro = {}
-	for i = 1,54 do
+	for i = 1, MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS do
 		
 		local name, _, body = GetMacroInfo(i)
 		if name then
@@ -354,7 +354,7 @@ function MySlot:FindOrCreateMacro(macroInfo)
 	else
 
 		local numglobal, numperchar = GetNumMacros()
-		local perchar = id > 36 and 2 or 1
+		local perchar = id > MAX_ACCOUNT_MACROS and 2 or 1
 
 		--[[
 			perchar    G = 01 P = 10 
@@ -362,7 +362,7 @@ function MySlot:FindOrCreateMacro(macroInfo)
 			perchar & testallow = 01 , 10 , 00
 			perchar = testallow when not allow
 		]]
-		local testallow = bit.bor( numglobal < 36 and 1 or 0 , numperchar < 18 and 2 or 0)
+		local testallow = bit.bor( numglobal < MAX_ACCOUNT_MACROS and 1 or 0 , numperchar < MAX_CHARACTER_MACROS and 2 or 0)
 		perchar = bit.band( perchar, testallow)
 		perchar = perchar == 0 and testallow or perchar
 				
