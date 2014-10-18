@@ -185,7 +185,7 @@ end
 
 function MySlot:GetBindingInfo(index)
 	-- might more than 1
-	local _command, key1, key2 = GetBinding(index)
+	local _command, _, key1, key2 = GetBinding(index)
 
 	if not _command then
 		return
