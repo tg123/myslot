@@ -11,8 +11,8 @@ local _MySlot = pblua.load_proto_ast(MySlot.ast)
 
 local MYSLOT_AUTHOR = "T.G. <farmer1992@gmail.com>"
 
-local MYSLOT_VER = 22
-local MYSLOT_ALLOW_VER = {MYSLOT_VER, 21, 20}
+local MYSLOT_VER = 23
+local MYSLOT_ALLOW_VER = {MYSLOT_VER, 22, 21, 20}
 
 -- local MYSLOT_IS_DEBUG = true
 local MYSLOT_LINE_SEP = IsWindowsClient() and "\r\n" or "\n"
@@ -27,6 +27,7 @@ local MYSLOT_FLYOUT = _MySlot.Slot.SlotType.FLYOUT
 local MYSLOT_EQUIPMENTSET = _MySlot.Slot.SlotType.EQUIPMENTSET
 local MYSLOT_EMPTY = _MySlot.Slot.SlotType.EMPTY
 local MYSLOT_SUMMONPET = _MySlot.Slot.SlotType.SUMMONPET
+local MYSLOT_SUMMONMOUNT = _MySlot.Slot.SlotType.SUMMONMOUNT
 local MYSLOT_NOTFOUND = "notfound"
 
 MySlot.SLOT_TYPE = {
@@ -39,6 +40,7 @@ MySlot.SLOT_TYPE = {
 	["futurespell"] = MYSLOT_EMPTY,
 	["equipmentset"] = MYSLOT_EQUIPMENTSET,
 	["summonpet"] = MYSLOT_SUMMONPET,
+	["summonmount"] = MYSLOT_SUMMONMOUNT,
 	[MYSLOT_NOTFOUND] = MYSLOT_EMPTY,
 }
 -- }}}
@@ -410,7 +412,8 @@ function MySlot:RecoverData(msg)
 		end
 	end
 
-	for _, companionsType in pairs({"CRITTER", "MOUNT"}) do
+    -- removed in 6.0 
+	for _, companionsType in pairs({"CRITTER"}) do
 		for i =1,GetNumCompanions(companionsType) do
 			local _,_,spellId = GetCompanionInfo( companionsType, i)
 			spells[MYSLOT_SPELL .. "_" .. spellId] = {i, companionsType, "companions"}
@@ -430,6 +433,24 @@ function MySlot:RecoverData(msg)
 	end
 	
 	-- }}}
+
+    
+    -- {{{ cache mounts
+
+    local mounts = {}
+
+    for i = 1, C_MountJournal.GetNumMounts() do
+        ClearCursor()
+        C_MountJournal.Pickup(i)
+        local _, mount_id = GetCursorInfo()
+
+        if mount_id then
+            mounts[mount_id] = i
+        end
+    end
+
+    -- }}}
+
 
 	-- {{{ Macro
 
@@ -510,6 +531,16 @@ function MySlot:RecoverData(msg)
 					if not GetCursorInfo() then
 						MySlot:Print(L["Ignore unactived pet[id=%s], %s"]:format(strindex, C_PetJournal.GetBattlePetLink(strindex)))	
 					end
+				elseif slotType == MYSLOT_SUMMONMOUNT then
+                    
+                    index = mounts[index]
+                    if index then
+                        C_MountJournal.Pickup(index)
+                    else
+                        C_MountJournal.Pickup(0)
+						MySlot:Print(L["Use random mount instead of an unactived mount"])
+                    end
+                    
 				elseif slotType == MYSLOT_EMPTY then
 					PickupAction(slotId)
 				elseif slotType == MYSLOT_EQUIPMENTSET then
@@ -605,4 +636,3 @@ f:SetScript("OnEvent", function()
 		MySlot:Export()
 	end)
 end)
-
