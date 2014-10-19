@@ -1,12 +1,12 @@
 local _, MySlot = ...
 
 local L = setmetatable({}, {
-	__index = function(table, key)
-		if key then
-			table[key] = tostring(key)
-		end
-		return tostring(key)
-	end,
+    __index = function(table, key)
+        if key then
+            table[key] = tostring(key)
+        end
+        return tostring(key)
+    end,
 })
 
 
