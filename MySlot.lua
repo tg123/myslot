@@ -372,7 +372,7 @@ function MySlot:FindOrCreateMacro(macroInfo)
             if strsub(body,0, 12) == '#showtooltip' then
                 icon = 'INV_Misc_QuestionMark'
             end
-            local newid = CreateMacro(name, icon, body, perchar == 2)
+            local newid = CreateMacro(name, icon, body, perchar >= 2)
             if newid then
                 return newid
             end
