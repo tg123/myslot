@@ -102,7 +102,7 @@ function MySlot:GetMacroInfo(macroId)
 
     local t = {macroId} 
 
-    iconTexture = gsub( strupper(iconTexture) , "INTERFACE\\ICONS\\", "");
+    iconTexture = gsub( strupper(iconTexture or "INV_Misc_QuestionMark") , "INTERFACE\\ICONS\\", "");
     
     local msg = _MySlot.Macro()
     
