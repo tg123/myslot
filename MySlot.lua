@@ -575,13 +575,13 @@ function MySlot:RecoverData(msg)
         if b.key1 then
             local mod, key = MySlot.R_MOD_KEYS[ b.key1.mod], MySlot.R_KEYS[ b.key1.key]
             local key = ( mod ~= "NONE" and (mod .. "-") or "" ) .. key
-            SetBinding(key ,command, 1)
+            SetBinding(key, command, 1)
         end
 
         if b.key2 then
             local mod, key = MySlot.R_MOD_KEYS[ b.key2.mod], MySlot.R_KEYS[ b.key2.key]
             local key = ( mod ~= "NONE" and (mod .. "-") or "" ) .. key
-            SetBinding(key ,command, 1)
+            SetBinding(key, command, 1)
         end
 
     end
@@ -590,18 +590,33 @@ function MySlot:RecoverData(msg)
     MySlot:Print(L["All slots were restored"])
 end
 
-function MySlot:Clear()
-    for i = 1, MYSLOT_MAX_ACTIONBAR do
-        PickupAction(i)
-        ClearCursor()
+function MySlot:Clear(what)
+    if what == "action" then
+        for i = 1, MYSLOT_MAX_ACTIONBAR do
+            PickupAction(i)
+            ClearCursor()
+        end
+    elseif what == "binding" then
+        for i = 1, GetNumBindings() do
+            local _, _, key1, key2 = GetBinding(i)
+            
+            for _, key in pairs({key1, key2}) do
+                if key then
+                    SetBinding(key, nil, 1)
+                end
+            end
+        end
+        SaveBindings(GetCurrentBindingSet())
     end
 end
 
-SlashCmdList["MYSLOT"] = function(arg1, ...)
-    if arg1 == "clear" then
-        MySlot:Clear()
+SlashCmdList["MYSLOT"] = function(msg, editbox)
+    local cmd, what = msg:match("^(%S*)%s*(%S*)%s*$")
+
+    if cmd == "clear" then
+        MySlot:Clear(what)
     else
-        MYSLOT_ReportFrame:Show()
+        MYSLOT_ReportFrame:Show() 
     end
 end
 SLASH_MYSLOT1 = "/MYSLOT"
