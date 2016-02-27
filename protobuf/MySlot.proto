@@ -36,7 +36,6 @@ message Macro {
 	required string body = 2;
 	required uint32 id = 3;
 	required string icon = 4;
-
 }
 
 message Bind {
@@ -46,10 +45,11 @@ message Bind {
 
 	optional Key key1 = 2;
 	optional Key key2 = 3;
-
 }
 
 message Key {
 	required uint32 key = 1;
 	required uint32 mod = 2;
+
+	optional string keycode = 15;
 }
