@@ -1,8 +1,9 @@
-enable-nolib-creation: false
+package-as: Myslot
+enable-nolib-creation: no
 externals:
   libs/lua-pb:
-    tag: v1.0
     url: https://github.com/tg123/lua-pb.git
+    tag: v1.0
 ignore:
 - update_locale.sh
 - libs/lua-pb/saveast.lua
@@ -39,4 +40,3 @@ ignore:
 - libs/lua-pb/utils.lua
 - protobuf/MySlot.proto
 - Myslot.zip
-package-as: Myslot
