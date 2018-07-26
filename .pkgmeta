@@ -1,5 +1,5 @@
 package-as: Myslot
-enable-nolib-creation: no
+enable-nolib-creation: false
 externals:
   libs/lua-pb:
     url: https://github.com/tg123/lua-pb.git
