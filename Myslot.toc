@@ -1,5 +1,5 @@
 ## Interface: 80000
-## Title: MySlot
+## Title: Myslot
 ## Notes: @localization(locale="enUS", key="TOC_NOTES")@
 ## Notes-deDE: @localization(locale="deDE", key="TOC_NOTES")@
 ## Notes-esES: @localization(locale="esES", key="TOC_NOTES")@
@@ -36,7 +36,7 @@ libs\lua-pb\pb-wow.lua
 
 locales.lua
 keys.lua
-MySlot.xml
+Myslot.xml
 
-PbMySlot.lua
-MySlot.lua
+PbMyslot.lua
+Myslot.lua
