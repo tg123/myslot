@@ -1,3 +1,3 @@
 [submodule "protobuf/lua-pb"]
 	path = protobuf/lua-pb
-	url = git@github.com:tg123/lua-pb.git
+	url = https://github.com/tg123/lua-pb.git
