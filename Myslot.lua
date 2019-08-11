@@ -11,8 +11,8 @@ local _MySlot = pblua.load_proto_ast(MySlot.ast)
 
 local MYSLOT_AUTHOR = "T.G. <farmer1992@gmail.com>"
 
-local MYSLOT_VER = 24
-local MYSLOT_ALLOW_VER = {MYSLOT_VER, 23, 22, 21, 20}
+local MYSLOT_VER = 25
+local MYSLOT_ALLOW_VER = {MYSLOT_VER, 24, 23, 22}
 
 -- local MYSLOT_IS_DEBUG = true
 local MYSLOT_LINE_SEP = IsWindowsClient() and "\r\n" or "\n"
@@ -87,7 +87,7 @@ local function TableToString(s)
 end
 
 function MySlot:Print(msg)
-    DEFAULT_CHAT_FRAME:AddMessage("|CFFFF0000<|r|CFFFFD100My Slot 5|r|CFFFF0000>|r"..(msg or "nil"))
+    DEFAULT_CHAT_FRAME:AddMessage("|CFFFF0000<|r|CFFFFD100My Slot|r|CFFFF0000>|r"..(msg or "nil"))
 end
 
 -- {{{ GetMacroInfo
@@ -233,7 +233,7 @@ function MySlot:Export()
     end
 
     msg.slot = {}
-    for i = 1,MYSLOT_MAX_ACTIONBAR do
+    for i = 1, MYSLOT_MAX_ACTIONBAR do
         local m = self:GetActionInfo(i)
         if m then
             msg.slot[#msg.slot + 1] = m
@@ -271,10 +271,14 @@ function MySlot:Export()
     s = "@ " .. CLASS .. ":" ..UnitClass("player") .. MYSLOT_LINE_SEP .. s
     s = "@ " .. PLAYER ..":" ..UnitName("player") .. MYSLOT_LINE_SEP .. s
     s = "@ " .. L["Time"] .. ":" .. date() .. MYSLOT_LINE_SEP .. s
-    s = "@ Wow ( V" .. GetBuildInfo() .. ")" .. MYSLOT_LINE_SEP .. s
-    s = "@ Myslot ( V" .. MYSLOT_VER .. ")" .. MYSLOT_LINE_SEP .. s
+    s = "@ Wow (V" .. GetBuildInfo() .. ")" .. MYSLOT_LINE_SEP .. s
+    s = "@ Myslot (V" .. MYSLOT_VER .. ")" .. MYSLOT_LINE_SEP .. s
 
-    s = s .. base64.enc(t)
+    local d = base64.enc(t)
+    local LINE_LEN = 80
+    for i = 1, d:len(), LINE_LEN do
+        s = s .. d:sub(i, i + LINE_LEN - 1) .. MYSLOT_LINE_SEP
+    end
     MYSLOT_ReportFrame_EditBox:SetText(s)
     MYSLOT_ReportFrame_EditBox:HighlightText()
     -- }}}
@@ -288,6 +292,7 @@ function MySlot:Import()
 
     local s = MYSLOT_ReportFrame_EditBox:GetText() or ""
     s = string.gsub(s,"(@.[^\n]*\n)","")
+    s = string.gsub(s,"(#.[^\n]*\n)","")
     s = string.gsub(s,"\n","")
     s = string.gsub(s,"\r","")
     s = base64.dec(s)
