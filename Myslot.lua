@@ -271,6 +271,7 @@ function MySlot:Export()
     s = "@ " .. CLASS .. ":" ..UnitClass("player") .. MYSLOT_LINE_SEP .. s
     s = "@ " .. PLAYER ..":" ..UnitName("player") .. MYSLOT_LINE_SEP .. s
     s = "@ " .. L["Time"] .. ":" .. date() .. MYSLOT_LINE_SEP .. s
+    s = "@ Wow ( V" .. GetBuildInfo() .. ")" .. MYSLOT_LINE_SEP .. s
     s = "@ Myslot ( V" .. MYSLOT_VER .. ")" .. MYSLOT_LINE_SEP .. s
 
     s = s .. base64.enc(t)
