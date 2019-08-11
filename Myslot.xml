@@ -1,9 +1,7 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
 ..\FrameXML\UI.xsd">
 
-
-
-<Frame name="MYSLOT_ReportFrame" toplevel="true" movable="true" parent="UIParent" enableMouse="true" hidden="true">
+	<Frame name="MYSLOT_ReportFrame" toplevel="true" movable="true" parent="UIParent" enableMouse="true" hidden="true">
 		<Size>
 			<AbsDimension x="550" y="500"/>
 		</Size>
@@ -48,7 +46,7 @@
 		</Layers>
 
 		<Frames>
-		<ScrollFrame name="MYSLOT_ScrollFrame" inherits="UIPanelScrollFrameTemplate">
+			<ScrollFrame name="MYSLOT_ScrollFrame" inherits="UIPanelScrollFrameTemplate">
 				<Size>
 					<AbsDimension x="500" y="430"/>
 				</Size>
@@ -68,30 +66,30 @@
 							<Anchor point="TOPLEFT"/>
 						</Anchors>
 						<Frames>
-							<EditBox name="MYSLOT_ReportFrame_EditBox"  letters="99999999" enableMouse="false" multiLine="true" autoFocus="true">
-										<Size>
-											<AbsDimension x="480" y="400"/>
-										</Size>
-										<Anchors>
-											<Anchor point="TOPLEFT">
-												<Offset>
-													<AbsDimension x="10" y="0"/>
-												</Offset>
-											</Anchor>
-										</Anchors>
-										<Scripts>
-											<OnTextChanged>
+							<EditBox name="MYSLOT_ReportFrame_EditBox" letters="99999999" enableMouse="false" multiLine="true" autoFocus="true">
+								<Size>
+									<AbsDimension x="480" y="400"/>
+								</Size>
+								<Anchors>
+									<Anchor point="TOPLEFT">
+										<Offset>
+											<AbsDimension x="10" y="0"/>
+										</Offset>
+									</Anchor>
+								</Anchors>
+								<Scripts>
+									<OnTextChanged>
 												ScrollingEdit_OnTextChanged(self,MYSLOT_ScrollFrame);
-											</OnTextChanged>
-											<OnCursorChanged>
+									</OnTextChanged>
+									<OnCursorChanged>
 												ScrollingEdit_OnCursorChanged(self,x, y-10, w, h);
-											</OnCursorChanged>
-											<OnEscapePressed>
+									</OnCursorChanged>
+									<OnEscapePressed>
 												self:ClearFocus();
-											</OnEscapePressed>
-										</Scripts>
-										<FontString inherits="GameTooltipTextSmall"/>
-									</EditBox>
+									</OnEscapePressed>
+								</Scripts>
+								<FontString inherits="GameTooltipTextSmall"/>
+							</EditBox>
 						</Frames>
 					</Frame>
 				</ScrollChild>
@@ -101,7 +99,7 @@
 					<AbsDimension x="125" y="25"/>
 				</Size>
 				<Anchors>
-					<Anchor point="BOTTOM" >
+					<Anchor point="BOTTOM">
 						<Offset>
 							<AbsDimension x="150" y="15"/>
 						</Offset>
@@ -113,26 +111,26 @@
 					<AbsDimension x="125" y="25"/>
 				</Size>
 				<Anchors>
-					<Anchor point="BOTTOM" >
+					<Anchor point="BOTTOM">
 						<Offset>
 							<AbsDimension x="-180" y="15"/>
 						</Offset>
 					</Anchor>
 				</Anchors>
-			</Button>						
+			</Button>
 			<Button name="$parentExportButton" hidden="false" inherits="GameMenuButtonTemplate" text="Export">
 				<Size>
 					<AbsDimension x="125" y="25"/>
 				</Size>
 				<Anchors>
-					<Anchor point="BOTTOM" >
+					<Anchor point="BOTTOM">
 						<Offset>
 							<AbsDimension x="0" y="15"/>
 						</Offset>
 					</Anchor>
 				</Anchors>
-			</Button>			
+			</Button>
 		</Frames>
-</Frame>
+	</Frame>
 
 </Ui>
