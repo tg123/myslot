@@ -302,15 +302,16 @@ function MySlot:Import()
         return
     end
 
+    local force = _G['MYSLOT_ReportFrameForceImport']:GetChecked()
+
     local ver = s[1]
     local crc = s[5] * 2^24 + s[6] * 2^16 + s[7] * 2^8 + s[8]
     s[5], s[6], s[7] ,s[8] = 0, 0 ,0 ,0
     
     if ( crc ~= bit.band(crc32.enc(s), 2^32 - 1)) then
         MySlot:Print(L["Bad importing text [CRC32]"])
-        -- TODO cleanup this name
-        if _G['MYSLOT_ReportFrameForceImport']:GetChecked() then
-            MySlot:Print(L["Try force importing"])
+        if force then
+            MySlot:Print(L["Skip bad CRC32"] .. " " .. L["Try force importing"])
         else
             return 
         end
@@ -318,7 +319,11 @@ function MySlot:Import()
 
     if not tContains(MYSLOT_ALLOW_VER,ver) then
         MySlot:Print(L["Importing text [ver:%s] is not compatible with current version"]:format(ver))
-        return 
+        if force then
+            MySlot:Print(L["Skip unsupported version"] .. " " .. L["Try force importing"])
+        else
+            return 
+        end
     end
 
     local ct = {}
@@ -671,12 +676,10 @@ f:SetScript("OnEvent", function()
     end)
 
     _G[FRAMENAME .. 'ForceImportText']:SetText(L["Force Import"])
-    _G[FRAMENAME .. 'ForceImport'].tooltip = L["Ignore CRC32 error. may cause unknow behavior"]
+    _G[FRAMENAME .. 'ForceImport'].tooltip = L["Skip CRC32, version and any other validation before importing. May cause unknown behavior"]
 
     -- _G[FRAMENAME .. 'OptionFrameOptionBarText']:SetText(L["Import and Export settings below"])
     -- _G[FRAMENAME .. 'OptionFrameActionText']:SetText(L["Spell"])
     -- _G[FRAMENAME .. 'OptionFrameMacroText']:SetText(L["Macro"])
     -- _G[FRAMENAME .. 'OptionFrameBindingText']:SetText(L["Keys Binding"])
-    --_G['ForceImportText']:SetText(L["FFF"])
-    -- _G[FRAMENAME .. 'ForceImportText']:SetText(L["FFF"])
 end)
