@@ -547,7 +547,7 @@ function MySlot:RecoverData(msg)
                         C_PetJournal.PickupPet(strindex, true)
                     end
                     if not GetCursorInfo() then
-                        MySlot:Print(L["Ignore unactived pet[id=%s], %s"]:format(strindex, C_PetJournal.GetBattlePetLink(strindex)))    
+                        MySlot:Print(L["Ignore unattained pet[id=%s], %s"]:format(strindex, C_PetJournal.GetBattlePetLink(strindex)))    
                     end
                 elseif slotType == MYSLOT_SUMMONMOUNT then
                     
@@ -556,7 +556,7 @@ function MySlot:RecoverData(msg)
                         C_MountJournal.Pickup(index)
                     else
                         C_MountJournal.Pickup(0)
-                        MySlot:Print(L["Use random mount instead of an unactived mount"])
+                        MySlot:Print(L["Use random mount instead of an unattained mount"])
                     end
                     
                 elseif slotType == MYSLOT_EMPTY then
