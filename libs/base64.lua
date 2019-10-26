@@ -1,5 +1,6 @@
--- 原作者 Lua 5.1+ base64 v3.0 (c) 2009 by Alex Kloss <alexthkloss@web.de>
--- 修改使兼容byte seq table by T.G. <farmer1992@gmail.com> 2010 Oct 24
+-- Lua 5.1+ base64 v3.0 (c) 2009 by Alex Kloss <alexthkloss@web.de>
+-- Licensed under the terms of the LGPL2
+-- modified to support byte seq table and World of Warcraft by Boshi Lian <farmer1992@gmail.com> 2010 Oct 24
 
 local base64 = LibStub:NewLibrary("BASE64-1.0", 1)
 
