@@ -1,7 +1,6 @@
---[[
-	original from
-	http://forums.curseforge.com/showpost.php?p=252484&postcount=8
-]]
+-- original from
+-- http://forums.curseforge.com/showpost.php?p=252484&postcount=8
+-- modified to support World of Warcraft by Boshi Lian <farmer1992@gmail.com>
 
 local crc32 = LibStub:NewLibrary("CRC32-1.0", 1)
 
@@ -55,8 +54,7 @@ local consts = {
 local function enc(t)
     local crc, l = 0xFFFFFFFF, #t
     for i = 1, l do
-        crc = bit_bxor(bit_rshift(crc, 8),
-                       consts[bit_band(bit_bxor(crc, t[i]), 0xFF) + 1])
+        crc = bit_bxor(bit_rshift(crc, 8), consts[bit_band(bit_bxor(crc, t[i]), 0xFF) + 1])
     end
     return bit_bxor(crc, -1)
 end
