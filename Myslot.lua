@@ -35,7 +35,7 @@ MySlot.SLOT_TYPE = {
     ["companion"] = MYSLOT_COMPANION,
     ["macro"]= MYSLOT_MACRO,
     ["item"]= MYSLOT_ITEM,
-    ["flyout"] = MYSLOT_FLYOUT, 
+    ["flyout"] = MYSLOT_FLYOUT,
     ["petaction"] = MYSLOT_EMPTY,
     ["futurespell"] = MYSLOT_EMPTY,
     ["equipmentset"] = MYSLOT_EQUIPMENTSET,
@@ -67,7 +67,7 @@ end
 local function StringToTable(s)
     if type(s) ~= 'string' then
         return {}
-    end 
+    end
     local r = {}
     for i = 1, string.len(s) do
         r[#r + 1] = string.byte(s, i)
@@ -78,7 +78,7 @@ end
 local function TableToString(s)
     if type(s) ~= 'table' then
         return ''
-    end 
+    end
     local t = {}
     for _,c in pairs(s) do
         t[#t + 1] = string.char(c)
@@ -95,17 +95,14 @@ function MySlot:GetMacroInfo(macroId)
     -- {macroId ,icon high 8, icon low 8 , namelen, ..., bodylen, ...}
 
     local name, iconTexture, body, isLocal = GetMacroInfo(macroId)
-    
+
     if not name then
         return nil
     end
 
-    local t = {macroId} 
-
     iconTexture = gsub( strupper(iconTexture or "INV_Misc_QuestionMark") , "INTERFACE\\ICONS\\", "");
-    
+
     local msg = _MySlot.Macro()
-    
     msg.id = macroId
     msg.icon = iconTexture
     msg.name = name
@@ -157,9 +154,8 @@ local function KeyToByte(key , command)
         return nil
     end
 
-    local mod,key = nil, key
-    local t = {}
-    local _,_,_mod,_key = string.find(key ,"(.+)-(.+)") 
+    local mod = nil
+    local _, _, _mod, _key = string.find(key ,"(.+)-(.+)") 
     if _mod and _key then
         mod, key = _mod, _key
     end
@@ -222,7 +218,6 @@ function MySlot:Export()
 
     msg.ver = MYSLOT_VER
     msg.name = UnitName("player")
-    
     msg.macro = {}
 
     for i = 1, MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS do
@@ -249,7 +244,7 @@ function MySlot:Export()
     end
 
     local ct = msg:Serialize()
-    t = {MYSLOT_VER,86,04,22,0,0,0,0}
+    local t = {MYSLOT_VER,86,04,22,0,0,0,0}
     MergeTable(t, StringToTable(ct))
 
     -- {{{ CRC32
@@ -594,7 +589,7 @@ function MySlot:RecoverData(msg)
             if key == "KEYCODE" then
                 key = b.key1.keycode
             end
-            local key = ( mod ~= "NONE" and (mod .. "-") or "" ) .. key
+            key = ( mod ~= "NONE" and (mod .. "-") or "" ) .. key
             SetBinding(key, command, 1)
         end
 
