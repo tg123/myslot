@@ -1,0 +1,11 @@
+## Interface: 80205
+## Title: luapb (Lib Protobuf for World of Warcraft)
+## Author: Boshi Lian
+## Version: v1.1.0
+
+lua-pb.xml
+
+#@debug@
+# wowtest\person.lua
+# wowtest\pb-wow-test.lua
+#@end-debug@

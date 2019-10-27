@@ -11,32 +11,16 @@
 ## Notes-ruRU: @localization(locale="ruRU", key="TOC_NOTES")@
 ## Notes-zhCN: @localization(locale="zhCN", key="TOC_NOTES")@
 ## Notes-zhTW: @localization(locale="zhTW", key="TOC_NOTES")@
-## Author: tg123
+## Author: Boshi Lian
 ## Version: @project-version@
 
-libs\LibStub\LibStub.lua
 libs\base64.lua
 libs\crc32.lua
+libs\lua-pb\lua-pb.xml
 
-libs\lua-pb\pb\fakerequire.lua
-libs\lua-pb\pb\utils.lua
-libs\lua-pb\pb\handlers.lua
-libs\lua-pb\pb\standard\buffer.lua
-libs\lua-pb\pb\standard\unknown.lua
-libs\lua-pb\pb\standard\repeated.lua
-
-libs\lua-pb\pb\standard\dump.lua
-libs\lua-pb\pb\standard\message.lua
-
-libs\lua-pb\pb\standard\pack.lua
-libs\lua-pb\pb\standard\unpack.lua
-libs\lua-pb\pb\standard.lua
-
-libs\lua-pb\pb-wow.lua
+protobuf\Myslot.lua
 
 locales.lua
 keys.lua
 Myslot.xml
-
-PbMyslot.lua
 Myslot.lua
