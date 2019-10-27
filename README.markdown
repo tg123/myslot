@@ -52,56 +52,25 @@ and submit your localization
 
 ### Build your own Myslot
 
-My game envirment is Ubuntu + wine
-
- * fetch the source code
+ * clone the source code into `Interface\Addons\Myslot`
 
 ```
-$ git clone https://github.com/tg123/myslot.git
-
-$ cd myslot
-
-$ git submodule init
-
-$ git submodule update 
+$ git clone https://github.com/tg123/myslot.git Myslot
 ```
  
- * pull the localizations from wowace
+ * pull the localizations from wowace (optional)
 
 ```
 ./update_locale.sh
 ```
  
- * build your own dist `.zip`
-
-```
-./dist.sh
-```
-
-#### Changing Protobuf def
+#### Changing Protobuf
 
 Myslot use a modified version of [lua-pb](https://github.com/tg123/lua-pb) to serialize/deserialize the data. 
 You may want to change the data structure sometimes if you want add some new things to export.
 
-* Dependencies
+Please check [lua-pb](https://github.com/tg123/lua-pb) about how to generate protobuf stub files.
 
-Your need install `lpeg` to build `.proto`
-
-```
-luarocks install lpeg
-```
-
- * Generate
-
-Editing `protobuf/MySlot.proto`
-
-run
-
-```
-lua buildast.lua
-```
-
-to generate `PbMySlot.lua` for game use
 
 ## Copyright and License
 1. Copyright (C) 2009-2019 by Boshi Lian <farmer1992@gmail.com>
