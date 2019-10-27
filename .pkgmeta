@@ -1,42 +1,9 @@
 package-as: Myslot
 enable-nolib-creation: false
-externals:
-  libs/lua-pb:
-    url: https://github.com/tg123/lua-pb.git
-    tag: v1.0
 ignore:
-  - update_locale.sh
-  - libs/lua-pb/saveast.lua
-  - protobuf/lua-pb/lua-pb-scm-0.rockspec
-  - libs/lua-pb/example_person.lua
-  - libs/LibStub/LibStub.toc
-  - protobuf/lua-pb/pb-wow.lua
-  - protobuf/lua-pb/README.md
-  - libs/lua-pb/README.md
-  - protobuf/lua-pb/person.proto
-  - protobuf/buildast.lua
-  - libs/lua-pb/pb.lua
-  - protobuf/lua-pb/utils.lua
-  - extract_locale.sh
-  - libs/lua-pb/wowace.pkgmeta.gen.py
-  - libs/lua-pb/person.proto
-  - protobuf/lua-pb/lua-pb.toc
-  - protobuf/lua-pb/pb.lua
-  - dist.sh
-  - protobuf/PbMySlot.lua
-  - libs/lua-pb/API.md
-  - README.markdown
-  - protobuf/lua-pb/example_person.lua
-  - libs/lua-pb/lua-pb-scm-0.rockspec
-  - libs/lua-pb/bench_enc.lua
-  - protobuf/lua-pb/bench_enc.lua
-  - protobuf/lua-pb/API.md
-  - MySlot.ver
+  - libs/lua-pb/CHANGES.txt
   - libs/lua-pb/lua-pb.toc
-  - protobuf/lua-pb/wowace.pkgmeta.gen.py
-  - libs/lua-pb/bench_media_pb.lua
-  - protobuf/lua-pb/bench_media_pb.lua
-  - protobuf/lua-pb/saveast.lua
-  - libs/lua-pb/utils.lua
-  - protobuf/MySlot.proto
-  - Myslot.zip
+  - libs/lua-pb/wowtest
+  - protobuf/Myslot.proto
+  - *.markdown
+  - *.sh
