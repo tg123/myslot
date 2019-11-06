@@ -22,5 +22,5 @@ protobuf\Myslot.lua
 
 locales.lua
 keys.lua
-Myslot.xml
 Myslot.lua
+gui.lua
