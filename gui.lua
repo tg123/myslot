@@ -45,16 +45,15 @@ end
 local exportEditbox
 do
     local t = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
+    t:EnableMouse(true)
     t:SetPoint("TOPLEFT", f, 25, -30)
     t:SetWidth(580)
     t:SetHeight(500)
-
     local edit = CreateFrame("EditBox", nil, t)
     edit:SetWidth(560)
     edit:SetHeight(480)
     edit:SetPoint("TOPLEFT", t, 0, 0)
     edit:SetAutoFocus(false)
-    edit:EnableMouse(true)
     edit:SetMaxLetters(99999999)
     edit:SetMultiLine(true)
     edit:SetFontObject(GameTooltipTextSmall)
@@ -68,6 +67,10 @@ do
     edit:SetScript("OnEscapePressed", edit.ClearFocus)
     edit:SetScript("OnTextSet", edit.HighlightText)
     edit:SetScript("OnMouseUp", edit.HighlightText)
+
+    t:SetScript("OnMouseDown", function()
+        edit:SetFocus()
+    end)
 
     t:SetScrollChild(edit)
     exportEditbox = edit
@@ -143,7 +146,7 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
     if cmd == "clear" then
         MySlot:Clear(what)
     else
-        f:Show() 
+        f:Show()
     end
 end
 SLASH_MYSLOT1 = "/MYSLOT"
