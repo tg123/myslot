@@ -42,40 +42,7 @@ do
     t:SetPoint("TOP", f.texture, 0, -14)
 end
 
--- export editbox
 local exportEditbox
--- do
---     local t = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
---     t:EnableMouse(true)
---     t:SetPoint("TOPLEFT", f, 25, -30)
---     t:SetWidth(580)
---     t:SetHeight(500)
---     local edit = CreateFrame("EditBox", nil, t)
---     edit:SetWidth(560)
---     edit:SetHeight(480)
---     edit:SetPoint("TOPLEFT", t, 0, 0)
---     edit:SetAutoFocus(false)
---     edit:SetMaxLetters(99999999)
---     edit:SetMultiLine(true)
---     edit:SetFontObject(GameTooltipTextSmall)
---     edit:SetScript("OnTextChanged", function(self)
---         ScrollingEdit_OnTextChanged(self, t)
---     end)
---     edit:SetScript("OnCursorChanged", ScrollingEdit_OnCursorChanged)
---     edit:SetScript("OnUpdate", function(self, elapsed)
---         ScrollingEdit_OnUpdate(self, elapsed, t)
---     end)
---     edit:SetScript("OnEscapePressed", edit.ClearFocus)
---     edit:SetScript("OnTextSet", edit.HighlightText)
---     edit:SetScript("OnMouseUp", edit.HighlightText)
-
---     t:SetScript("OnMouseDown", function()
---         edit:SetFocus()
---     end)
-
---     t:SetScrollChild(edit)
---     exportEditbox = edit
--- end
 
 -- close
 do
@@ -127,6 +94,8 @@ do
     end)
 end
 
+local infolabel
+
 -- export
 do
     local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
@@ -137,6 +106,7 @@ do
     b:SetScript("OnClick", function()
         local s = MySlot:Export()
         exportEditbox:SetText(s)
+        infolabel.ShowUnsaved()
     end)
 end
 
@@ -174,19 +144,20 @@ RegEvent("ADDON_LOADED", function()
         edit:SetMaxLetters(99999999)
         edit:SetMultiLine(true)
         edit:SetFontObject(GameTooltipText)
-        -- edit:SetScript("OnTextChanged", function(self)
-        --     ScrollingEdit_OnTextChanged(self, s)
-        -- end)
-        -- edit:SetScript("OnUpdate", function(self, elapsed)
-        --     ScrollingEdit_OnUpdate(self, elapsed, s)
-        -- end)
-        -- edit:SetScript("OnCursorChanged", function(self) 
-        --     ScrollingEdit_OnCursorChanged(self)
-        --     -- ScrollingEdit_OnUpdate(self, 0, s)
-        -- end)
         edit:SetScript("OnEscapePressed", edit.ClearFocus)
         edit:SetScript("OnTextSet", edit.HighlightText)
         edit:SetScript("OnMouseUp", edit.HighlightText)
+
+        -- edit:SetScript("OnTextChanged", function()
+        --     infolabel:SetText(L["Unsaved"])
+        -- end)
+        edit:SetScript("OnTextSet", function()
+            edit.savedtxt = edit:GetText()
+            infolabel:SetText("")
+        end)
+        edit:SetScript("OnChar", function(self, c)
+            infolabel.ShowUnsaved()
+        end)
 
         t:SetScript("OnMouseDown", function()
             edit:SetFocus()
@@ -195,14 +166,21 @@ RegEvent("ADDON_LOADED", function()
         exportEditbox = edit
     end    
 
+
     do
         local t = CreateFrame("Frame", nil, f, "UIDropDownMenuTemplate")
         t:SetPoint("TOPLEFT", f, 5, -45)
         UIDropDownMenu_SetWidth(t, 200)
+        do
+            local tt = t:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+            tt:SetPoint("BOTTOMLEFT", t, "TOPLEFT", 20, 0)
 
-        -- local tt = t:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        -- tt:SetPoint("BOTTOMLEFT", t, "TOPLEFT", 20, 0)
-        -- tt:SetText(L["Saved exported text"])
+            tt.ShowUnsaved = function()
+                tt:SetText(YELLOW_FONT_COLOR:WrapTextInColorCode(L["Unsaved"]))
+            end
+            
+            infolabel = tt
+        end
 
         if not MyslotExports then
             MyslotExports = {}
@@ -215,7 +193,7 @@ RegEvent("ADDON_LOADED", function()
         local onclick = function(self)
             local idx = self.value
             UIDropDownMenu_SetSelectedValue(t, idx)
-            
+
             local n = exports[idx] and exports[idx].name or ""
             UIDropDownMenu_SetText(t, n)
 
@@ -251,6 +229,7 @@ RegEvent("ADDON_LOADED", function()
             end
 
             exports[c].value = v
+            infolabel:SetText("")
         end
         -- exportEditbox:SetScript("OnTextChanged", function() save(false) end)
 
