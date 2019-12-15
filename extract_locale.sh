@@ -34,7 +34,7 @@ elif [ "x$1" == "xloc" ];then
 else
 	# import to wowace
 	# 
-	cat Myslot.lua | grep "L\[\".*?\"]"  -Po | sed -e s/$/' = true'/g
+	cat *.lua | grep "L\[\".*?\"]"  -Po | sed -e s/$/' = true'/g
 	echo 'L["TOC_NOTES"] = "Myslot is for transferring settings between accounts. Feedback farmer1992@gmail.com"'
 
 fi
