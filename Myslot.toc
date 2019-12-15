@@ -11,7 +11,7 @@
 ## Notes-ruRU: @localization(locale="ruRU", key="TOC_NOTES")@
 ## Notes-zhCN: @localization(locale="zhCN", key="TOC_NOTES")@
 ## Notes-zhTW: @localization(locale="zhTW", key="TOC_NOTES")@
-## Author: Boshi Lian
+## Author: Boshi Lian(farmer1992@gmail.com)
 ## Version: @project-version@
 ## SavedVariables: MyslotExports
 

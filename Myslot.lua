@@ -9,7 +9,8 @@ local pblua = MySlot.luapb
 local _MySlot = pblua.load_proto_ast(MySlot.ast)
 
 
-local MYSLOT_AUTHOR = "T.G. <farmer1992@gmail.com>"
+local MYSLOT_AUTHOR = "Boshi Lian <farmer1992@gmail.com>"
+
 
 local MYSLOT_VER = 25
 local MYSLOT_ALLOW_VER = {MYSLOT_VER, 24, 23, 22}
