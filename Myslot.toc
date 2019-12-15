@@ -13,6 +13,8 @@
 ## Notes-zhTW: @localization(locale="zhTW", key="TOC_NOTES")@
 ## Author: Boshi Lian
 ## Version: @project-version@
+## SavedVariables: MyslotExports
+
 
 libs\base64.lua
 libs\crc32.lua
@@ -20,6 +22,7 @@ libs\lua-pb\lua-pb.xml
 
 protobuf\Myslot.lua
 
+event.lua
 locales.lua
 keys.lua
 Myslot.lua
