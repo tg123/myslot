@@ -270,10 +270,12 @@ function MySlot:Export(opt)
     s = "@ Myslot (V" .. MYSLOT_VER .. ")" .. MYSLOT_LINE_SEP .. s
 
     local d = base64.enc(t)
-    local LINE_LEN = 80
+    local LINE_LEN = 60
     for i = 1, d:len(), LINE_LEN do
         s = s .. d:sub(i, i + LINE_LEN - 1) .. MYSLOT_LINE_SEP
     end
+    s = s .. MYSLOT_LINE_SEP .. "@ --------------------"
+    s = s .. MYSLOT_LINE_SEP .. "@ END OF MYSLOT"
 
     return s
     -- }}}
