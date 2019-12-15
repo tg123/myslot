@@ -274,6 +274,7 @@ function MySlot:Export(opt)
     for i = 1, d:len(), LINE_LEN do
         s = s .. d:sub(i, i + LINE_LEN - 1) .. MYSLOT_LINE_SEP
     end
+    s = strtrim(s)
     s = s .. MYSLOT_LINE_SEP .. "@ --------------------"
     s = s .. MYSLOT_LINE_SEP .. "@ END OF MYSLOT"
 
@@ -288,8 +289,8 @@ function MySlot:Import(text, opt)
     end
 
     local s = text or ""
-    s = string.gsub(s,"(@.[^\n]*\n)","")
-    s = string.gsub(s,"(#.[^\n]*\n)","")
+    s = string.gsub(s,"(@.[^\n]*\n*)","")
+    s = string.gsub(s,"(#.[^\n]*\n*)","")
     s = string.gsub(s,"\n","")
     s = string.gsub(s,"\r","")
     s = base64.dec(s)
