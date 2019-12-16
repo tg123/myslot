@@ -14,7 +14,7 @@ Any character, even different class, can use Myslot to import those settings fro
 
   1. Use command /myslot to toggle Myslot main UI
   1. Click the 'Export' button
-  1. Save the `exported text` anywhere you want (e.g. nodepat as a txt)
+  1. Save the `exported text` anywhere you want (e.g. nodepad as a txt)
 
 ### Import
   
