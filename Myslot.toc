@@ -27,3 +27,4 @@ locales.lua
 keys.lua
 Myslot.lua
 gui.lua
+options.lua

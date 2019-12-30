@@ -26,6 +26,8 @@ f:SetScript("OnDragStart", f.StartMoving)
 f:SetScript("OnDragStop", f.StopMovingOrSizing)
 f:Hide()
 
+MySlot.MainFrame = f
+
 -- title
 do
     local t = f:CreateTexture(nil, "ARTWORK")
@@ -340,7 +342,9 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
     local cmd, what = msg:match("^(%S*)%s*(%S*)%s*$")
 
     if cmd == "clear" then
-        MySlot:Clear(what)
+        -- MySlot:Clear(what)
+        InterfaceOptionsFrame_OpenToCategory(L["Myslot"])
+        InterfaceOptionsFrame_OpenToCategory(L["Myslot"])
     else
         f:Show()
     end

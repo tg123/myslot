@@ -608,12 +608,16 @@ function MySlot:RecoverData(msg)
 end
 
 function MySlot:Clear(what)
-    if what == "action" then
+    if what == "ACTION" then
         for i = 1, MYSLOT_MAX_ACTIONBAR do
             PickupAction(i)
             ClearCursor()
         end
-    elseif what == "binding" then
+    elseif what == "MACRO" then
+        for i = MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS, 1, -1 do
+            DeleteMacro(i)
+        end
+    elseif what == "BINDING" then
         for i = 1, GetNumBindings() do
             local _, _, key1, key2 = GetBinding(i)
             
