@@ -368,8 +368,8 @@ function MySlot:FindOrCreateMacro(macroInfo)
     for i = 1, MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS do
         
         local name, _, body = GetMacroInfo(i)
-        body = UnifyCRLF(body)
         if name then
+            body = UnifyCRLF(body)
             localMacro[ name .. "_" .. body ] = i
             localMacro[ body ] = i
         end
