@@ -14,6 +14,8 @@
 ## Author: Boshi Lian(farmer1992@gmail.com)
 ## Version: @project-version@
 ## SavedVariables: MyslotExports
+## SavedVariablesPerCharacter: MyslotSettings
+
 
 libs\LibStub\LibStub.lua
 libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
