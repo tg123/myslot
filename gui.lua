@@ -2,7 +2,7 @@ local _, MySlot = ...
 
 local L = MySlot.L
 local RegEvent = MySlot.regevent
-local MAX_PROFILES_COUNT = 5
+local MAX_PROFILES_COUNT = 50
 
 
 local f = CreateFrame("Frame", nil, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
