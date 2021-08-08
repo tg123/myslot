@@ -1,4 +1,4 @@
-## Interface: 90002
+## Interface: 90100
 ## Title: Myslot
 ## Notes: @localization(locale="enUS", key="TOC_NOTES")@
 ## Notes-deDE: @localization(locale="deDE", key="TOC_NOTES")@
