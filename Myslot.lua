@@ -603,10 +603,10 @@ function MySlot:RecoverData(msg, opt)
     end
 
     if not opt.ignoreBinding then
-        if opt.clearAction then
+        if opt.clearBinding then
             MySlot:Clear("BINDING")
         end
-        
+
         for _, b in pairs(msg.bind or {}) do
             
             local command = b.command
