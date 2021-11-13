@@ -499,9 +499,9 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
     local cmd, what = msg:match("^(%S*)%s*(%S*)%s*$")
 
     if cmd == "clear" then
-        MySlot:Clear(what)
-        -- InterfaceOptionsFrame_OpenToCategory(L["Myslot"])
-        -- InterfaceOptionsFrame_OpenToCategory(L["Myslot"])
+        -- MySlot:Clear(what)
+        InterfaceOptionsFrame_OpenToCategory(L["Myslot"])
+        InterfaceOptionsFrame_OpenToCategory(L["Myslot"])
     elseif cmd == "trim" then
         if not MyslotExports then
             MyslotExports = {}
