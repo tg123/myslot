@@ -486,7 +486,10 @@ function MySlot:RecoverData(msg, opt)
     
     local macro = {}
     if not opt.ignoreMacro then
-        MySlot:Clear("MACRO")
+        if opt.clearMacro then
+            MySlot:Clear("MACRO")
+        end
+
         for _, m in pairs(msg.macro or {}) do
 
             local macroId = m.id
@@ -509,7 +512,10 @@ function MySlot:RecoverData(msg, opt)
     -- }}} Macro
 
     if (not opt.ignoreAction) then
-        MySlot:Clear("ACTION")
+        if opt.clearAction then
+            MySlot:Clear("ACTION")
+        end
+
         local slotBucket = {}
 
         for _, s in pairs(msg.slot or {}) do
@@ -597,7 +603,10 @@ function MySlot:RecoverData(msg, opt)
     end
 
     if not opt.ignoreBinding then
-        MySlot:Clear("BINDING")
+        if opt.clearAction then
+            MySlot:Clear("BINDING")
+        end
+        
         for _, b in pairs(msg.bind or {}) do
             
             local command = b.command
