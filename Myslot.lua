@@ -583,7 +583,10 @@ function MySlot:RecoverData(msg, opt)
                     elseif slotType == MYSLOT_EQUIPMENTSET then
                         C_EquipmentSet.PickupEquipmentSet(index)
                     end
-                    PlaceAction(slotId) 
+
+                    if GetCursorInfo() then
+                        PlaceAction(slotId)
+                    end
                     ClearCursor()
                 end
             end) then
