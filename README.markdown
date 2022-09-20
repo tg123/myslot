@@ -36,8 +36,8 @@ Any character, even different class, can use Myslot to import those settings fro
 
 ## Get Myslot
 
- * Curse (Lastest stable) http://www.curse.com/addons/wow/myslot
- * Wowace (stable and test) http://www.wowace.com/addons/myslot/
+ * Curse https://www.curseforge.com/wow/addons/myslot
+ * Wowace http://www.wowace.com/addons/myslot
 
 ## Contrubuting
 
