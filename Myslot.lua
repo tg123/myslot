@@ -467,12 +467,9 @@ function MySlot:RecoverData(msg, opt)
     local mounts = {}
 
     for i = 1, C_MountJournal.GetNumMounts() do
-        ClearCursor()
-        C_MountJournal.Pickup(i)
-        local _, mount_id = GetCursorInfo()
-
-        if mount_id then
-            mounts[mount_id] = i
+        local _, _, _, _, _, _, _, _, _, _, isCollected, mountId = C_MountJournal.GetDisplayedMountInfo(i)
+        if isCollected then
+            mounts[mountId] = i
         end
     end
 
