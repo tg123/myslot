@@ -17,7 +17,7 @@ local MYSLOT_ALLOW_VER = {MYSLOT_VER, 24, 23, 22}
 
 -- local MYSLOT_IS_DEBUG = true
 local MYSLOT_LINE_SEP = IsWindowsClient() and "\r\n" or "\n"
-local MYSLOT_MAX_ACTIONBAR = 132
+local MYSLOT_MAX_ACTIONBAR = 180
 
 -- {{{ SLOT TYPE
 local MYSLOT_SPELL = _MySlot.Slot.SlotType.SPELL
