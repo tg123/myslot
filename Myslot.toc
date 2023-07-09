@@ -15,6 +15,7 @@
 ## Version: @project-version@
 ## SavedVariables: MyslotExports
 ## SavedVariablesPerCharacter: MyslotSettings
+## IconTexture: Interface\AddOns\Myslot\Myslot
 
 
 libs\LibStub\LibStub.lua
