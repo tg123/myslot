@@ -571,7 +571,7 @@ function MySlot:RecoverData(msg, opt)
                             C_PetJournal.PickupPet(strindex, true)
                         end
                         if not GetCursorInfo() then
-                            MySlot:Print(L["Ignore unattained pet[id=%s]"]:format(strindex))    
+                            MySlot:Print(L["Ignore unattained pet [id=%s]"]:format(strindex))    
                         end
                     elseif slotType == MYSLOT_SUMMONMOUNT then
                         
