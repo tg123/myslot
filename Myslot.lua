@@ -216,7 +216,8 @@ local function GetTalentTreeString()
     if not ClassTalentFrame_LoadUI then
         -- maybe classic
         if GetTalentTabInfo then
-            return select(3, GetTalentTabInfo(1)) ..  "/" .. select(3, GetTalentTabInfo(2)) .. "/" .. select(3, GetTalentTabInfo(3))
+            return select(3, GetTalentTabInfo(1)) ..
+            "/" .. select(3, GetTalentTabInfo(2)) .. "/" .. select(3, GetTalentTabInfo(3))
         end
     end
 
@@ -297,7 +298,11 @@ function MySlot:Export(opt)
         s = "# " .. TALENTS .. ":" .. talent .. MYSLOT_LINE_SEP .. s
     end
     if GetSpecialization then
-        s = "# " ..  SPECIALIZATION ..  ":" ..  (GetSpecialization() and select(2, GetSpecializationInfo(GetSpecialization())) or NONE_CAPS) ..  MYSLOT_LINE_SEP .. s
+        s = "# " ..
+        SPECIALIZATION ..
+        ":" ..
+        (GetSpecialization() and select(2, GetSpecializationInfo(GetSpecialization())) or NONE_CAPS) ..
+        MYSLOT_LINE_SEP .. s
     end
     s = "# " .. CLASS .. ":" .. UnitClass("player") .. MYSLOT_LINE_SEP .. s
     s = "# " .. PLAYER .. ":" .. UnitName("player") .. MYSLOT_LINE_SEP .. s
@@ -473,9 +478,7 @@ function MySlot:RecoverData(msg, opt)
 
 
     -- {{{ cache mounts
-
-    -- local mounts = {}
-
+    local mounts = {}
     if C_MountJournal then
         for i = 1, C_MountJournal.GetNumMounts() do
             local _, _, _, _, _, _, _, _, _, _, isCollected, mountId = C_MountJournal.GetDisplayedMountInfo(i)
@@ -484,15 +487,11 @@ function MySlot:RecoverData(msg, opt)
             end
         end
     end
-
     -- }}}
 
 
     -- {{{ Macro
-
     -- cache macro
-
-
     local macro = {}
     if not opt.ignoreMacro then
         if opt.clearMacro then
@@ -516,7 +515,6 @@ function MySlot:RecoverData(msg, opt)
             self:FindOrCreateMacro(macro[macroId])
         end
     end
-
     -- }}} Macro
 
     if (not opt.ignoreAction) then
@@ -548,7 +546,7 @@ function MySlot:RecoverData(msg, opt)
 
                                 local spellName = GetSpellInfo(index) or "NOSUCHSPELL"
                                 local newId, spellType, pickType = unpack(spells[slotType .. "_" .. index] or
-                                spells[slotType .. "_" .. spellName] or {})
+                                    spells[slotType .. "_" .. spellName] or {})
 
                                 if newId then
                                     if pickType == "spell" then
@@ -597,7 +595,9 @@ function MySlot:RecoverData(msg, opt)
                         ClearCursor()
                     end
                 end) then
-                MySlot:Print(L["[WARN] Ignore slot due to an unknown error DEBUG INFO = [S=%s T=%s I=%s] Please send Importing Text and DEBUG INFO to %s"]:format(slotId, slotType, index, MYSLOT_AUTHOR))
+                MySlot:Print(L
+                ["[WARN] Ignore slot due to an unknown error DEBUG INFO = [S=%s T=%s I=%s] Please send Importing Text and DEBUG INFO to %s"]
+                :format(slotId, slotType, index, MYSLOT_AUTHOR))
             end
         end
 
