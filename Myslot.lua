@@ -282,19 +282,19 @@ function MySlot:Export(opt)
     local talent = GetTalentTreeString()
 
     local s = ""
-    s = "@ --------------------" .. MYSLOT_LINE_SEP .. s
-    s = "@ " .. L["Feedback"] .. "  farmer1992@gmail.com" .. MYSLOT_LINE_SEP .. s
-    s = "@ " .. MYSLOT_LINE_SEP .. s
-    s = "@ " .. LEVEL .. ":" ..UnitLevel("player") .. MYSLOT_LINE_SEP .. s
+    s = "# --------------------" .. MYSLOT_LINE_SEP .. s
+    s = "# " .. L["Feedback"] .. "  farmer1992@gmail.com" .. MYSLOT_LINE_SEP .. s
+    s = "# " .. MYSLOT_LINE_SEP .. s
+    s = "# " .. LEVEL .. ":" ..UnitLevel("player") .. MYSLOT_LINE_SEP .. s
     if talent then
-        s = "@ " .. TALENTS .. ":" .. talent .. MYSLOT_LINE_SEP .. s
+        s = "# " .. TALENTS .. ":" .. talent .. MYSLOT_LINE_SEP .. s
     end
-    s = "@ " .. SPECIALIZATION ..":" .. ( GetSpecialization() and select(2, GetSpecializationInfo(GetSpecialization())) or NONE_CAPS ) .. MYSLOT_LINE_SEP .. s
-    s = "@ " .. CLASS .. ":" ..UnitClass("player") .. MYSLOT_LINE_SEP .. s
-    s = "@ " .. PLAYER ..":" ..UnitName("player") .. MYSLOT_LINE_SEP .. s
-    s = "@ " .. L["Time"] .. ":" .. date() .. MYSLOT_LINE_SEP .. s
-    s = "@ Wow (V" .. GetBuildInfo() .. ")" .. MYSLOT_LINE_SEP .. s
-    s = "@ Myslot (V" .. MYSLOT_VER .. ")" .. MYSLOT_LINE_SEP .. s
+    s = "# " .. SPECIALIZATION ..":" .. ( GetSpecialization() and select(2, GetSpecializationInfo(GetSpecialization())) or NONE_CAPS ) .. MYSLOT_LINE_SEP .. s
+    s = "# " .. CLASS .. ":" ..UnitClass("player") .. MYSLOT_LINE_SEP .. s
+    s = "# " .. PLAYER ..":" ..UnitName("player") .. MYSLOT_LINE_SEP .. s
+    s = "# " .. L["Time"] .. ":" .. date() .. MYSLOT_LINE_SEP .. s
+    s = "# Wow (V" .. GetBuildInfo() .. ")" .. MYSLOT_LINE_SEP .. s
+    s = "# Myslot (https://myslot.net)" .. MYSLOT_LINE_SEP .. s
 
     local d = base64.enc(t)
     local LINE_LEN = 60
@@ -302,8 +302,8 @@ function MySlot:Export(opt)
         s = s .. d:sub(i, i + LINE_LEN - 1) .. MYSLOT_LINE_SEP
     end
     s = strtrim(s)
-    s = s .. MYSLOT_LINE_SEP .. "@ --------------------"
-    s = s .. MYSLOT_LINE_SEP .. "@ END OF MYSLOT"
+    s = s .. MYSLOT_LINE_SEP .. "# --------------------"
+    s = s .. MYSLOT_LINE_SEP .. "# END OF MYSLOT"
 
     return s
     -- }}}
@@ -337,15 +337,6 @@ function MySlot:Import(text, opt)
         MySlot:Print(L["Bad importing text [CRC32]"])
         if force then
             MySlot:Print(L["Skip bad CRC32"] .. " " .. L["Try force importing"])
-        else
-            return 
-        end
-    end
-
-    if not tContains(MYSLOT_ALLOW_VER,ver) then
-        MySlot:Print(L["Importing text [ver:%s] is not compatible with current version"]:format(ver))
-        if force then
-            MySlot:Print(L["Skip unsupported version"] .. " " .. L["Try force importing"])
         else
             return 
         end
