@@ -246,16 +246,7 @@ function MySlot:Export(opt)
     end
 
     msg.slot = {}
-    if opt.ignoreAction then
-        -- dummy action, for older myslot to import and will do nothing
-        for i = 1, MYSLOT_MAX_ACTIONBAR do
-            local m = _MySlot.Slot()
-            m.id = i
-            m.type = MYSLOT_ITEM
-            m.index = 0
-            msg.slot[#msg.slot + 1] = m
-        end
-    else
+    if not opt.ignoreAction then
         for i = 1, MYSLOT_MAX_ACTIONBAR do
             local m = self:GetActionInfo(i)
             if m then
@@ -580,7 +571,7 @@ function MySlot:RecoverData(msg, opt)
                             C_PetJournal.PickupPet(strindex, true)
                         end
                         if not GetCursorInfo() then
-                            MySlot:Print(L["Ignore unattained pet[id=%s], %s"]:format(strindex, C_PetJournal.GetBattlePetLink(strindex)))    
+                            MySlot:Print(L["Ignore unattained pet[id=%s]"]:format(strindex))    
                         end
                     elseif slotType == MYSLOT_SUMMONMOUNT then
                         
