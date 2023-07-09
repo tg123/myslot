@@ -74,6 +74,8 @@ do
 end
 
 local gatherCheckboxOptions
+local importButton
+local exportButton
 
 do
     local ignoreActionCheckbox
@@ -83,18 +85,25 @@ do
     local clearBindingCheckbox
     local clearMacroCheckbox
 
+    local function updateButton()
+        local disable = ignoreActionCheckbox:GetChecked() and ignoreBindingCheckbox:GetChecked() and ignoreMacroCheckbox:GetChecked()
+
+        if disable then
+            importButton:Disable()
+            exportButton:Disable()
+        else
+            importButton:Enable()
+            exportButton:Enable()
+        end
+    end
+
     do
         local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 38, 95)
         b.text:SetText(L["Ignore Import/Export Action"])
-        -- b:SetScript("OnEnter", function(self)
-        --     GameTooltip:SetOwner(self, "ANCHOR_TOP");
-        --     GameTooltip:SetText(L[""], nil, nil, nil, nil, true);
-        --     GameTooltip:Show();
-        -- end)
-        -- b:SetScript("OnLeave", GameTooltip_Hide)
+        b:SetScript("OnClick", updateButton)
         ignoreActionCheckbox = b
     end
 
@@ -104,12 +113,7 @@ do
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 38, 70)
         b.text:SetText(L["Ignore Import/Export Key Binding"])
-        -- b:SetScript("OnEnter", function(self)
-        --     GameTooltip:SetOwner(self, "ANCHOR_TOP");
-        --     GameTooltip:SetText(L[""], nil, nil, nil, nil, true);
-        --     GameTooltip:Show();
-        -- end)
-        -- b:SetScript("OnLeave", GameTooltip_Hide)
+        b:SetScript("OnClick", updateButton)
         ignoreBindingCheckbox = b
     end
 
@@ -119,12 +123,7 @@ do
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 38, 45)
         b.text:SetText(L["Ignore Import/Export Macro"])
-        -- b:SetScript("OnEnter", function(self)
-        --     GameTooltip:SetOwner(self, "ANCHOR_TOP");
-        --     GameTooltip:SetText(L[""], nil, nil, nil, nil, true);
-        --     GameTooltip:Show();
-        -- end)
-        -- b:SetScript("OnLeave", GameTooltip_Hide)
+        b:SetScript("OnClick", updateButton)
         ignoreMacroCheckbox = b
     end
 
@@ -134,12 +133,6 @@ do
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 340, 95)
         b.text:SetText(L["Clear Action before applying"])
-        -- b:SetScript("OnEnter", function(self)
-        --     GameTooltip:SetOwner(self, "ANCHOR_TOP");
-        --     GameTooltip:SetText(L[""], nil, nil, nil, nil, true);
-        --     GameTooltip:Show();
-        -- end)
-        -- b:SetScript("OnLeave", GameTooltip_Hide)
         clearActionCheckbox = b
     end
 
@@ -149,12 +142,6 @@ do
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 340, 70)
         b.text:SetText(L["Clear Binding before applying"])
-        -- b:SetScript("OnEnter", function(self)
-        --     GameTooltip:SetOwner(self, "ANCHOR_TOP");
-        --     GameTooltip:SetText(L[""], nil, nil, nil, nil, true);
-        --     GameTooltip:Show();
-        -- end)
-        -- b:SetScript("OnLeave", GameTooltip_Hide)
         clearBindingCheckbox = b
     end
 
@@ -164,12 +151,6 @@ do
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 340, 45)
         b.text:SetText(L["Clear Macro before applying"])
-        -- b:SetScript("OnEnter", function(self)
-        --     GameTooltip:SetOwner(self, "ANCHOR_TOP");
-        --     GameTooltip:SetText(L[""], nil, nil, nil, nil, true);
-        --     GameTooltip:Show();
-        -- end)
-        -- b:SetScript("OnLeave", GameTooltip_Hide)
         clearMacroCheckbox = b
     end
 
@@ -212,6 +193,8 @@ do
         end
         StaticPopup_Show("MYSLOT_MSGBOX")
     end)
+
+    importButton = b
 end
 
 local infolabel
@@ -228,6 +211,8 @@ do
         exportEditbox:SetText(s)
         infolabel.ShowUnsaved()
     end)
+
+    exportButton = b
 end
 
 RegEvent("ADDON_LOADED", function()
