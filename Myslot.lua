@@ -115,7 +115,7 @@ end
 -- {{{ GetActionInfo
 function MySlot:GetActionInfo(slotId)
     -- { slotId, slotType and high 16 ,high 8 , low 8, }
-    local slotType, index = GetActionInfo(slotId)
+    local slotType, index, subType = GetActionInfo(slotId)
     if MySlot.SLOT_TYPE[slotType] == MYSLOT_EQUIPMENTSET then
         -- i starts from 0 https://github.com/tg123/myslot/issues/10 weird blz
         for i = 0, C_EquipmentSet.GetNumEquipmentSets() do
@@ -129,6 +129,10 @@ function MySlot:GetActionInfo(slotId)
             self:Print(L["[WARN] Ignore unsupported Slot Type [ %s ] , contact %s please"]:format(slotType, MYSLOT_AUTHOR))
         end
         return nil
+    elseif slotType == "macro" and subType == "spell" then
+        PickupAction(slotId)
+        _, index = GetCursorInfo()
+        PlaceAction(slotId)
     elseif not index then
         return nil
     end
