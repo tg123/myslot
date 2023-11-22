@@ -129,7 +129,7 @@ function MySlot:GetActionInfo(slotId)
             self:Print(L["[WARN] Ignore unsupported Slot Type [ %s ] , contact %s please"]:format(slotType, MYSLOT_AUTHOR))
         end
         return nil
-    elseif slotType == "macro" and subType == "spell" then
+    elseif slotType == "macro" and subType then
         PickupAction(slotId)
         _, index = GetCursorInfo()
         PlaceAction(slotId)
