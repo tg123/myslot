@@ -484,7 +484,40 @@ end)
 SlashCmdList["MYSLOT"] = function(msg, editbox)
     local cmd, what = msg:match("^(%S*)%s*(%S*)%s*$")
 
-    if cmd == "clear" then
+    if cmd == "load" then
+        MySlot:Print(L["Myslot Load " .. what])
+
+        if not MyslotExports then
+            MyslotExports = {}
+        end
+        if not MyslotExports["exports"] then
+            MyslotExports["exports"] = {}
+        end
+        local exports = MyslotExports["exports"]
+
+        for i, profile in ipairs(exports) do
+            --MySlot:Print(L["profile " .. profile.name])
+            if profile.name == what then
+
+                MySlot:Print(L["Profile to load found : " .. profile.name])
+                local msg = MySlot:Import(profile.value, { force = false })
+
+                if not msg then
+                    return
+                end
+
+                MySlot:RecoverData(msg, {
+                    ignoreAction = false,
+                    ignoreBinding = false,
+                    ignoreMacro = false,
+                    clearAction = false,
+                    clearBinding = false,
+                    clearMacro = false,
+                })
+            end
+        end
+
+    elseif cmd == "clear" then
         -- MySlot:Clear(what)
         InterfaceOptionsFrame_OpenToCategory(L["Myslot"])
         InterfaceOptionsFrame_OpenToCategory(L["Myslot"])
