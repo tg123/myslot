@@ -485,7 +485,6 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
     local cmd, what = msg:match("^(%S*)%s*(%S*)%s*$")
 
     if cmd == "load" then
-        MySlot:Print(L["Myslot Load " .. what])
 
         if not MyslotExports then
             MyslotExports = {}
@@ -494,27 +493,33 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
             MyslotExports["exports"] = {}
         end
         local exports = MyslotExports["exports"]
+        local profileString = ""
 
         for i, profile in ipairs(exports) do
-            --MySlot:Print(L["profile " .. profile.name])
+
             if profile.name == what then
-
                 MySlot:Print(L["Profile to load found : " .. profile.name])
-                local msg = MySlot:Import(profile.value, { force = false })
-
-                if not msg then
-                    return
-                end
-
-                MySlot:RecoverData(msg, {
-                    ignoreAction = false,
-                    ignoreBinding = false,
-                    ignoreMacro = false,
-                    clearAction = false,
-                    clearBinding = false,
-                    clearMacro = false,
-                })
+                profileString = profile.value
             end
+        end
+
+        if profileString == "" then
+            MySlot:Print(L["No profile found with name " .. what])
+        else
+            local msg = MySlot:Import(profileString, { force = false })
+
+            if not msg then
+                return
+            end
+
+            MySlot:RecoverData(msg, {
+                ignoreAction = false,
+                ignoreBinding = false,
+                ignoreMacro = false,
+                clearAction = false,
+                clearBinding = false,
+                clearMacro = false,
+            })
         end
 
     elseif cmd == "clear" then
