@@ -32,6 +32,15 @@ Any character, even different class, can use Myslot to import those settings fro
   1. Clear all key bindings (blizzard default included)
      
     /myslot clear binding
+ 
+### Import profile from command
+  
+
+You can use the command 'load' to import a profile by name
+     
+    /myslot load ProfileName
+
+You can add this line in a macro and safe it in your profile and swap from one profile to another by using the macro.
 
 
 ## Get Myslot
