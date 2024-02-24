@@ -1,4 +1,8 @@
-## Interface: 100200
+## Interface: 100205
+## Interface-Classic: 11501
+## Interface-Wrath: 30403
+## X-Curse-Project-ID: 48863
+## X-Wago-ID: BKpq0BGE
 ## Title: Myslot
 ## Notes: @localization(locale="enUS", key="TOC_NOTES")@
 ## Notes-deDE: @localization(locale="deDE", key="TOC_NOTES")@
