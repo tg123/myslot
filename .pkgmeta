@@ -7,4 +7,3 @@ ignore:
   - protobuf/Myslot.proto
   - README.markdown
   - extract_locale.sh
-  - update_locale.sh
