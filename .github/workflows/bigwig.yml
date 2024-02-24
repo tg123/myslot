@@ -11,7 +11,7 @@ jobs:
       uses: actions/checkout@v2
       
     - name: Create Package
-      uses: BigWigsMods/packager@v2.0.3
+      uses: BigWigsMods/packager@master
       with:
         args: -S
       env:
