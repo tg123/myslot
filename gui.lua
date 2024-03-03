@@ -25,6 +25,11 @@ f:SetMovable(true)
 f:RegisterForDrag("LeftButton")
 f:SetScript("OnDragStart", f.StartMoving)
 f:SetScript("OnDragStop", f.StopMovingOrSizing)
+f:SetScript("OnKeyDown", function (_, key) 
+    if key == "ESCAPE" then
+        f:Hide()
+    end
+end)
 f:Hide()
 
 MySlot.MainFrame = f
