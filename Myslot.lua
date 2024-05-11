@@ -220,9 +220,21 @@ local function GetTalentTreeString()
     if not ClassTalentFrame_LoadUI then
         -- maybe classic
         if GetTalentTabInfo then
-            return select(3, GetTalentTabInfo(1)) ..
-            "/" .. select(3, GetTalentTabInfo(2)) .. "/" .. select(3, GetTalentTabInfo(3))
+
+            if tonumber(select(3, GetTalentTabInfo(1)), 10) then
+                return select(3, GetTalentTabInfo(1)) ..  "/" .. select(3, GetTalentTabInfo(2)) .. "/" .. select(3, GetTalentTabInfo(3))
+            end
+
+            -- Cataclysm
+
+            for i = 1, 3 do
+                if select(8, GetTalentTabInfo(i)) then
+                    return select(2, GetTalentTabInfo(i))
+                end
+            end
         end
+
+        return nil
     end
 
     ClassTalentFrame_LoadUI()
