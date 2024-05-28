@@ -86,6 +86,7 @@ do
     local ignoreActionCheckbox
     local ignoreBindingCheckbox
     local ignoreMacroCheckbox
+    local ignoreGeneralMacroCheckbox
     local clearActionCheckbox
     local clearBindingCheckbox
     local clearMacroCheckbox
@@ -136,6 +137,16 @@ do
         local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
+        b:SetPoint("BOTTOMLEFT", 38, 20)
+        b.text:SetText(L["Ignore General Macros"])
+        b:SetScript("OnClick", updateButton)
+        ignoreGeneralMacroCheckbox = b
+    end
+
+    do
+        local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
+        b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 340, 95)
         b.text:SetText(L["Clear Action before applying"])
         clearActionCheckbox = b
@@ -166,6 +177,7 @@ do
                 ignoreAction = ignoreActionCheckbox:GetChecked(),
                 ignoreBinding = ignoreBindingCheckbox:GetChecked(),
                 ignoreMacro = ignoreMacroCheckbox:GetChecked(),
+                ignoreGeneralMacro = ignoreGeneralMacroCheckbox:GetChecked(),
                 clearAction = clearActionCheckbox:GetChecked(),
                 clearBinding = clearBindingCheckbox:GetChecked(),
                 clearMacro = clearMacroCheckbox:GetChecked(),
@@ -521,6 +533,7 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
                 ignoreAction = false,
                 ignoreBinding = false,
                 ignoreMacro = false,
+                ignoreGeneralMacro = false,
                 clearAction = false,
                 clearBinding = false,
                 clearMacro = false,
