@@ -112,7 +112,7 @@ StaticPopupDialogs["MYSLOT_CONFIRM_CLEAR"] = {
         local tx = self.editBox:GetText()
 
         if tx == data then
-            MySlot:Clear(data)
+            MySlot:Clear(data, nil)
         else
             MySlot:Print(L["Please type %s to confirm"]:format(data))
         end
