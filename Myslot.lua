@@ -525,7 +525,7 @@ function MySlot:RecoverData(msg, opt)
     local macro = {}
     if not opt.ignoreMacro then
         if opt.clearMacro then
-            MySlot:Clear("MACRO")
+            MySlot:Clear("MACRO", opt)
         end
 
         for _, m in pairs(msg.macro or {}) do
@@ -551,7 +551,7 @@ function MySlot:RecoverData(msg, opt)
 
     if (not opt.ignoreAction) then
         if opt.clearAction then
-            MySlot:Clear("ACTION")
+            MySlot:Clear("ACTION", opt)
         end
 
         local slotBucket = {}
@@ -645,7 +645,7 @@ function MySlot:RecoverData(msg, opt)
 
     if not opt.ignoreBinding then
         if opt.clearBinding then
-            MySlot:Clear("BINDING")
+            MySlot:Clear("BINDING", opt)
         end
 
         for _, b in pairs(msg.bind or {}) do
@@ -678,7 +678,7 @@ function MySlot:RecoverData(msg, opt)
     MySlot:Print(L["All slots were restored"])
 end
 
-function MySlot:Clear(what)
+function MySlot:Clear(what, opt)
     if what == "ACTION" then
         for i = 1, MYSLOT_MAX_ACTIONBAR do
             PickupAction(i)
@@ -686,7 +686,7 @@ function MySlot:Clear(what)
         end
     elseif what == "MACRO" then
         local initIndex = 1
-        if opt.ignoreGeneralMacro then
+        if opt and opt.ignoreGeneralMacro then
             initIndex = MAX_ACCOUNT_MACROS + 1
         end
 

@@ -7,7 +7,7 @@ local MAX_PROFILES_COUNT = 50
 
 local f = CreateFrame("Frame", nil, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 f:SetWidth(650)
-f:SetHeight(600)
+f:SetHeight(625)
 f:SetBackdrop({
     bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
     edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
@@ -107,7 +107,7 @@ do
         local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
-        b:SetPoint("BOTTOMLEFT", 38, 95)
+        b:SetPoint("BOTTOMLEFT", 38, 120)
         b.text:SetText(L["Ignore Import/Export Action"])
         b:SetScript("OnClick", updateButton)
         ignoreActionCheckbox = b
@@ -117,7 +117,7 @@ do
         local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
-        b:SetPoint("BOTTOMLEFT", 38, 70)
+        b:SetPoint("BOTTOMLEFT", 38, 95)
         b.text:SetText(L["Ignore Import/Export Key Binding"])
         b:SetScript("OnClick", updateButton)
         ignoreBindingCheckbox = b
@@ -127,7 +127,7 @@ do
         local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
-        b:SetPoint("BOTTOMLEFT", 38, 45)
+        b:SetPoint("BOTTOMLEFT", 38, 70)
         b.text:SetText(L["Ignore Import/Export Macro"])
         b:SetScript("OnClick", updateButton)
         ignoreMacroCheckbox = b
@@ -137,7 +137,7 @@ do
         local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
-        b:SetPoint("BOTTOMLEFT", 38, 20)
+        b:SetPoint("BOTTOMLEFT", 38, 45)
         b.text:SetText(L["Ignore General Macros"])
         b:SetScript("OnClick", updateButton)
         ignoreGeneralMacroCheckbox = b
@@ -147,7 +147,7 @@ do
         local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
-        b:SetPoint("BOTTOMLEFT", 340, 95)
+        b:SetPoint("BOTTOMLEFT", 340, 120)
         b.text:SetText(L["Clear Action before applying"])
         clearActionCheckbox = b
     end
@@ -156,7 +156,7 @@ do
         local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
-        b:SetPoint("BOTTOMLEFT", 340, 70)
+        b:SetPoint("BOTTOMLEFT", 340, 95)
         b.text:SetText(L["Clear Binding before applying"])
         clearBindingCheckbox = b
     end
@@ -165,7 +165,7 @@ do
         local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
-        b:SetPoint("BOTTOMLEFT", 340, 45)
+        b:SetPoint("BOTTOMLEFT", 340, 70)
         b.text:SetText(L["Clear Macro before applying"])
         clearMacroCheckbox = b
     end
