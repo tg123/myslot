@@ -83,6 +83,15 @@ local importButton
 local exportButton
 
 do
+    MyslotSettings = MyslotSettings or {}
+    MyslotSettings.ignoreAction = MyslotSettings.ignoreAction or false
+    MyslotSettings.ignoreBinding = MyslotSettings.ignoreBinding or false
+    MyslotSettings.ignoreMacro = MyslotSettings.ignoreMacro or false
+    MyslotSettings.ignoreGeneralMacro = MyslotSettings.ignoreGeneralMacro or false
+    MyslotSettings.clearAction = MyslotSettings.clearAction or false
+    MyslotSettings.clearBinding = MyslotSettings.clearBinding or false
+    MyslotSettings.clearMacro = MyslotSettings.clearMacro or false
+
     local ignoreActionCheckbox
     local ignoreBindingCheckbox
     local ignoreMacroCheckbox
@@ -109,7 +118,11 @@ do
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 38, 120)
         b.text:SetText(L["Ignore Import/Export Action"])
-        b:SetScript("OnClick", updateButton)
+        b:SetChecked(MyslotSettings.ignoreAction)
+        b:SetScript("OnClick", function(self) 
+            MyslotSettings.ignoreAction = self:GetChecked()
+            updateButton()
+        end)
         ignoreActionCheckbox = b
     end
 
@@ -119,7 +132,11 @@ do
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 38, 95)
         b.text:SetText(L["Ignore Import/Export Key Binding"])
-        b:SetScript("OnClick", updateButton)
+        b:SetChecked(MyslotSettings.ignoreBinding)
+        b:SetScript("OnClick", function(self) 
+            MyslotSettings.ignoreBinding = self:GetChecked()
+            updateButton()
+        end)
         ignoreBindingCheckbox = b
     end
 
@@ -129,7 +146,11 @@ do
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 38, 70)
         b.text:SetText(L["Ignore Import/Export Macro"])
-        b:SetScript("OnClick", updateButton)
+        b:SetChecked(MyslotSettings.ignoreMacro)
+        b:SetScript("OnClick", function(self) 
+            MyslotSettings.ignoreMacro = self:GetChecked()
+            updateButton()
+        end)
         ignoreMacroCheckbox = b
     end
 
@@ -139,7 +160,11 @@ do
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 38, 45)
         b.text:SetText(L["Ignore General Macros"])
-        b:SetScript("OnClick", updateButton)
+        b:SetChecked(MyslotSettings.ignoreGeneralMacro)
+        b:SetScript("OnClick", function(self) 
+            MyslotSettings.ignoreGeneralMacro = self:GetChecked()
+            updateButton()
+        end)
         ignoreGeneralMacroCheckbox = b
     end
 
@@ -149,6 +174,10 @@ do
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 340, 120)
         b.text:SetText(L["Clear Action before applying"])
+        b:SetChecked(MyslotSettings.clearAction)
+        b:SetScript("OnClick", function(self) 
+            MyslotSettings.clearAction = self:GetChecked()
+        end)
         clearActionCheckbox = b
     end
 
@@ -158,6 +187,10 @@ do
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 340, 95)
         b.text:SetText(L["Clear Binding before applying"])
+        b:SetChecked(MyslotSettings.clearBinding)
+        b:SetScript("OnClick", function(self) 
+            MyslotSettings.clearBinding = self:GetChecked()
+        end)
         clearBindingCheckbox = b
     end
 
@@ -167,6 +200,10 @@ do
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 340, 70)
         b.text:SetText(L["Clear Macro before applying"])
+        b:SetChecked(MyslotSettings.clearMacro)
+        b:SetScript("OnClick", function(self) 
+            MyslotSettings.clearMacro = self:GetChecked()
+        end)
         clearMacroCheckbox = b
     end
 
