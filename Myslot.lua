@@ -261,7 +261,12 @@ function MySlot:Export(opt)
     msg.macro = {}
 
     if not opt.ignoreMacro then
-        for i = 1, MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS do
+        local initIndex = 1
+        if opt.ignoreGeneralMacro then
+            initIndex = MAX_ACCOUNT_MACROS + 1
+        end
+
+        for i = initIndex, MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS do
             local m = self:GetMacroInfo(i)
             if m then
                 msg.macro[#msg.macro + 1] = m
@@ -515,20 +520,22 @@ function MySlot:RecoverData(msg, opt)
         end
 
         for _, m in pairs(msg.macro or {}) do
-            local macroId = m.id
-            local icon = m.icon
+            if not opt.ignoreGeneralMacro or m.id > MAX_ACCOUNT_MACROS then
+                local macroId = m.id
+                local icon = m.icon
 
-            local name = m.name
-            local body = m.body
+                local name = m.name
+                local body = m.body
 
-            macro[macroId] = {
-                ["oldid"] = macroId,
-                ["name"] = name,
-                ["icon"] = icon,
-                ["body"] = body,
-            }
+                macro[macroId] = {
+                    ["oldid"] = macroId,
+                    ["name"] = name,
+                    ["icon"] = icon,
+                    ["body"] = body,
+                }
 
-            self:FindOrCreateMacro(macro[macroId])
+                self:FindOrCreateMacro(macro[macroId])
+            end
         end
     end
     -- }}} Macro
@@ -669,7 +676,12 @@ function MySlot:Clear(what)
             ClearCursor()
         end
     elseif what == "MACRO" then
-        for i = MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS, 1, -1 do
+        local initIndex = 1
+        if opt.ignoreGeneralMacro then
+            initIndex = MAX_ACCOUNT_MACROS + 1
+        end
+
+        for i = MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS, initIndex, -1 do
             DeleteMacro(i)
         end
     elseif what == "BINDING" then
