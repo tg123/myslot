@@ -81,24 +81,17 @@ end
 local gatherCheckboxOptions
 local importButton
 local exportButton
+local ignoreActionCheckbox
+local ignoreBindingCheckbox
+local ignoreMacroCheckbox
+local ignoreGeneralMacroCheckbox
+local clearActionCheckbox
+local clearBindingCheckbox
+local clearMacroCheckbox
 
 do
     MyslotSettings = MyslotSettings or {}
-    MyslotSettings.ignoreAction = MyslotSettings.ignoreAction or false
-    MyslotSettings.ignoreBinding = MyslotSettings.ignoreBinding or false
-    MyslotSettings.ignoreMacro = MyslotSettings.ignoreMacro or false
-    MyslotSettings.ignoreGeneralMacro = MyslotSettings.ignoreGeneralMacro or false
-    MyslotSettings.clearAction = MyslotSettings.clearAction or false
-    MyslotSettings.clearBinding = MyslotSettings.clearBinding or false
-    MyslotSettings.clearMacro = MyslotSettings.clearMacro or false
 
-    local ignoreActionCheckbox
-    local ignoreBindingCheckbox
-    local ignoreMacroCheckbox
-    local ignoreGeneralMacroCheckbox
-    local clearActionCheckbox
-    local clearBindingCheckbox
-    local clearMacroCheckbox
 
     local function updateButton()
         local disable = ignoreActionCheckbox:GetChecked() and ignoreBindingCheckbox:GetChecked() and ignoreMacroCheckbox:GetChecked()
@@ -515,6 +508,23 @@ RegEvent("ADDON_LOADED", function()
     MyslotSettings = MyslotSettings or {}
     MyslotSettings.minimap = MyslotSettings.minimap or { hide = false }
     local config = MyslotSettings.minimap
+
+    -- Set Checkbox states
+    MyslotSettings.ignoreAction = MyslotSettings.ignoreAction or false
+    MyslotSettings.ignoreBinding = MyslotSettings.ignoreBinding or false
+    MyslotSettings.ignoreMacro = MyslotSettings.ignoreMacro or false
+    MyslotSettings.ignoreGeneralMacro = MyslotSettings.ignoreGeneralMacro or false
+    MyslotSettings.clearAction = MyslotSettings.clearAction or false
+    MyslotSettings.clearBinding = MyslotSettings.clearBinding or false
+    MyslotSettings.clearMacro = MyslotSettings.clearMacro or false
+
+    ignoreActionCheckbox:SetChecked(MyslotSettings.ignoreAction)
+    ignoreBindingCheckbox:SetChecked(MyslotSettings.ignoreBinding)
+    ignoreMacroCheckbox:SetChecked(MyslotSettings.ignoreMacro)
+    ignoreGeneralMacroCheckbox:SetChecked(MyslotSettings.ignoreGeneralMacro)
+    clearActionCheckbox:SetChecked(MyslotSettings.clearAction)
+    clearBindingCheckbox:SetChecked(MyslotSettings.clearBinding)
+    clearMacroCheckbox:SetChecked(MyslotSettings.clearMacro)
 
     icon:Register("Myslot", ldb:NewDataObject("Myslot", {
             icon = "Interface\\MacroFrame\\MacroFrame-Icon",
