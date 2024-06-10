@@ -4,7 +4,7 @@ local RegEvent = MySlot.regevent
 
 
 local f = CreateFrame("Frame", nil, UIParent)
-local category, layout = Settings.RegisterCanvasLayoutCategory(f, "Myslot");
+local category, layout = Settings.RegisterCanvasLayoutCategory(f, L["Myslot"]);
 
 Settings.RegisterAddOnCategory(category);
 
