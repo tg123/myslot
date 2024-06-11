@@ -5,7 +5,10 @@ local RegEvent = MySlot.regevent
 
 local f = CreateFrame("Frame", nil, UIParent)
 f.name = L["Myslot"]
-InterfaceOptions_AddCategory(f)
+
+local category = Settings.RegisterCanvasLayoutCategory(f, L["Myslot"])
+MySlot.settingcategory = category
+Settings.RegisterAddOnCategory(category)
 
 RegEvent("ADDON_LOADED", function()
     do

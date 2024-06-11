@@ -528,9 +528,7 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
         end
 
     elseif cmd == "clear" then
-        -- MySlot:Clear(what)
-        InterfaceOptionsFrame_OpenToCategory(L["Myslot"])
-        InterfaceOptionsFrame_OpenToCategory(L["Myslot"])
+        Settings.OpenToCategory(MySlot.settingcategory.ID)
     elseif cmd == "trim" then
         if not MyslotExports then
             MyslotExports = {}
