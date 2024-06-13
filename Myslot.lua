@@ -269,37 +269,26 @@ function MySlot:Export(opt)
 
     msg.macro = {}
 
-    if not opt.ignoreMacro then
-        local initIndex = 1
-        if opt.ignoreGeneralMacro then
-            initIndex = MAX_ACCOUNT_MACROS + 1
-        end
-
-        for i = initIndex, MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS do
-            local m = self:GetMacroInfo(i)
-            if m then
-                msg.macro[#msg.macro + 1] = m
-            end
+    for i = 1, MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS do
+        local m = self:GetMacroInfo(i)
+        if m then
+            msg.macro[#msg.macro + 1] = m
         end
     end
 
     msg.slot = {}
-    if not opt.ignoreAction then
-        for i = 1, MYSLOT_MAX_ACTIONBAR do
-            local m = self:GetActionInfo(i)
-            if m then
-                msg.slot[#msg.slot + 1] = m
-            end
+    for i = 1, MYSLOT_MAX_ACTIONBAR do
+        local m = self:GetActionInfo(i)
+        if m then
+            msg.slot[#msg.slot + 1] = m
         end
     end
 
     msg.bind = {}
-    if not opt.ignoreBinding then
-        for i = 1, GetNumBindings() do
-            local m = self:GetBindingInfo(i)
-            if m then
-                msg.bind[#msg.bind + 1] = m
-            end
+    for i = 1, GetNumBindings() do
+        local m = self:GetBindingInfo(i)
+        if m then
+            msg.bind[#msg.bind + 1] = m
         end
     end
 
@@ -401,8 +390,8 @@ local function UnifyCRLF(text)
     return strtrim(text)
 end
 
--- {{{ FindOrCreateMacro
-function MySlot:FindOrCreateMacro(macroInfo)
+-- Find macro by index/name/body
+function MySlot:FindMacro(macroInfo)
     if not macroInfo then
         return
     end
@@ -419,18 +408,30 @@ function MySlot:FindOrCreateMacro(macroInfo)
     end
     -- }}}
 
-    local id = macroInfo["oldid"]
+
     local name = macroInfo["name"]
-    local icon = macroInfo["icon"]
     local body = macroInfo["body"]
     body = UnifyCRLF(body)
 
+    -- Return index if found or nil
+    return localMacro[name .. "_" .. body] or localMacro[body]
+end
+-- {{{ FindOrCreateMacro
+function MySlot:FindOrCreateMacro(macroInfo)
+    if not macroInfo then
+        return
+    end
 
-    local localIndex = localMacro[name .. "_" .. body] or localMacro[body]
-
+    local localIndex = MySlot:FindMacro(macroInfo)
     if localIndex then
         return localIndex
     else
+        local id = macroInfo["oldid"]
+        local name = macroInfo["name"]
+        local icon = macroInfo["icon"]
+        local body = macroInfo["body"]
+        body = UnifyCRLF(body)
+
         local numglobal, numperchar = GetNumMacros()
         local perchar = id > MAX_ACCOUNT_MACROS and 2 or 1
 
@@ -523,28 +524,24 @@ function MySlot:RecoverData(msg, opt)
     -- {{{ Macro
     -- cache macro
     local macro = {}
-    if not opt.ignoreMacro then
-        if opt.clearMacro then
-            MySlot:Clear("MACRO", opt)
-        end
+    -- Clear if configured
+    MySlot:Clear("MACRO", opt)
 
-        for _, m in pairs(msg.macro or {}) do
-            if not opt.ignoreGeneralMacro or m.id > MAX_ACCOUNT_MACROS then
-                local macroId = m.id
-                local icon = m.icon
+    for _, m in pairs(msg.macro or {}) do
+        local macroId = m.id
+        local icon = m.icon
 
-                local name = m.name
-                local body = m.body
+        local name = m.name
+        local body = m.body
 
-                macro[macroId] = {
-                    ["oldid"] = macroId,
-                    ["name"] = name,
-                    ["icon"] = icon,
-                    ["body"] = body,
-                }
-
-                self:FindOrCreateMacro(macro[macroId])
-            end
+        macro[macroId] = {
+            ["oldid"] = macroId,
+            ["name"] = name,
+            ["icon"] = icon,
+            ["body"] = body,
+        }
+        if (not opt.ignoreGeneralMacros and m.id <= MAX_ACCOUNT_MACROS) or (not opt.ignoreCharacterMacros and m.id > MAX_ACCOUNT_MACROS) then
+            self:FindOrCreateMacro(macro[macroId])
         end
     end
     -- }}} Macro
@@ -594,14 +591,9 @@ function MySlot:RecoverData(msg, opt)
                         elseif slotType == MYSLOT_ITEM then
                             PickupItem(index)
                         elseif slotType == MYSLOT_MACRO then
-                            local macroid
-                            if opt.ignoreGeneralMacro and index <= MAX_ACCOUNT_MACROS then
-                                macroid = index
-                            else
-                                macroid = self:FindOrCreateMacro(macro[index])
-                            end
+                            local macroId = self:FindMacro(macro[index])
 
-                            if curType ~= MYSLOT_MACRO or curIndex ~= index then
+                            if macroId and (curType ~= MYSLOT_MACRO or curIndex ~= index) then
                                 PickupMacro(macroid)
                             end
                         elseif slotType == MYSLOT_SUMMONPET and strindex and strindex ~= curIndex then
@@ -690,12 +682,22 @@ function MySlot:Clear(what, opt)
             ClearCursor()
         end
     elseif what == "MACRO" then
-        local initIndex = 1
-        if opt and opt.ignoreGeneralMacro then
-            initIndex = MAX_ACCOUNT_MACROS + 1
+        local initIndex = MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS
+        local endIndex = 1
+
+        -- No clear necessary
+        if opt and not opt.clearGeneralMacros and not opt.clearCharacterMacros then return end
+
+        -- If you dont want to clear character macros, start at end of general macros
+        if opt and not opt.clearCharacterMacros then
+            initIndex = MAX_ACCOUNT_MACROS
+        end
+        -- If you dont want to clear general macros, end at start of character macros
+        if opt and not opt.clearGeneralMacros then
+            endIndex = MAX_ACCOUNT_MACROS + 1
         end
 
-        for i = MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS, initIndex, -1 do
+        for i = initIndex, endIndex, -1 do
             DeleteMacro(i)
         end
     elseif what == "BINDING" then

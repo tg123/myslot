@@ -81,13 +81,15 @@ end
 local gatherCheckboxOptions
 local importButton
 local exportButton
+
 local ignoreActionCheckbox
 local ignoreBindingCheckbox
-local ignoreMacroCheckbox
 local ignoreGeneralMacroCheckbox
+local ignoreCharacterMacroCheckbox
 local clearActionCheckbox
 local clearBindingCheckbox
-local clearMacroCheckbox
+local clearGeneralMacroCheckbox
+local clearCharacterMacroCheckbox
 
 do
     MyslotSettings = MyslotSettings or {}
@@ -105,12 +107,23 @@ do
         end
     end
 
+    -- Set Option Titles
+    -- do
+    --     local x = f:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    --     x:SetText("Import Options")
+    --     x:SetPoint("TOPLEFT", 36, -360)
+
+    --     x = f:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    --     x:SetText("Clear on Import")
+    --     x:SetPoint("TOPLEFT", 336, -360)
+    -- end
+
     do
         local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 38, 120)
-        b.text:SetText(L["Ignore Import/Export Action"])
+        b.text:SetText(L["Ignore Action Bars"])
         b:SetChecked(MyslotSettings.ignoreAction)
         b:SetScript("OnClick", function(self) 
             MyslotSettings.ignoreAction = self:GetChecked()
@@ -124,7 +137,7 @@ do
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 38, 95)
-        b.text:SetText(L["Ignore Import/Export Key Binding"])
+        b.text:SetText(L["Ignore Key Bindings"])
         b:SetChecked(MyslotSettings.ignoreBinding)
         b:SetScript("OnClick", function(self) 
             MyslotSettings.ignoreBinding = self:GetChecked()
@@ -138,24 +151,10 @@ do
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 38, 70)
-        b.text:SetText(L["Ignore Import/Export Macro"])
-        b:SetChecked(MyslotSettings.ignoreMacro)
-        b:SetScript("OnClick", function(self) 
-            MyslotSettings.ignoreMacro = self:GetChecked()
-            updateButton()
-        end)
-        ignoreMacroCheckbox = b
-    end
-
-    do
-        local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
-        b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
-        b:SetPoint("BOTTOMLEFT", 38, 45)
         b.text:SetText(L["Ignore General Macros"])
-        b:SetChecked(MyslotSettings.ignoreGeneralMacro)
+        b:SetChecked(MyslotSettings.ignoreGeneralMacros)
         b:SetScript("OnClick", function(self) 
-            MyslotSettings.ignoreGeneralMacro = self:GetChecked()
+            MyslotSettings.ignoreGeneralMacros = self:GetChecked()
             updateButton()
         end)
         ignoreGeneralMacroCheckbox = b
@@ -165,8 +164,22 @@ do
         local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
+        b:SetPoint("BOTTOMLEFT", 38, 45)
+        b.text:SetText(L["Ignore Character Macros"])
+        b:SetChecked(MyslotSettings.ignoreCharacterMacros)
+        b:SetScript("OnClick", function(self) 
+            MyslotSettings.ignoreCharacterMacros = self:GetChecked()
+            updateButton()
+        end)
+        ignoreCharacterMacroCheckbox = b
+    end
+
+    do
+        local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
+        b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 340, 120)
-        b.text:SetText(L["Clear Action before applying"])
+        b.text:SetText(L["Clear Action bars before import"])
         b:SetChecked(MyslotSettings.clearAction)
         b:SetScript("OnClick", function(self) 
             MyslotSettings.clearAction = self:GetChecked()
@@ -179,7 +192,7 @@ do
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 340, 95)
-        b.text:SetText(L["Clear Binding before applying"])
+        b.text:SetText(L["Clear Keybinds before import"])
         b:SetChecked(MyslotSettings.clearBinding)
         b:SetScript("OnClick", function(self) 
             MyslotSettings.clearBinding = self:GetChecked()
@@ -192,12 +205,25 @@ do
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
         b:SetPoint("BOTTOMLEFT", 340, 70)
-        b.text:SetText(L["Clear Macro before applying"])
-        b:SetChecked(MyslotSettings.clearMacro)
+        b.text:SetText(L["Clear General Macros before import"])
+        b:SetChecked(MyslotSettings.clearGeneralMacros)
         b:SetScript("OnClick", function(self) 
-            MyslotSettings.clearMacro = self:GetChecked()
+            MyslotSettings.clearGeneralMacros = self:GetChecked()
         end)
-        clearMacroCheckbox = b
+        clearGeneralMacroCheckbox = b
+    end
+
+    do
+        local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
+        b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
+        b:SetPoint("BOTTOMLEFT", 340, 45)
+        b.text:SetText(L["Clear Character Macros before import"])
+        b:SetChecked(MyslotSettings.clearCharacterMacros)
+        b:SetScript("OnClick", function(self) 
+            MyslotSettings.clearCharacterMacros = self:GetChecked()
+        end)
+        clearCharacterMacroCheckbox = b
     end
 
     -- Gather options
@@ -206,11 +232,12 @@ do
             return  {
                 ignoreAction = ignoreActionCheckbox:GetChecked(),
                 ignoreBinding = ignoreBindingCheckbox:GetChecked(),
-                ignoreMacro = ignoreMacroCheckbox:GetChecked(),
-                ignoreGeneralMacro = ignoreGeneralMacroCheckbox:GetChecked(),
+                ignoreGeneralMacros = ignoreGeneralMacroCheckbox:GetChecked(),
+                ignoreCharacterMacros = ignoreCharacterMacroCheckbox:GetChecked(),
                 clearAction = clearActionCheckbox:GetChecked(),
                 clearBinding = clearBindingCheckbox:GetChecked(),
-                clearMacro = clearMacroCheckbox:GetChecked(),
+                clearGeneralMacros = clearMacroCheckbox:GetChecked(),
+                clearCharacterMacros = clearCharacterMacroCheckbox:GetChecked(),
             }
         end
         gatherCheckboxOptions = f
@@ -266,7 +293,7 @@ RegEvent("ADDON_LOADED", function()
     do
         local t = CreateFrame("Frame", nil, f, BackdropTemplateMixin and "BackdropTemplate" or nil)
         t:SetWidth(600)
-        t:SetHeight(400)
+        t:SetHeight(275)
         t:SetPoint("TOPLEFT", f, 25, -75)
         t:SetBackdrop({ 
             bgFile = "Interface/Tooltips/UI-Tooltip-Background",
@@ -281,7 +308,7 @@ RegEvent("ADDON_LOADED", function()
     
         local s = CreateFrame("ScrollFrame", nil, t, "UIPanelScrollFrameTemplate")
         s:SetWidth(560)
-        s:SetHeight(375)
+        s:SetHeight(250)
         s:SetPoint("TOPLEFT", 10, -10)
 
 
@@ -512,19 +539,21 @@ RegEvent("ADDON_LOADED", function()
     -- Set Checkbox states
     MyslotSettings.ignoreAction = MyslotSettings.ignoreAction or false
     MyslotSettings.ignoreBinding = MyslotSettings.ignoreBinding or false
-    MyslotSettings.ignoreMacro = MyslotSettings.ignoreMacro or false
-    MyslotSettings.ignoreGeneralMacro = MyslotSettings.ignoreGeneralMacro or false
+    MyslotSettings.ignoreGeneralMacros = MyslotSettings.ignoreGeneralMacros or false
+    MyslotSettings.ignoreCharacterMacros = MyslotSettings.ignoreCharacterMacros or false
     MyslotSettings.clearAction = MyslotSettings.clearAction or false
     MyslotSettings.clearBinding = MyslotSettings.clearBinding or false
-    MyslotSettings.clearMacro = MyslotSettings.clearMacro or false
+    MyslotSettings.clearGeneralMacros = MyslotSettings.clearGeneralMacros or false
+    MyslotSettings.clearCharacterMacros = MyslotSettings.clearCharacterMacros or false
 
     ignoreActionCheckbox:SetChecked(MyslotSettings.ignoreAction)
     ignoreBindingCheckbox:SetChecked(MyslotSettings.ignoreBinding)
-    ignoreMacroCheckbox:SetChecked(MyslotSettings.ignoreMacro)
-    ignoreGeneralMacroCheckbox:SetChecked(MyslotSettings.ignoreGeneralMacro)
+    ignoreGeneralMacroCheckbox:SetChecked(MyslotSettings.ignoreGeneralMacros)
+    ignoreCharacterMacroCheckbox:SetChecked(MyslotSettings.ignoreCharacterMacros)
     clearActionCheckbox:SetChecked(MyslotSettings.clearAction)
     clearBindingCheckbox:SetChecked(MyslotSettings.clearBinding)
-    clearMacroCheckbox:SetChecked(MyslotSettings.clearMacro)
+    clearGeneralMacroCheckbox:SetChecked(MyslotSettings.clearGeneralMacros)
+    clearCharacterMacroCheckbox:SetChecked(MyslotSettings.clearCharacterMacros)
 
     icon:Register("Myslot", ldb:NewDataObject("Myslot", {
             icon = "Interface\\MacroFrame\\MacroFrame-Icon",
