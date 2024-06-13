@@ -585,7 +585,12 @@ function MySlot:RecoverData(msg, opt)
                         elseif slotType == MYSLOT_ITEM then
                             PickupItem(index)
                         elseif slotType == MYSLOT_MACRO then
-                            local macroid = self:FindOrCreateMacro(macro[index])
+                            local macroid
+                            if opt.ignoreGeneralMacro and index <= MAX_ACCOUNT_MACROS then
+                                macroid = index
+                            else
+                                macroid = self:FindOrCreateMacro(macro[index])
+                            end
 
                             if curType ~= MYSLOT_MACRO or curIndex ~= index then
                                 PickupMacro(macroid)
