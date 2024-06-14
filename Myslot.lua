@@ -13,6 +13,15 @@ local MYSLOT_AUTHOR = "Boshi Lian <farmer1992@gmail.com>"
 
 local MYSLOT_VER = 42
 
+-- TWW Beta Compat code (fix and cleanup below later)
+local GetNumSpellTabs = C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines or GetNumSpellTabs
+local GetSpellTabInfo = C_SpellBook and C_SpellBook.GetSpellBookSkillLineInfo or GetSpellTabInfo
+local PickupSpell = C_Spell and C_Spell.PickupSpell or PickupSpell
+local PickupItem = C_Item and C_Item.PickupItem or PickupItem
+local GetSpellInfo = C_Spell and C_Spell.GetSpellName or GetSpellInfo
+local GetSpellLink = C_Spell and C_Spell.GetSpellLink or GetSpellLink
+-- TWW Beta Compat End
+
 -- local MYSLOT_IS_DEBUG = true
 local MYSLOT_LINE_SEP = IsWindowsClient() and "\r\n" or "\n"
 local MYSLOT_MAX_ACTIONBAR = 180
