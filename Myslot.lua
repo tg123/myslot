@@ -540,17 +540,15 @@ function MySlot:RecoverData(msg, opt)
             ["icon"] = icon,
             ["body"] = body,
         }
-        if (not opt.ignoreGeneralMacros and m.id <= MAX_ACCOUNT_MACROS) or (not opt.ignoreCharacterMacros and m.id > MAX_ACCOUNT_MACROS) then
+        if (not opt.ignoreAccountMacros and m.id <= MAX_ACCOUNT_MACROS) or (not opt.ignoreCharacterMacros and m.id > MAX_ACCOUNT_MACROS) then
             self:FindOrCreateMacro(macro[macroId])
         end
     end
     -- }}} Macro
 
+    -- Action Bars
+    MySlot:Clear("ACTION", opt)
     if (not opt.ignoreAction) then
-        if opt.clearAction then
-            MySlot:Clear("ACTION", opt)
-        end
-
         local slotBucket = {}
 
         for _, s in pairs(msg.slot or {}) do
@@ -594,7 +592,9 @@ function MySlot:RecoverData(msg, opt)
                             local macroId = self:FindMacro(macro[index])
 
                             if macroId and (curType ~= MYSLOT_MACRO or curIndex ~= index) then
-                                PickupMacro(macroid)
+                                PickupMacro(macroId)
+                            else
+                                MySlot:Print("Could not find macro [id=" .. index .. "] for Action Bar [slot="..slotId.."]. Ignoring")
                             end
                         elseif slotType == MYSLOT_SUMMONPET and strindex and strindex ~= curIndex then
                             C_PetJournal.PickupPet(strindex, false)
@@ -640,11 +640,9 @@ function MySlot:RecoverData(msg, opt)
         end
     end
 
+    -- Key Binds
+    MySlot:Clear("BINDING", opt)
     if not opt.ignoreBinding then
-        if opt.clearBinding then
-            MySlot:Clear("BINDING", opt)
-        end
-
         for _, b in pairs(msg.bind or {}) do
             local command = b.command
             if b.id ~= MYSLOT_BIND_CUSTOM_FLAG then
@@ -676,7 +674,7 @@ function MySlot:RecoverData(msg, opt)
 end
 
 function MySlot:Clear(what, opt)
-    if what == "ACTION" then
+    if what == "ACTION" and opt and opt.clearAction then
         for i = 1, MYSLOT_MAX_ACTIONBAR do
             PickupAction(i)
             ClearCursor()
@@ -686,21 +684,21 @@ function MySlot:Clear(what, opt)
         local endIndex = 1
 
         -- No clear necessary
-        if opt and not opt.clearGeneralMacros and not opt.clearCharacterMacros then return end
+        if opt and not opt.clearAccountMacros and not opt.clearCharacterMacros then return end
 
         -- If you dont want to clear character macros, start at end of general macros
         if opt and not opt.clearCharacterMacros then
             initIndex = MAX_ACCOUNT_MACROS
         end
         -- If you dont want to clear general macros, end at start of character macros
-        if opt and not opt.clearGeneralMacros then
+        if opt and not opt.clearAccountMacros then
             endIndex = MAX_ACCOUNT_MACROS + 1
         end
 
         for i = initIndex, endIndex, -1 do
             DeleteMacro(i)
         end
-    elseif what == "BINDING" then
+    elseif what == "BINDING" and opt and opt.clearBinding then
         for i = 1, GetNumBindings() do
             local _, _, key1, key2 = GetBinding(i)
 
