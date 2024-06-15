@@ -591,10 +591,10 @@ function MySlot:RecoverData(msg, opt)
                         elseif slotType == MYSLOT_MACRO then
                             local macroId = self:FindMacro(macro[index])
 
-                            if macroId and (curType ~= MYSLOT_MACRO or curIndex ~= index) then
-                                PickupMacro(macroId)
-                            else
+                            if not macroId then
                                 MySlot:Print("Could not find macro [id=" .. index .. "] for Action Bar [slot="..slotId.."]. Ignoring")
+                            elseif macroId and (curType ~= MYSLOT_MACRO or curIndex ~= index) then
+                                PickupMacro(macroId)
                             end
                         elseif slotType == MYSLOT_SUMMONPET and strindex and strindex ~= curIndex then
                             C_PetJournal.PickupPet(strindex, false)
