@@ -55,22 +55,6 @@ MySlot.SLOT_TYPE = {
 
 local MYSLOT_BIND_CUSTOM_FLAG = 0xFFFF
 
--- {{{ MergeTable
--- return item count merge into target
-local function MergeTable(target, source)
-    if source then
-        assert(type(target) == 'table' and type(source) == 'table')
-        for _, b in ipairs(source) do
-            assert(b < 256)
-            target[#target + 1] = b
-        end
-        return #source
-    else
-        return 0
-    end
-end
--- }}}
-
 -- fix unpack stackoverflow
 local function StringToTable(s)
     if type(s) ~= 'string' then

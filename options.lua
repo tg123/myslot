@@ -119,6 +119,6 @@ StaticPopupDialogs["MYSLOT_CONFIRM_CLEAR"] = {
         else
             MySlot:Print(L["Please type %s to confirm"]:format(data))
         end
-        
+
     end,
 }
