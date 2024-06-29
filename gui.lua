@@ -369,7 +369,7 @@ do
     tAppendAll(settings, {
         {
             isTitle = true,
-            text = L["Other"],
+            text = OTHER,
             notCheckable = true,
         },
         {
