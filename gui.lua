@@ -249,7 +249,7 @@ local function CreateSettingMenu(opt)
 
     return {
         {
-            text = L["Action Bar"],
+            text = ACTIONBAR_LABEL,
             hasArrow = true,
             notCheckable = false,
             isNotRadio = true,
@@ -282,7 +282,7 @@ local function CreateSettingMenu(opt)
             arg1 = "macro",
             menuList = {
                 {
-                    text = L["General"],
+                    text = GENERAL_MACROS,
                     isNotRadio = true,
                     keepShownOnClick = true,
                     arg1 = "macro",
@@ -291,7 +291,7 @@ local function CreateSettingMenu(opt)
                     func = childclicked,
                 },
                 {
-                    text = L["Charactor Specific"],
+                    text = CHARACTER_SPECIFIC_MACROS:format(""),
                     isNotRadio = true,
                     keepShownOnClick = true,
                     arg1 = "macro",
