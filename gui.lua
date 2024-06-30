@@ -138,6 +138,8 @@ local function CreateSettingMenu(opt)
         ["CHARACTOR"] = false,
     }
 
+    opt.ignorePetActionBar = false
+
     -- https://warcraft.wiki.gg/wiki/Action_slot
     local actionbarlist = {
         {
@@ -301,6 +303,18 @@ local function CreateSettingMenu(opt)
                 },
             }
         }, -- 3
+        {
+            text = PET .. " " .. ACTIONBAR_LABEL,
+            notCheckable = false,
+            isNotRadio = true,
+            keepShownOnClick = true,
+            func = function ()
+                opt.ignorePetActionBar = not opt.ignorePetActionBar
+            end,
+            checked = function ()
+                return opt.ignorePetActionBar
+            end,
+        }, -- 4
     }
 end
 
@@ -365,6 +379,8 @@ do
         }
     })
     tAppendAll(settings, CreateSettingMenu(clearOpt))
+
+    table.remove(settings) -- remove pet action bar clearOpt, will support it later
 
     tAppendAll(settings, {
         {

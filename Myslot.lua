@@ -331,10 +331,12 @@ function MySlot:Export(opt)
     end
 
     msg.petslot = {}
-    for i = 1, NUM_PET_ACTION_SLOTS, 1 do
-        local m = self:GetPetActionInfo(i)
-        if m then
-            msg.petslot[#msg.petslot + 1] = m
+    if not opt.ignorePetActionBar then
+        for i = 1, NUM_PET_ACTION_SLOTS, 1 do
+            local m = self:GetPetActionInfo(i)
+            if m then
+                msg.petslot[#msg.petslot + 1] = m
+            end
         end
     end
 
@@ -735,28 +737,30 @@ function MySlot:RecoverData(msg, opt)
     end
 
 
-    local pettoken = {}
-    for i = 1, NUM_PET_ACTION_SLOTS, 1 do
-        local name, _, isToken = GetPetActionInfo(i);
-        if isToken then
-            pettoken[name] = i
+    if not opt.actionOpt.ignorePetActionBar then
+        local pettoken = {}
+        for i = 1, NUM_PET_ACTION_SLOTS, 1 do
+            local name, _, isToken = GetPetActionInfo(i);
+            if isToken then
+                pettoken[name] = i
+            end
         end
-    end
 
-    for _, p in pairs(msg.petslot or {}) do
-        if p.strindex then
-            local slot = pettoken[p.strindex]
-            if slot then
-                PickupPetAction(slot)
+        for _, p in pairs(msg.petslot or {}) do
+            if p.strindex then
+                local slot = pettoken[p.strindex]
+                if slot then
+                    PickupPetAction(slot)
+                    PickupPetAction(p.id)
+                end
+            elseif p.index then
+                PickupPetSpell(p.index)
+                PickupPetAction(p.id)
+            elseif p.type == MYSLOT_EMPTY then
                 PickupPetAction(p.id)
             end
-        elseif p.index then
-            PickupPetSpell(p.index)
-            PickupPetAction(p.id)
-        elseif p.type == MYSLOT_EMPTY then
-            PickupPetAction(p.id)
+            ClearCursor()
         end
-        ClearCursor()
     end
 
 
