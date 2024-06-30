@@ -251,7 +251,7 @@ local function CreateSettingMenu(opt)
 
     return {
         {
-            text = ACTIONBAR_LABEL,
+            text = ACTIONBARS_LABEL,
             hasArrow = true,
             notCheckable = false,
             isNotRadio = true,
@@ -304,7 +304,7 @@ local function CreateSettingMenu(opt)
             }
         }, -- 3
         {
-            text = PET .. " " .. ACTIONBAR_LABEL,
+            text = PET .. " " .. ACTIONBARS_LABEL,
             notCheckable = false,
             isNotRadio = true,
             keepShownOnClick = true,
