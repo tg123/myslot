@@ -5,6 +5,8 @@ message Charactor {
 
 	repeated Macro macro = 3;
 
+	repeated Slot petslot = 4;
+
 	optional uint32 ver = 14;
 	optional string name = 15;
 }

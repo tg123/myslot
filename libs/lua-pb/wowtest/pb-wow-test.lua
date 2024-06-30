@@ -1,6 +1,6 @@
 local ADDONNAME, ADDONSELF = ...
 
-if ADDONNAME == "lua-pb"
+if ADDONNAME == "lua-pb" then
 
     local luapb = ADDONSELF.luapb
     local person = luapb.load_proto_ast(ADDONSELF.pbperson).Person
