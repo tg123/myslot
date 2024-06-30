@@ -578,31 +578,23 @@ function MySlot:RecoverData(msg, opt)
         local name = m.name
         local body = m.body
 
+        local info = {
+            ["oldid"] = macroId,
+            ["name"] = name,
+            ["icon"] = icon,
+            ["body"] = body,
+        }
+
         if not opt.actionOpt.ignoreMacros["ACCOUNT"] and macroId <= MAX_ACCOUNT_MACROS  then
-            macro[macroId] = self:FindOrCreateMacro({
-                ["oldid"] = macroId,
-                ["name"] = name,
-                ["icon"] = icon,
-                ["body"] = body,
-            })
+            macro[macroId] = self:FindOrCreateMacro(info)
         end
 
         if not opt.actionOpt.ignoreMacros["CHARACTOR"] and macroId > MAX_ACCOUNT_MACROS  then
-            macro[macroId] = self:FindOrCreateMacro({
-                ["oldid"] = macroId,
-                ["name"] = name,
-                ["icon"] = icon,
-                ["body"] = body,
-            })
+            macro[macroId] = self:FindOrCreateMacro(info)
         end
 
         if not macro[macroId] then
-            macro[macroId] = self:FindMacro({
-                ["oldid"] = macroId,
-                ["name"] = name,
-                ["icon"] = icon,
-                ["body"] = body,
-            })
+            macro[macroId] = self:FindMacro(info)
         end
     end
     -- }}} Macro
