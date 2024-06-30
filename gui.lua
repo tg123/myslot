@@ -341,6 +341,13 @@ do
 
         StaticPopupDialogs["MYSLOT_MSGBOX"].OnAccept = function()
             StaticPopup_Hide("MYSLOT_MSGBOX")
+
+            MySlot:Clear("MACRO", clearOpt.ignoreMacros)
+            MySlot:Clear("ACTION", clearOpt.ignoreActionBars)
+            if clearOpt.ignoreBinding then
+                MySlot:Clear("BINDING")
+            end
+
             MySlot:RecoverData(msg, {
                 actionOpt = actionOpt,
                 clearOpt = clearOpt,

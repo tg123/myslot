@@ -565,11 +565,24 @@ function MySlot:RecoverData(msg, opt)
     end
     -- }}}
 
+    local slotBucket = {}
 
     -- {{{ Macro
-    -- cache macro
     local macro = {}
-    MySlot:Clear("MACRO", opt.clearOpt.ignoreMacros)
+
+    for _, s in pairs(msg.slot or {}) do
+        local slotId = s.id
+        local slotType = _MySlot.Slot.SlotType[s.type]
+        local index = s.index
+
+        if slotType == MYSLOT_MACRO then
+            if macro[index] then
+                table.insert(macro[index], slotId)
+            else
+                macro[index] = {slotId}
+            end
+        end
+    end
 
     for _, m in pairs(msg.macro or {}) do
         local macroId = m.id
@@ -585,22 +598,29 @@ function MySlot:RecoverData(msg, opt)
             ["body"] = body,
         }
 
-        if not opt.actionOpt.ignoreMacros["ACCOUNT"] and macroId <= MAX_ACCOUNT_MACROS  then
-            macro[macroId] = self:FindOrCreateMacro(info)
+        local newid = nil
+
+        if (not opt.actionOpt.ignoreMacros["ACCOUNT"] and macroId <= MAX_ACCOUNT_MACROS)
+        or (not opt.actionOpt.ignoreMacros["CHARACTOR"] and macroId > MAX_ACCOUNT_MACROS)
+        then
+            newid = self:FindOrCreateMacro(info)
         end
 
-        if not opt.actionOpt.ignoreMacros["CHARACTOR"] and macroId > MAX_ACCOUNT_MACROS  then
-            macro[macroId] = self:FindOrCreateMacro(info)
+        if not newid then
+            newid = self:FindMacro(info)
         end
 
-        if not macro[macroId] then
-            macro[macroId] = self:FindMacro(info)
+        if newid then
+            for _, slotId in pairs(macro[macroId] or {}) do
+                PickupMacro(newid)
+                PlaceAction(slotId)
+            end
+        else
+            MySlot:Print(L["Ignore unknown macro [id=%s]"]:format(macroId))
         end
     end
     -- }}} Macro
 
-    MySlot:Clear("ACTION", opt.clearOpt.ignoreActionBars)
-    local slotBucket = {}
 
     for _, s in pairs(msg.slot or {}) do
         local slotId = s.id
@@ -644,16 +664,16 @@ function MySlot:RecoverData(msg, opt)
                         end
                     elseif slotType == MYSLOT_ITEM then
                         PickupItem(index)
-                    elseif slotType == MYSLOT_MACRO then
-                        local macroid = macro[index]
+                    -- elseif slotType == MYSLOT_MACRO then
+                    --     local macroid = macro[index]
 
-                        if not macroid then
-                            MySlot:Print(L["Ignore unknown macro [id=%s]"]:format(index))
-                        end
+                    --     if not macroid then
+                    --         MySlot:Print(L["Ignore unknown macro [id=%s]"]:format(index))
+                    --     end
 
-                        if curType ~= MYSLOT_MACRO or curIndex ~= macroid then
-                            PickupMacro(macroid)
-                        end
+                    --     if curType ~= MYSLOT_MACRO or curIndex ~= macroid then
+                    --         PickupMacro(macroid)
+                    --     end
                     elseif slotType == MYSLOT_SUMMONPET and strindex and strindex ~= curIndex then
                         C_PetJournal.PickupPet(strindex, false)
                         if not GetCursorInfo() then
@@ -693,10 +713,6 @@ function MySlot:RecoverData(msg, opt)
                 ClearCursor()
             end
         end
-    end
-
-    if opt.clearOpt.ignoreBinding then
-        MySlot:Clear("BINDING")
     end
 
     if not opt.actionOpt.ignoreBinding then
