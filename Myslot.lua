@@ -102,7 +102,7 @@ end
 function MySlot:GetMacroInfo(macroId)
     -- {macroId ,icon high 8, icon low 8 , namelen, ..., bodylen, ...}
 
-    local name, iconTexture, body, isLocal = GetMacroInfo(macroId)
+    local name, iconTexture, body  = GetMacroInfo(macroId)
 
     if not name then
         return nil
@@ -159,6 +159,28 @@ function MySlot:GetActionInfo(slotId)
 end
 
 -- }}}
+
+function MySlot:GetPetActionInfo(slotId)
+    local name, _, isToken, _, _, _, spellID = GetPetActionInfo(slotId)
+
+    local msg = _MySlot.Slot()
+    msg.id = slotId
+    msg.type = MYSLOT_SPELL
+
+    if isToken then
+        msg.strindex = name
+        msg.index = 0
+    elseif spellID then
+        msg.index = spellID
+    elseif not name then
+        msg.index = 0
+        msg.type = MYSLOT_EMPTY
+    else
+        return nil
+    end
+
+    return msg
+end
 
 -- {{{ GetBindingInfo
 -- {{{ Serialzie Key
@@ -308,6 +330,16 @@ function MySlot:Export(opt)
         end
     end
 
+    msg.petslot = {}
+    if not opt.ignorePetActionBar then
+        for i = 1, NUM_PET_ACTION_SLOTS, 1 do
+            local m = self:GetPetActionInfo(i)
+            if m then
+                msg.petslot[#msg.petslot + 1] = m
+            end
+        end
+    end
+
     local ct = msg:Serialize()
     local t = { MYSLOT_VER, 86, 04, 22, 0, 0, 0, 0 }
     MergeTable(t, StringToTable(ct))
@@ -432,6 +464,7 @@ function MySlot:FindMacro(macroInfo)
     -- Return index if found or nil
     return localMacro[name .. "_" .. body] or localMacro[body]
 end
+
 -- {{{ FindOrCreateMacro
 function MySlot:FindOrCreateMacro(macroInfo)
     if not macroInfo then
@@ -477,15 +510,12 @@ function MySlot:FindOrCreateMacro(macroInfo)
         return nil
     end
 end
-
 -- }}}
 
 function MySlot:RecoverData(msg, opt)
     -- {{{ Cache Spells
     --cache spells
     local spells = {}
-
-
     for i = 1, GetNumSpellTabs() do
         local tab, tabTex, offset, numSpells, isGuild, offSpecID = GetSpellTabInfo(i);
         offSpecID = (offSpecID ~= 0)
@@ -520,7 +550,6 @@ function MySlot:RecoverData(msg, opt)
             end
         end
     end
-
     -- }}}
 
 
@@ -540,7 +569,7 @@ function MySlot:RecoverData(msg, opt)
     -- {{{ Macro
     -- cache macro
     local macro = {}
-    MySlot:Clear("MACRO", opt.clearOpt.ignoreMacros) -- will cause duplicate macro
+    MySlot:Clear("MACRO", opt.clearOpt.ignoreMacros)
 
     for _, m in pairs(msg.macro or {}) do
         local macroId = m.id
@@ -579,7 +608,6 @@ function MySlot:RecoverData(msg, opt)
     -- }}} Macro
 
     MySlot:Clear("ACTION", opt.clearOpt.ignoreActionBars)
-
     local slotBucket = {}
 
     for _, s in pairs(msg.slot or {}) do
@@ -662,9 +690,7 @@ function MySlot:RecoverData(msg, opt)
                     ClearCursor()
                 end
             end) then
-            MySlot:Print(L
-            ["[WARN] Ignore slot due to an unknown error DEBUG INFO = [S=%s T=%s I=%s] Please send Importing Text and DEBUG INFO to %s"]
-            :format(slotId, slotType, index, MYSLOT_AUTHOR))
+            MySlot:Print(L["[WARN] Ignore slot due to an unknown error DEBUG INFO = [S=%s T=%s I=%s] Please send Importing Text and DEBUG INFO to %s"]:format(slotId, slotType, index, MYSLOT_AUTHOR))
         end
     end
 
@@ -710,6 +736,34 @@ function MySlot:RecoverData(msg, opt)
         SaveBindings(GetCurrentBindingSet())
     end
 
+
+    if not opt.actionOpt.ignorePetActionBar then
+        local pettoken = {}
+        for i = 1, NUM_PET_ACTION_SLOTS, 1 do
+            local name, _, isToken = GetPetActionInfo(i);
+            if isToken then
+                pettoken[name] = i
+            end
+        end
+
+        for _, p in pairs(msg.petslot or {}) do
+            if p.strindex then
+                local slot = pettoken[p.strindex]
+                if slot then
+                    PickupPetAction(slot)
+                    PickupPetAction(p.id)
+                end
+            elseif p.index then
+                PickupPetSpell(p.index)
+                PickupPetAction(p.id)
+            elseif p.type == MYSLOT_EMPTY then
+                PickupPetAction(p.id)
+            end
+            ClearCursor()
+        end
+    end
+
+
     MySlot:Print(L["All slots were restored"])
 end
 
@@ -727,7 +781,7 @@ function MySlot:Clear(what, opt)
                 DeleteMacro(i)
             end
         end
-    
+
         if opt["CHARACTOR"] then
             for i = MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS,  MAX_ACCOUNT_MACROS + 1, -1 do
                 DeleteMacro(i)
