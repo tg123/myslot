@@ -755,13 +755,12 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
                 return
             end
 
+            local opt = {} 
+            CreateSettingMenu(opt)
+
             MySlot:RecoverData(msg, {
-                ignoreAction = false,
-                ignoreBinding = false,
-                ignoreMacro = false,
-                clearAction = false,
-                clearBinding = false,
-                clearMacro = false,
+                actionOpt = opt,
+                clearOpt = opt,
             })
         end
 
