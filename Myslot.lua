@@ -14,12 +14,25 @@ local MYSLOT_AUTHOR = "Boshi Lian <farmer1992@gmail.com>"
 local MYSLOT_VER = 42
 
 -- TWW Beta Compat code (fix and cleanup below later)
-local GetNumSpellTabs = C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines or GetNumSpellTabs
-local GetSpellTabInfo = C_SpellBook and C_SpellBook.GetSpellBookSkillLineInfo or GetSpellTabInfo
-local PickupSpell = C_Spell and C_Spell.PickupSpell or PickupSpell
-local PickupItem = C_Item and C_Item.PickupItem or PickupItem
-local GetSpellInfo = C_Spell and C_Spell.GetSpellName or GetSpellInfo
-local GetSpellLink = C_Spell and C_Spell.GetSpellLink or GetSpellLink
+local GetNumSpellTabs = C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines or _G.GetNumSpellTabs
+local GetSpellTabInfo = (C_SpellBook and C_SpellBook.GetSpellBookSkillLineInfo) and function(index)
+    local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(index);
+    if skillLineInfo then
+        return	skillLineInfo.name, 
+                skillLineInfo.iconID, 
+                skillLineInfo.itemIndexOffset, 
+                skillLineInfo.numSpellBookItems, 
+                skillLineInfo.isGuild, 
+                skillLineInfo.offSpecID,
+                skillLineInfo.shouldHide,
+                skillLineInfo.specID;
+    end
+end or _G.GetSpellTabInfo
+local PickupSpell = C_Spell and C_Spell.PickupSpell or _G.PickupSpell
+local PickupItem = C_Item and C_Item.PickupItem or _G.PickupItem
+local GetSpellInfo = C_Spell and C_Spell.GetSpellName or _G.GetSpellInfo
+local GetSpellLink = C_Spell and C_Spell.GetSpellLink or _G.GetSpellLink
+local GetSpellBookItemInfo = C_SpellBook and C_SpellBook.GetSpellBookItemType or _G.GetSpellBookItemInfo
 -- TWW Beta Compat End
 
 -- local MYSLOT_IS_DEBUG = true
@@ -516,6 +529,8 @@ function MySlot:RecoverData(msg, opt)
     -- {{{ Cache Spells
     --cache spells
     local spells = {}
+
+    if SPELLS_PER_PAGE then
     for i = 1, GetNumSpellTabs() do
         local tab, tabTex, offset, numSpells, isGuild, offSpecID = GetSpellTabInfo(i);
         offSpecID = (offSpecID ~= 0)
@@ -536,7 +551,9 @@ function MySlot:RecoverData(msg, opt)
             end
         end
     end
+    end
 
+    if BOOKTYPE_PROFESSION then
     if GetProfessions then
         for _, p in pairs({ GetProfessions() }) do
             local _, _, _, _, numSpells, spelloffset = GetProfessionInfo(p)
@@ -549,6 +566,7 @@ function MySlot:RecoverData(msg, opt)
                 end
             end
         end
+    end
     end
     -- }}}
 

@@ -65,7 +65,7 @@ do
 end
 
 local function CreateSettingMenu(opt)
-    
+
     local tableref = function (name)
         if name == "action" then
             return opt.ignoreActionBars
@@ -408,6 +408,10 @@ do
         }
     })
 
+    if not EasyMenu then
+        ba:Hide()
+    end
+
     ba:SetScript("OnClick", function(self, button)
         EasyMenu(settings, menuFrame, "cursor", 0 , 0, "MENU");
     end)
@@ -452,6 +456,10 @@ do
     }
 
     tAppendAll(settings, CreateSettingMenu(actionOpt))
+
+    if not EasyMenu then
+        ba:Hide()
+    end
 
     ba:SetScript("OnClick", function(self, button)
         EasyMenu(settings, menuFrame, "cursor", 0 , 0, "MENU");
@@ -755,7 +763,7 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
                 return
             end
 
-            local opt = {} 
+            local opt = {}
             CreateSettingMenu(opt)
 
             MySlot:RecoverData(msg, {
