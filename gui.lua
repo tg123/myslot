@@ -318,6 +318,40 @@ local function CreateSettingMenu(opt)
     }
 end
 
+local function DrawMenu(root, menuData)
+    for _, m in ipairs(menuData) do
+        if m.isTitle then
+            root:CreateTitle(m.text)
+        else
+            local c = root:CreateCheckbox(m.text, m.checked, function ()
+                
+            end, {
+                arg1 = m.arg1,
+                arg2 = m.arg2,
+            })
+            c:SetResponder(function(data, menuInputData, menu)
+                m.func({
+                    arg1 = m.arg1,
+                    arg2 = m.arg2,
+                })
+                -- Your handler here...
+                return MenuResponse.Refresh;
+            end)
+
+            if m.menuList then
+                DrawMenu(c, m.menuList)
+            end
+        end
+    end
+
+end
+
+local EasyMenu = _G.EasyMenu or function (settings)
+    MenuUtil.CreateContextMenu(UIParent, function(ownerRegion, rootDescription)
+        DrawMenu(rootDescription, settings)
+    end)
+end
+
 -- import
 do
 
@@ -408,10 +442,6 @@ do
         }
     })
 
-    if not EasyMenu then
-        ba:Hide()
-    end
-
     ba:SetScript("OnClick", function(self, button)
         EasyMenu(settings, menuFrame, "cursor", 0 , 0, "MENU");
     end)
@@ -456,10 +486,6 @@ do
     }
 
     tAppendAll(settings, CreateSettingMenu(actionOpt))
-
-    if not EasyMenu then
-        ba:Hide()
-    end
 
     ba:SetScript("OnClick", function(self, button)
         EasyMenu(settings, menuFrame, "cursor", 0 , 0, "MENU");
