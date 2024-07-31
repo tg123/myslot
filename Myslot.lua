@@ -18,11 +18,11 @@ local GetNumSpellTabs = C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines or
 local GetSpellTabInfo = (C_SpellBook and C_SpellBook.GetSpellBookSkillLineInfo) and function(index)
     local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(index);
     if skillLineInfo then
-        return	skillLineInfo.name, 
-                skillLineInfo.iconID, 
-                skillLineInfo.itemIndexOffset, 
-                skillLineInfo.numSpellBookItems, 
-                skillLineInfo.isGuild, 
+        return	skillLineInfo.name,
+                skillLineInfo.iconID,
+                skillLineInfo.itemIndexOffset,
+                skillLineInfo.numSpellBookItems,
+                skillLineInfo.isGuild,
                 skillLineInfo.offSpecID,
                 skillLineInfo.shouldHide,
                 skillLineInfo.specID;
@@ -261,37 +261,36 @@ end
 -- }}}
 
 local function GetTalentTreeString()
-    if not ClassTalentFrame_LoadUI then
-        -- maybe classic
-        if GetTalentTabInfo then
+    -- maybe classic
+    if GetTalentTabInfo then
 
-            if tonumber(select(3, GetTalentTabInfo(1)), 10) then
-                return select(3, GetTalentTabInfo(1)) ..  "/" .. select(3, GetTalentTabInfo(2)) .. "/" .. select(3, GetTalentTabInfo(3))
-            end
-
-            -- Cataclysm
-
-            for i = 1, 3 do
-                if select(8, GetTalentTabInfo(i)) then
-                    return select(2, GetTalentTabInfo(i))
-                end
-            end
+        -- wlk
+        if tonumber(select(3, GetTalentTabInfo(1)), 10) then
+            return select(3, GetTalentTabInfo(1)) ..  "/" .. select(3, GetTalentTabInfo(2)) .. "/" .. select(3, GetTalentTabInfo(3))
         end
 
-        return nil
-    end
-
-    ClassTalentFrame_LoadUI()
-    if (ClassTalentFrame) and (ClassTalentFrame.TalentsTab) and (ClassTalentFrame.TalentsTab.GetLoadoutExportString) then
-        if ClassTalentFrame.TalentsTab.GetConfigID and ClassTalentFrame.TalentsTab.GetTalentTreeID then
-            if (not ClassTalentFrame.TalentsTab:GetConfigID()) or (not ClassTalentFrame.TalentsTab:GetTalentTreeID()) then
-                return nil
-            end
+        -- other
+        if tonumber(select(5, GetTalentTabInfo(1)), 10) then
+            return select(5, GetTalentTabInfo(1)) ..  "/" .. select(5, GetTalentTabInfo(2)) .. "/" .. select(5, GetTalentTabInfo(3))
         end
-        ClassTalentFrame.TalentsTab:UpdateTreeInfo()
-
-        return ClassTalentFrame.TalentsTab:GetLoadoutExportString()
     end
+
+    -- 11.0
+    if PlayerSpellsFrame_LoadUI then
+        PlayerSpellsFrame_LoadUI()
+
+        -- no talent yet
+        if not PlayerSpellsFrame.TalentsFrame:GetConfigID() then
+            return nil
+        end
+
+        PlayerSpellsFrame.TalentsFrame:UpdateTreeInfo()
+        if PlayerSpellsFrame.TalentsFrame:GetLoadoutExportString() then
+            return PlayerSpellsFrame.TalentsFrame:GetLoadoutExportString()
+        end
+    end
+
+    return nil
 end
 
 function MySlot:Export(opt)

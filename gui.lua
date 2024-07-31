@@ -324,7 +324,7 @@ local function DrawMenu(root, menuData)
             root:CreateTitle(m.text)
         else
             local c = root:CreateCheckbox(m.text, m.checked, function ()
-                
+
             end, {
                 arg1 = m.arg1,
                 arg2 = m.arg2,
