@@ -112,29 +112,12 @@ local function CreateSpellOverrideMap()
     local spellOverride = {}
 
     if C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines then
-        return {}
-    end
-
-    -- 11.0 only
-    for skillLineIndex = 1, C_SpellBook.GetNumSpellBookSkillLines() do
-        local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(skillLineIndex)
-        for i = 1, skillLineInfo.numSpellBookItems do
-            local spellIndex = skillLineInfo.itemIndexOffset + i
-            local _, spellId = C_SpellBook.GetSpellBookItemType(spellIndex, Enum.SpellBookSpellBank.Player)
-            if spellId then
-                local newid = C_Spell.GetOverrideSpell(spellId)
-                if newid ~= spellId then
-                    spellOverride[newid] = spellId
-                end
-            end
-        end
-    end
-
-    local isInspect = false
-    for specIndex = 1, GetNumSpecGroups(isInspect) do
-        for tier = 1, MAX_TALENT_TIERS do
-            for column = 1, NUM_TALENT_COLUMNS do
-                local spellId = select(6, GetTalentInfo(tier, column, specIndex))
+        -- 11.0 only
+        for skillLineIndex = 1, C_SpellBook.GetNumSpellBookSkillLines() do
+            local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(skillLineIndex)
+            for i = 1, skillLineInfo.numSpellBookItems do
+                local spellIndex = skillLineInfo.itemIndexOffset + i
+                local _, spellId = C_SpellBook.GetSpellBookItemType(spellIndex, Enum.SpellBookSpellBank.Player)
                 if spellId then
                     local newid = C_Spell.GetOverrideSpell(spellId)
                     if newid ~= spellId then
@@ -143,17 +126,32 @@ local function CreateSpellOverrideMap()
                 end
             end
         end
-    end
 
-    for pvpTalentSlot = 1, 3 do
-        local slotInfo = C_SpecializationInfo.GetPvpTalentSlotInfo(pvpTalentSlot)
-        if slotInfo ~= nil then
-            for i, pvpTalentID in ipairs(slotInfo.availableTalentIDs) do
-                local spellId = select(6, GetPvpTalentInfoByID(pvpTalentID))
-                if spellId then
-                    local newid = C_Spell.GetOverrideSpell(spellId)
-                    if newid ~= spellId then
-                        spellOverride[newid] = spellId
+        local isInspect = false
+        for specIndex = 1, GetNumSpecGroups(isInspect) do
+            for tier = 1, MAX_TALENT_TIERS do
+                for column = 1, NUM_TALENT_COLUMNS do
+                    local spellId = select(6, GetTalentInfo(tier, column, specIndex))
+                    if spellId then
+                        local newid = C_Spell.GetOverrideSpell(spellId)
+                        if newid ~= spellId then
+                            spellOverride[newid] = spellId
+                        end
+                    end
+                end
+            end
+        end
+
+        for pvpTalentSlot = 1, 3 do
+            local slotInfo = C_SpecializationInfo.GetPvpTalentSlotInfo(pvpTalentSlot)
+            if slotInfo ~= nil then
+                for i, pvpTalentID in ipairs(slotInfo.availableTalentIDs) do
+                    local spellId = select(6, GetPvpTalentInfoByID(pvpTalentID))
+                    if spellId then
+                        local newid = C_Spell.GetOverrideSpell(spellId)
+                        if newid ~= spellId then
+                            spellOverride[newid] = spellId
+                        end
                     end
                 end
             end
