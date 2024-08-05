@@ -33,6 +33,7 @@ local PickupItem = C_Item and C_Item.PickupItem or _G.PickupItem
 local GetSpellInfo = C_Spell and C_Spell.GetSpellName or _G.GetSpellInfo
 local GetSpellLink = C_Spell and C_Spell.GetSpellLink or _G.GetSpellLink
 local GetSpellBookItemInfo = C_SpellBook and C_SpellBook.GetSpellBookItemType or _G.GetSpellBookItemInfo
+local PickupSpellBookItem = C_SpellBook and C_SpellBook.PickupSpellBookItem or _G.PickupSpellBookItem
 -- TWW Beta Compat End
 
 -- local MYSLOT_IS_DEBUG = true
@@ -111,13 +112,29 @@ local function CreateSpellOverrideMap()
     local spellOverride = {}
 
     if C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines then
-        -- 11.0
+        return {}
+    end
 
-        for skillLineIndex = 1, C_SpellBook.GetNumSpellBookSkillLines() do
-            local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(skillLineIndex)
-            for i = 1, skillLineInfo.numSpellBookItems do
-                local spellIndex = skillLineInfo.itemIndexOffset + i
-                local _, spellId = C_SpellBook.GetSpellBookItemType(spellIndex, Enum.SpellBookSpellBank.Player)
+    -- 11.0 only
+    for skillLineIndex = 1, C_SpellBook.GetNumSpellBookSkillLines() do
+        local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(skillLineIndex)
+        for i = 1, skillLineInfo.numSpellBookItems do
+            local spellIndex = skillLineInfo.itemIndexOffset + i
+            local _, spellId = C_SpellBook.GetSpellBookItemType(spellIndex, Enum.SpellBookSpellBank.Player)
+            if spellId then
+                local newid = C_Spell.GetOverrideSpell(spellId)
+                if newid ~= spellId then
+                    spellOverride[newid] = spellId
+                end
+            end
+        end
+    end
+
+    local isInspect = false
+    for specIndex = 1, GetNumSpecGroups(isInspect) do
+        for tier = 1, MAX_TALENT_TIERS do
+            for column = 1, NUM_TALENT_COLUMNS do
+                local spellId = select(6, GetTalentInfo(tier, column, specIndex))
                 if spellId then
                     local newid = C_Spell.GetOverrideSpell(spellId)
                     if newid ~= spellId then
@@ -126,37 +143,22 @@ local function CreateSpellOverrideMap()
                 end
             end
         end
+    end
 
-        local isInspect = false
-        for specIndex = 1, GetNumSpecGroups(isInspect) do
-            for tier = 1, MAX_TALENT_TIERS do
-                for column = 1, NUM_TALENT_COLUMNS do
-                    local spellId = select(6, GetTalentInfo(tier, column, specIndex))
-                    if spellId then
-                        local newid = C_Spell.GetOverrideSpell(spellId)
-                        if newid ~= spellId then
-                            spellOverride[newid] = spellId
-                        end
+    for pvpTalentSlot = 1, 3 do
+        local slotInfo = C_SpecializationInfo.GetPvpTalentSlotInfo(pvpTalentSlot)
+        if slotInfo ~= nil then
+            for i, pvpTalentID in ipairs(slotInfo.availableTalentIDs) do
+                local spellId = select(6, GetPvpTalentInfoByID(pvpTalentID))
+                if spellId then
+                    local newid = C_Spell.GetOverrideSpell(spellId)
+                    if newid ~= spellId then
+                        spellOverride[newid] = spellId
                     end
                 end
             end
         end
-
-        for pvpTalentSlot = 1, 3 do
-            local slotInfo = C_SpecializationInfo.GetPvpTalentSlotInfo(pvpTalentSlot)
-            if slotInfo ~= nil then
-                for i, pvpTalentID in ipairs(slotInfo.availableTalentIDs) do
-                    local spellId = select(6, GetPvpTalentInfoByID(pvpTalentID))
-                    if spellId then
-                        local newid = C_Spell.GetOverrideSpell(spellId)
-                        if newid ~= spellId then
-                            spellOverride[newid] = spellId
-                        end
-                    end
-                end
-            end
-        end
-    end    
+    end
 
     return spellOverride
 end
@@ -634,6 +636,28 @@ function MySlot:RecoverData(msg, opt)
     end
 
     local spellOverride = CreateSpellOverrideMap()
+
+    -- 11.0 only
+    if C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines then
+        local spellmap = {
+            -- [Enum.SpellBookItemType.Spell] = "spell",
+            [Enum.SpellBookItemType.Flyout] = "flyout",
+        }
+
+        for skillLineIndex = 1, C_SpellBook.GetNumSpellBookSkillLines() do
+            local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(skillLineIndex)
+            for i = 1, skillLineInfo.numSpellBookItems do
+                local spellIndex = skillLineInfo.itemIndexOffset + i
+                local spellTypeEnum, spellId = C_SpellBook.GetSpellBookItemType(spellIndex, Enum.SpellBookSpellBank.Player);
+                if spellId then
+                    if spellmap[spellTypeEnum] then
+                        local spellType = spellmap[spellTypeEnum]
+                        spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = { spellIndex, Enum.SpellBookSpellBank.Player, "spell" }
+                    end
+                end
+            end
+        end
+    end
     -- }}}
 
 
@@ -716,7 +740,13 @@ function MySlot:RecoverData(msg, opt)
         curType = MySlot.SLOT_TYPE[curType or MYSLOT_NOTFOUND]
         slotBucket[slotId] = true
 
-        if not pcall(function()
+        local aapcall = function (a)
+            a()
+            return true
+
+        end
+
+        if not aapcall(function()
 
                 if opt.actionOpt.ignoreActionBars[math.ceil(slotId / 12)] then
                     return
@@ -728,15 +758,11 @@ function MySlot:RecoverData(msg, opt)
                             PickupSpell(index)
                         end
 
+                        -- try if override
                         if not GetCursorInfo() then
                             if spellOverride[index] then
                                 PickupSpell(spellOverride[index])
                             end
-                        end
-
-                        if not GetCursorInfo() then
-                            local spellName =  GetSpellInfo(index)
-                            PickupSpell(spellName)
                         end
 
                         if not GetCursorInfo() then
@@ -748,14 +774,26 @@ function MySlot:RecoverData(msg, opt)
 
                             if newId then
                                 if pickType == "spell" then
+                                    print(newId, spellType)
                                     PickupSpellBookItem(newId, spellType)
+                                -- elseif pickType == "spell" then
+                                    -- C_SpellBook.PickupSpellBookItem(newId, spellType);
                                 elseif pickType == "companions" then
                                     PickupCompanion(spellType, newId)
                                 end
-                            else
-                                MySlot:Print(L["Ignore unlearned skill [id=%s], %s"]:format(index,
-                                    GetSpellLink(index) or ""))
                             end
+                        end
+
+                        -- this fallback should not happen, only to workaround some old export
+                        if not GetCursorInfo() then
+                            local spellName = GetSpellInfo(index)
+                            if spellName then
+                                PickupSpell(spellName)
+                            end
+                        end
+
+                        if not GetCursorInfo() then
+                            MySlot:Print(L["Ignore unlearned skill [id=%s], %s"]:format(index, GetSpellLink(index) or ""))
                         end
                     elseif slotType == MYSLOT_ITEM then
                         PickupItem(index)
