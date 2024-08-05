@@ -16,7 +16,7 @@ local MYSLOT_VER = 42
 -- TWW Beta Compat code (fix and cleanup below later)
 local GetNumSpellTabs = C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines or _G.GetNumSpellTabs
 local GetSpellTabInfo = (C_SpellBook and C_SpellBook.GetSpellBookSkillLineInfo) and function(index)
-    local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(index);
+    local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(index)
     if skillLineInfo then
         return	skillLineInfo.name,
                 skillLineInfo.iconID,
@@ -25,7 +25,7 @@ local GetSpellTabInfo = (C_SpellBook and C_SpellBook.GetSpellBookSkillLineInfo) 
                 skillLineInfo.isGuild,
                 skillLineInfo.offSpecID,
                 skillLineInfo.shouldHide,
-                skillLineInfo.specID;
+                skillLineInfo.specID
     end
 end or _G.GetSpellTabInfo
 local PickupSpell = C_Spell and C_Spell.PickupSpell or _G.PickupSpell
@@ -107,6 +107,60 @@ local function TableToString(s)
     return table.concat(t)
 end
 
+local function CreateSpellOverrideMap()
+    local spellOverride = {}
+
+    if C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines then
+        -- 11.0
+
+        for skillLineIndex = 1, C_SpellBook.GetNumSpellBookSkillLines() do
+            local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(skillLineIndex)
+            for i = 1, skillLineInfo.numSpellBookItems do
+                local spellIndex = skillLineInfo.itemIndexOffset + i
+                local _, spellId = C_SpellBook.GetSpellBookItemType(spellIndex, Enum.SpellBookSpellBank.Player)
+                if spellId then
+                    local newid = C_Spell.GetOverrideSpell(spellId)
+                    if newid ~= spellId then
+                        spellOverride[newid] = spellId
+                    end
+                end
+            end
+        end
+
+        local isInspect = false
+        for specIndex = 1, GetNumSpecGroups(isInspect) do
+            for tier = 1, MAX_TALENT_TIERS do
+                for column = 1, NUM_TALENT_COLUMNS do
+                    local spellId = select(6, GetTalentInfo(tier, column, specIndex))
+                    if spellId then
+                        local newid = C_Spell.GetOverrideSpell(spellId)
+                        if newid ~= spellId then
+                            spellOverride[newid] = spellId
+                        end
+                    end
+                end
+            end
+        end
+
+        for pvpTalentSlot = 1, 3 do
+            local slotInfo = C_SpecializationInfo.GetPvpTalentSlotInfo(pvpTalentSlot)
+            if slotInfo ~= nil then
+                for i, pvpTalentID in ipairs(slotInfo.availableTalentIDs) do
+                    local spellId = select(6, GetPvpTalentInfoByID(pvpTalentID))
+                    if spellId then
+                        local newid = C_Spell.GetOverrideSpell(spellId)
+                        if newid ~= spellId then
+                            spellOverride[newid] = spellId
+                        end
+                    end
+                end
+            end
+        end
+    end    
+
+    return spellOverride
+end
+
 function MySlot:Print(msg)
     DEFAULT_CHAT_FRAME:AddMessage("|CFFFF0000<|r|CFFFFD100Myslot|r|CFFFF0000>|r" .. (msg or "nil"))
 end
@@ -121,7 +175,7 @@ function MySlot:GetMacroInfo(macroId)
         return nil
     end
 
-    iconTexture = gsub(strupper(iconTexture or "INV_Misc_QuestionMark"), "INTERFACE\\ICONS\\", "");
+    iconTexture = gsub(strupper(iconTexture or "INV_Misc_QuestionMark"), "INTERFACE\\ICONS\\", "")
 
     local msg = _MySlot.Macro()
     msg.id = macroId
@@ -322,10 +376,18 @@ function MySlot:Export(opt)
     end
 
     msg.slot = {}
+    -- TODO move to GetActionInfo
+    local spellOverride = CreateSpellOverrideMap()
+
     for i = 1, MYSLOT_MAX_ACTIONBAR do
         if not opt.ignoreActionBars[math.ceil(i / 12)] then
             local m = self:GetActionInfo(i)
             if m then
+                if m.type == 'SPELL' then
+                    if spellOverride[m.index] then
+                        m.index = spellOverride[m.index]
+                    end
+                end
                 msg.slot[#msg.slot + 1] = m
             end
         end
@@ -524,22 +586,25 @@ function MySlot:FindOrCreateMacro(macroInfo)
 end
 -- }}}
 
+
+
 function MySlot:RecoverData(msg, opt)
     -- {{{ Cache Spells
     --cache spells
     local spells = {}
 
+    -- TODO clean up this with 11.0
     if SPELLS_PER_PAGE then
     for i = 1, GetNumSpellTabs() do
-        local tab, tabTex, offset, numSpells, isGuild, offSpecID = GetSpellTabInfo(i);
+        local tab, tabTex, offset, numSpells, isGuild, offSpecID = GetSpellTabInfo(i)
         offSpecID = (offSpecID ~= 0)
         if not offSpecID then
-            offset = offset + 1;
-            local tabEnd = offset + numSpells;
+            offset = offset + 1
+            local tabEnd = offset + numSpells
             for j = offset, tabEnd - 1 do
                 local spellType, spellId = GetSpellBookItemInfo(j, BOOKTYPE_SPELL)
                 if spellType then
-                    local slot = j + (SPELLS_PER_PAGE * (SPELLBOOK_PAGENUMBERS[i] - 1));
+                    local slot = j + (SPELLS_PER_PAGE * (SPELLBOOK_PAGENUMBERS[i] - 1))
                     local spellName = GetSpellInfo(spellId)
                     spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = { slot, BOOKTYPE_SPELL, "spell" }
                     if spellName then -- flyout
@@ -567,6 +632,8 @@ function MySlot:RecoverData(msg, opt)
         end
     end
     end
+
+    local spellOverride = CreateSpellOverrideMap()
     -- }}}
 
 
@@ -659,6 +726,17 @@ function MySlot:RecoverData(msg, opt)
                     if slotType == MYSLOT_SPELL or slotType == MYSLOT_FLYOUT or slotType == MYSLOT_COMPANION then
                         if slotType == MYSLOT_SPELL or slotType == MYSLOT_COMPANION then
                             PickupSpell(index)
+                        end
+
+                        if not GetCursorInfo() then
+                            if spellOverride[index] then
+                                PickupSpell(spellOverride[index])
+                            end
+                        end
+
+                        if not GetCursorInfo() then
+                            local spellName =  GetSpellInfo(index)
+                            PickupSpell(spellName)
                         end
 
                         if not GetCursorInfo() then
@@ -765,7 +843,7 @@ function MySlot:RecoverData(msg, opt)
     if not opt.actionOpt.ignorePetActionBar then
         local pettoken = {}
         for i = 1, NUM_PET_ACTION_SLOTS, 1 do
-            local name, _, isToken = GetPetActionInfo(i);
+            local name, _, isToken = GetPetActionInfo(i)
             if isToken then
                 pettoken[name] = i
             end
