@@ -454,7 +454,7 @@ function MySlot:Export(opt)
     end
 
     s = "# Wow Version: " .. GetBuildInfo() .. MYSLOT_LINE_SEP .. s
-    s = "# Myslot (https://myslot.net)" .. MYSLOT_LINE_SEP .. s
+    s = "# Myslot (https://myslot.net " .. L["<- share your profile here"]  ..")" .. MYSLOT_LINE_SEP .. s
 
     local d = base64.enc(t)
     local LINE_LEN = 60
