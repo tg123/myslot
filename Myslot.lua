@@ -749,7 +749,7 @@ function MySlot:RecoverData(msg, opt)
                     return
                 end
 
-                if curIndex ~= index or curType ~= slotType or slotType == MYSLOT_MACRO then -- macro always test
+                if curIndex ~= index or curType ~= slotType then
                     if slotType == MYSLOT_SPELL or slotType == MYSLOT_FLYOUT or slotType == MYSLOT_COMPANION then
                         if slotType == MYSLOT_SPELL or slotType == MYSLOT_COMPANION then
                             PickupSpell(index)
@@ -793,16 +793,6 @@ function MySlot:RecoverData(msg, opt)
                         end
                     elseif slotType == MYSLOT_ITEM then
                         PickupItem(index)
-                    -- elseif slotType == MYSLOT_MACRO then
-                    --     local macroid = macro[index]
-
-                    --     if not macroid then
-                    --         MySlot:Print(L["Ignore unknown macro [id=%s]"]:format(index))
-                    --     end
-
-                    --     if curType ~= MYSLOT_MACRO or curIndex ~= macroid then
-                    --         PickupMacro(macroid)
-                    --     end
                     elseif slotType == MYSLOT_SUMMONPET and strindex and strindex ~= curIndex then
                         C_PetJournal.PickupPet(strindex, false)
                         if not GetCursorInfo() then
