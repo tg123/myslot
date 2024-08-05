@@ -743,13 +743,7 @@ function MySlot:RecoverData(msg, opt)
         curType = MySlot.SLOT_TYPE[curType or MYSLOT_NOTFOUND]
         slotBucket[slotId] = true
 
-        local aapcall = function (a)
-            a()
-            return true
-
-        end
-
-        if not aapcall(function()
+        if not pcall(function()
 
                 if opt.actionOpt.ignoreActionBars[math.ceil(slotId / 12)] then
                     return
@@ -777,7 +771,6 @@ function MySlot:RecoverData(msg, opt)
 
                             if newId then
                                 if pickType == "spell" then
-                                    print(newId, spellType)
                                     PickupSpellBookItem(newId, spellType)
                                 -- elseif pickType == "spell" then
                                     -- C_SpellBook.PickupSpellBookItem(newId, spellType);
