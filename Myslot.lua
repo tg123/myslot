@@ -16,7 +16,7 @@ local MYSLOT_VER = 42
 -- TWW Beta Compat code (fix and cleanup below later)
 local GetNumSpellTabs = C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines or _G.GetNumSpellTabs
 local GetSpellTabInfo = (C_SpellBook and C_SpellBook.GetSpellBookSkillLineInfo) and function(index)
-    local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(index);
+    local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(index)
     if skillLineInfo then
         return	skillLineInfo.name,
                 skillLineInfo.iconID,
@@ -25,7 +25,7 @@ local GetSpellTabInfo = (C_SpellBook and C_SpellBook.GetSpellBookSkillLineInfo) 
                 skillLineInfo.isGuild,
                 skillLineInfo.offSpecID,
                 skillLineInfo.shouldHide,
-                skillLineInfo.specID;
+                skillLineInfo.specID
     end
 end or _G.GetSpellTabInfo
 local PickupSpell = C_Spell and C_Spell.PickupSpell or _G.PickupSpell
@@ -33,6 +33,7 @@ local PickupItem = C_Item and C_Item.PickupItem or _G.PickupItem
 local GetSpellInfo = C_Spell and C_Spell.GetSpellName or _G.GetSpellInfo
 local GetSpellLink = C_Spell and C_Spell.GetSpellLink or _G.GetSpellLink
 local GetSpellBookItemInfo = C_SpellBook and C_SpellBook.GetSpellBookItemType or _G.GetSpellBookItemInfo
+local PickupSpellBookItem = C_SpellBook and C_SpellBook.PickupSpellBookItem or _G.PickupSpellBookItem
 -- TWW Beta Compat End
 
 -- local MYSLOT_IS_DEBUG = true
@@ -107,6 +108,59 @@ local function TableToString(s)
     return table.concat(t)
 end
 
+local function CreateSpellOverrideMap()
+    local spellOverride = {}
+
+    if C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines then
+        -- 11.0 only
+        for skillLineIndex = 1, C_SpellBook.GetNumSpellBookSkillLines() do
+            local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(skillLineIndex)
+            for i = 1, skillLineInfo.numSpellBookItems do
+                local spellIndex = skillLineInfo.itemIndexOffset + i
+                local _, spellId = C_SpellBook.GetSpellBookItemType(spellIndex, Enum.SpellBookSpellBank.Player)
+                if spellId then
+                    local newid = C_Spell.GetOverrideSpell(spellId)
+                    if newid ~= spellId then
+                        spellOverride[newid] = spellId
+                    end
+                end
+            end
+        end
+
+        local isInspect = false
+        for specIndex = 1, GetNumSpecGroups(isInspect) do
+            for tier = 1, MAX_TALENT_TIERS do
+                for column = 1, NUM_TALENT_COLUMNS do
+                    local spellId = select(6, GetTalentInfo(tier, column, specIndex))
+                    if spellId then
+                        local newid = C_Spell.GetOverrideSpell(spellId)
+                        if newid ~= spellId then
+                            spellOverride[newid] = spellId
+                        end
+                    end
+                end
+            end
+        end
+
+        for pvpTalentSlot = 1, 3 do
+            local slotInfo = C_SpecializationInfo.GetPvpTalentSlotInfo(pvpTalentSlot)
+            if slotInfo ~= nil then
+                for i, pvpTalentID in ipairs(slotInfo.availableTalentIDs) do
+                    local spellId = select(6, GetPvpTalentInfoByID(pvpTalentID))
+                    if spellId then
+                        local newid = C_Spell.GetOverrideSpell(spellId)
+                        if newid ~= spellId then
+                            spellOverride[newid] = spellId
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return spellOverride
+end
+
 function MySlot:Print(msg)
     DEFAULT_CHAT_FRAME:AddMessage("|CFFFF0000<|r|CFFFFD100Myslot|r|CFFFF0000>|r" .. (msg or "nil"))
 end
@@ -121,7 +175,7 @@ function MySlot:GetMacroInfo(macroId)
         return nil
     end
 
-    iconTexture = gsub(strupper(iconTexture or "INV_Misc_QuestionMark"), "INTERFACE\\ICONS\\", "");
+    iconTexture = gsub(strupper(iconTexture or "INV_Misc_QuestionMark"), "INTERFACE\\ICONS\\", "")
 
     local msg = _MySlot.Macro()
     msg.id = macroId
@@ -322,10 +376,18 @@ function MySlot:Export(opt)
     end
 
     msg.slot = {}
+    -- TODO move to GetActionInfo
+    local spellOverride = CreateSpellOverrideMap()
+
     for i = 1, MYSLOT_MAX_ACTIONBAR do
         if not opt.ignoreActionBars[math.ceil(i / 12)] then
             local m = self:GetActionInfo(i)
             if m then
+                if m.type == 'SPELL' then
+                    if spellOverride[m.index] then
+                        m.index = spellOverride[m.index]
+                    end
+                end
                 msg.slot[#msg.slot + 1] = m
             end
         end
@@ -372,22 +434,27 @@ function MySlot:Export(opt)
     s = "# --------------------" .. MYSLOT_LINE_SEP .. s
     s = "# " .. L["Feedback"] .. "  farmer1992@gmail.com" .. MYSLOT_LINE_SEP .. s
     s = "# " .. MYSLOT_LINE_SEP .. s
-    s = "# " .. LEVEL .. ":" .. UnitLevel("player") .. MYSLOT_LINE_SEP .. s
+    s = "# " .. LEVEL .. ": " .. UnitLevel("player") .. MYSLOT_LINE_SEP .. s
     if talent then
-        s = "# " .. TALENTS .. ":" .. talent .. MYSLOT_LINE_SEP .. s
+        s = "# " .. TALENTS .. ": " .. talent .. MYSLOT_LINE_SEP .. s
     end
     if GetSpecialization then
         s = "# " ..
         SPECIALIZATION ..
-        ":" ..
+        ": " ..
         (GetSpecialization() and select(2, GetSpecializationInfo(GetSpecialization())) or NONE_CAPS) ..
         MYSLOT_LINE_SEP .. s
     end
-    s = "# " .. CLASS .. ":" .. UnitClass("player") .. MYSLOT_LINE_SEP .. s
-    s = "# " .. PLAYER .. ":" .. UnitName("player") .. MYSLOT_LINE_SEP .. s
-    s = "# " .. L["Time"] .. ":" .. date() .. MYSLOT_LINE_SEP .. s
-    s = "# Wow (V" .. GetBuildInfo() .. ")" .. MYSLOT_LINE_SEP .. s
-    s = "# Myslot (https://myslot.net)" .. MYSLOT_LINE_SEP .. s
+    s = "# " .. CLASS .. ": " .. UnitClass("player") .. MYSLOT_LINE_SEP .. s
+    s = "# " .. PLAYER .. ": " .. UnitName("player") .. MYSLOT_LINE_SEP .. s
+    s = "# " .. L["Time"] .. ": " .. date() .. MYSLOT_LINE_SEP .. s
+
+    if GetAddOnMetadata then
+        s = "# Addon Version: " .. GetAddOnMetadata("Myslot", "Version") .. MYSLOT_LINE_SEP .. s
+    end
+
+    s = "# Wow Version: " .. GetBuildInfo() .. MYSLOT_LINE_SEP .. s
+    s = "# Myslot (https://myslot.net " .. L["<- share your profile here"]  ..")" .. MYSLOT_LINE_SEP .. s
 
     local d = base64.enc(t)
     local LINE_LEN = 60
@@ -524,22 +591,25 @@ function MySlot:FindOrCreateMacro(macroInfo)
 end
 -- }}}
 
+
+
 function MySlot:RecoverData(msg, opt)
     -- {{{ Cache Spells
     --cache spells
     local spells = {}
 
+    -- TODO clean up this with 11.0
     if SPELLS_PER_PAGE then
     for i = 1, GetNumSpellTabs() do
-        local tab, tabTex, offset, numSpells, isGuild, offSpecID = GetSpellTabInfo(i);
+        local tab, tabTex, offset, numSpells, isGuild, offSpecID = GetSpellTabInfo(i)
         offSpecID = (offSpecID ~= 0)
         if not offSpecID then
-            offset = offset + 1;
-            local tabEnd = offset + numSpells;
+            offset = offset + 1
+            local tabEnd = offset + numSpells
             for j = offset, tabEnd - 1 do
                 local spellType, spellId = GetSpellBookItemInfo(j, BOOKTYPE_SPELL)
                 if spellType then
-                    local slot = j + (SPELLS_PER_PAGE * (SPELLBOOK_PAGENUMBERS[i] - 1));
+                    local slot = j + (SPELLS_PER_PAGE * (SPELLBOOK_PAGENUMBERS[i] - 1))
                     local spellName = GetSpellInfo(spellId)
                     spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = { slot, BOOKTYPE_SPELL, "spell" }
                     if spellName then -- flyout
@@ -566,6 +636,30 @@ function MySlot:RecoverData(msg, opt)
             end
         end
     end
+    end
+
+    local spellOverride = CreateSpellOverrideMap()
+
+    -- 11.0 only
+    if C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines then
+        local spellmap = {
+            -- [Enum.SpellBookItemType.Spell] = "spell",
+            [Enum.SpellBookItemType.Flyout] = "flyout",
+        }
+
+        for skillLineIndex = 1, C_SpellBook.GetNumSpellBookSkillLines() do
+            local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(skillLineIndex)
+            for i = 1, skillLineInfo.numSpellBookItems do
+                local spellIndex = skillLineInfo.itemIndexOffset + i
+                local spellTypeEnum, spellId = C_SpellBook.GetSpellBookItemType(spellIndex, Enum.SpellBookSpellBank.Player);
+                if spellId then
+                    if spellmap[spellTypeEnum] then
+                        local spellType = spellmap[spellTypeEnum]
+                        spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = { spellIndex, Enum.SpellBookSpellBank.Player, "spell" }
+                    end
+                end
+            end
+        end
     end
     -- }}}
 
@@ -655,10 +749,17 @@ function MySlot:RecoverData(msg, opt)
                     return
                 end
 
-                if curIndex ~= index or curType ~= slotType or slotType == MYSLOT_MACRO then -- macro always test
+                if curIndex ~= index or curType ~= slotType then
                     if slotType == MYSLOT_SPELL or slotType == MYSLOT_FLYOUT or slotType == MYSLOT_COMPANION then
                         if slotType == MYSLOT_SPELL or slotType == MYSLOT_COMPANION then
                             PickupSpell(index)
+                        end
+
+                        -- try if override
+                        if not GetCursorInfo() then
+                            if spellOverride[index] then
+                                PickupSpell(spellOverride[index])
+                            end
                         end
 
                         if not GetCursorInfo() then
@@ -671,26 +772,27 @@ function MySlot:RecoverData(msg, opt)
                             if newId then
                                 if pickType == "spell" then
                                     PickupSpellBookItem(newId, spellType)
+                                -- elseif pickType == "spell" then
+                                    -- C_SpellBook.PickupSpellBookItem(newId, spellType);
                                 elseif pickType == "companions" then
                                     PickupCompanion(spellType, newId)
                                 end
-                            else
-                                MySlot:Print(L["Ignore unlearned skill [id=%s], %s"]:format(index,
-                                    GetSpellLink(index) or ""))
                             end
+                        end
+
+                        -- this fallback should not happen, only to workaround some old export
+                        if not GetCursorInfo() then
+                            local spellName = GetSpellInfo(index)
+                            if spellName then
+                                PickupSpell(spellName)
+                            end
+                        end
+
+                        if not GetCursorInfo() then
+                            MySlot:Print(L["Ignore unlearned skill [id=%s], %s"]:format(index, GetSpellLink(index) or ""))
                         end
                     elseif slotType == MYSLOT_ITEM then
                         PickupItem(index)
-                    -- elseif slotType == MYSLOT_MACRO then
-                    --     local macroid = macro[index]
-
-                    --     if not macroid then
-                    --         MySlot:Print(L["Ignore unknown macro [id=%s]"]:format(index))
-                    --     end
-
-                    --     if curType ~= MYSLOT_MACRO or curIndex ~= macroid then
-                    --         PickupMacro(macroid)
-                    --     end
                     elseif slotType == MYSLOT_SUMMONPET and strindex and strindex ~= curIndex then
                         C_PetJournal.PickupPet(strindex, false)
                         if not GetCursorInfo() then
@@ -765,7 +867,7 @@ function MySlot:RecoverData(msg, opt)
     if not opt.actionOpt.ignorePetActionBar then
         local pettoken = {}
         for i = 1, NUM_PET_ACTION_SLOTS, 1 do
-            local name, _, isToken = GetPetActionInfo(i);
+            local name, _, isToken = GetPetActionInfo(i)
             if isToken then
                 pettoken[name] = i
             end
