@@ -14,25 +14,10 @@ local MYSLOT_AUTHOR = "Boshi Lian <farmer1992@gmail.com>"
 local MYSLOT_VER = 42
 
 -- TWW Beta Compat code (fix and cleanup below later)
-local GetNumSpellTabs = C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines or _G.GetNumSpellTabs
-local GetSpellTabInfo = (C_SpellBook and C_SpellBook.GetSpellBookSkillLineInfo) and function(index)
-    local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(index)
-    if skillLineInfo then
-        return	skillLineInfo.name,
-                skillLineInfo.iconID,
-                skillLineInfo.itemIndexOffset,
-                skillLineInfo.numSpellBookItems,
-                skillLineInfo.isGuild,
-                skillLineInfo.offSpecID,
-                skillLineInfo.shouldHide,
-                skillLineInfo.specID
-    end
-end or _G.GetSpellTabInfo
 local PickupSpell = C_Spell and C_Spell.PickupSpell or _G.PickupSpell
 local PickupItem = C_Item and C_Item.PickupItem or _G.PickupItem
 local GetSpellInfo = C_Spell and C_Spell.GetSpellName or _G.GetSpellInfo
 local GetSpellLink = C_Spell and C_Spell.GetSpellLink or _G.GetSpellLink
-local GetSpellBookItemInfo = C_SpellBook and C_SpellBook.GetSpellBookItemType or _G.GetSpellBookItemInfo
 local PickupSpellBookItem = C_SpellBook and C_SpellBook.PickupSpellBookItem or _G.PickupSpellBookItem
 -- TWW Beta Compat End
 
@@ -190,7 +175,6 @@ end
 
 -- {{{ GetActionInfo
 function MySlot:GetActionInfo(slotId)
-    -- { slotId, slotType and high 16 ,high 8 , low 8, }
     local slotType, index, subType = GetActionInfo(slotId)
     if MySlot.SLOT_TYPE[slotType] == MYSLOT_EQUIPMENTSET then
         -- i starts from 0 https://github.com/tg123/myslot/issues/10 weird blz
@@ -592,75 +576,64 @@ end
 -- }}}
 
 
+local function CreateFlyoutSpellbookMap()
+    local flyouts = {}
 
-function MySlot:RecoverData(msg, opt)
-    -- {{{ Cache Spells
-    --cache spells
-    local spells = {}
-
-    -- TODO clean up this with 11.0
     if SPELLS_PER_PAGE then
-    for i = 1, GetNumSpellTabs() do
-        local tab, tabTex, offset, numSpells, isGuild, offSpecID = GetSpellTabInfo(i)
-        offSpecID = (offSpecID ~= 0)
-        if not offSpecID then
-            offset = offset + 1
-            local tabEnd = offset + numSpells
-            for j = offset, tabEnd - 1 do
-                local spellType, spellId = GetSpellBookItemInfo(j, BOOKTYPE_SPELL)
-                if spellType then
-                    local slot = j + (SPELLS_PER_PAGE * (SPELLBOOK_PAGENUMBERS[i] - 1))
-                    local spellName = GetSpellInfo(spellId)
-                    spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = { slot, BOOKTYPE_SPELL, "spell" }
-                    if spellName then -- flyout
-                        spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellName] = { slot, BOOKTYPE_SPELL,
-                            "spell" }
+        for i = 1, GetNumSpellTabs() do
+            local tab, tabTex, offset, numSpells, isGuild, offSpecID = GetSpellTabInfo(i)
+            offSpecID = (offSpecID ~= 0)
+            if not offSpecID then
+                offset = offset + 1
+                local tabEnd = offset + numSpells
+                for j = offset, tabEnd - 1 do
+                    local spellType, spellId = GetSpellBookItemInfo(j, BOOKTYPE_SPELL)
+                    if spellType == "FLYOUT" then
+                        local slot = j + (SPELLS_PER_PAGE * (SPELLBOOK_PAGENUMBERS[i] - 1))
+                        flyouts[spellId] = { slot, BOOKTYPE_SPELL }
                     end
                 end
             end
         end
     end
-    end
 
     if BOOKTYPE_PROFESSION then
-    if GetProfessions then
-        for _, p in pairs({ GetProfessions() }) do
-            local _, _, _, _, numSpells, spelloffset = GetProfessionInfo(p)
-            for i = 1, numSpells do
-                local slot = i + spelloffset
-                local spellType, spellId = GetSpellBookItemInfo(slot, BOOKTYPE_PROFESSION)
-                if spellType then
-                    spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = { slot, BOOKTYPE_PROFESSION,
-                        "spell" }
+        if GetProfessions then
+            for _, p in pairs({ GetProfessions() }) do
+                local _, _, _, _, numSpells, spelloffset = GetProfessionInfo(p)
+                for i = 1, numSpells do
+                    local slot = i + spelloffset
+                    local spellType, spellId = GetSpellBookItemInfo(slot, BOOKTYPE_PROFESSION)
+                    if spellType == "FLYOUT" then
+                        flyouts[spellId] = { slot, BOOKTYPE_PROFESSION }
+                    end
                 end
             end
         end
     end
-    end
-
-    local spellOverride = CreateSpellOverrideMap()
 
     -- 11.0 only
     if C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines then
-        local spellmap = {
-            -- [Enum.SpellBookItemType.Spell] = "spell",
-            [Enum.SpellBookItemType.Flyout] = "flyout",
-        }
-
         for skillLineIndex = 1, C_SpellBook.GetNumSpellBookSkillLines() do
             local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(skillLineIndex)
             for i = 1, skillLineInfo.numSpellBookItems do
                 local spellIndex = skillLineInfo.itemIndexOffset + i
                 local spellTypeEnum, spellId = C_SpellBook.GetSpellBookItemType(spellIndex, Enum.SpellBookSpellBank.Player);
-                if spellId then
-                    if spellmap[spellTypeEnum] then
-                        local spellType = spellmap[spellTypeEnum]
-                        spells[MySlot.SLOT_TYPE[string.lower(spellType)] .. "_" .. spellId] = { spellIndex, Enum.SpellBookSpellBank.Player, "spell" }
-                    end
+                if spellId and spellTypeEnum == Enum.SpellBookItemType.Flyout then
+                    flyouts[spellId] = { spellIndex, Enum.SpellBookSpellBank.Player }
                 end
             end
         end
     end
+
+    return flyouts
+end
+
+function MySlot:RecoverData(msg, opt)
+    -- {{{ Cache Spells
+    --cache spells
+    local spellOverride = CreateSpellOverrideMap()
+    local flyouts = CreateFlyoutSpellbookMap()
     -- }}}
 
 
@@ -723,8 +696,10 @@ function MySlot:RecoverData(msg, opt)
 
         if newid then
             for _, slotId in pairs(macro[macroId] or {}) do
-                PickupMacro(newid)
-                PlaceAction(slotId)
+                if not opt.actionOpt.ignoreActionBars[math.ceil(slotId / 12)] then
+                    PickupMacro(newid)
+                    PlaceAction(slotId)
+                end
             end
         else
             MySlot:Print(L["Ignore unknown macro [id=%s]"]:format(macroId))
@@ -750,33 +725,13 @@ function MySlot:RecoverData(msg, opt)
                 end
 
                 if curIndex ~= index or curType ~= slotType then
-                    if slotType == MYSLOT_SPELL or slotType == MYSLOT_FLYOUT or slotType == MYSLOT_COMPANION then
-                        if slotType == MYSLOT_SPELL or slotType == MYSLOT_COMPANION then
-                            PickupSpell(index)
-                        end
+                    if slotType == MYSLOT_SPELL then
+                        PickupSpell(index)
 
                         -- try if override
                         if not GetCursorInfo() then
                             if spellOverride[index] then
                                 PickupSpell(spellOverride[index])
-                            end
-                        end
-
-                        if not GetCursorInfo() then
-                            -- flyout and failover
-
-                            local spellName = GetSpellInfo(index) or "NOSUCHSPELL"
-                            local newId, spellType, pickType = SafeUnpack(spells[slotType .. "_" .. index] or
-                                spells[slotType .. "_" .. spellName] or {})
-
-                            if newId then
-                                if pickType == "spell" then
-                                    PickupSpellBookItem(newId, spellType)
-                                -- elseif pickType == "spell" then
-                                    -- C_SpellBook.PickupSpellBookItem(newId, spellType);
-                                elseif pickType == "companions" then
-                                    PickupCompanion(spellType, newId)
-                                end
                             end
                         end
 
@@ -791,8 +746,28 @@ function MySlot:RecoverData(msg, opt)
                         if not GetCursorInfo() then
                             MySlot:Print(L["Ignore unlearned skill [id=%s], %s"]:format(index, GetSpellLink(index) or ""))
                         end
+                    elseif slotType == MYSLOT_FLYOUT then
+                        local flyout = flyouts[index]
+                        if flyout then
+                            PickupSpellBookItem(flyout[1], flyout[2])
+                        end
+
+                        if not GetCursorInfo() then
+                            MySlot:Print(L["Ignore unlearned skill [flyoutid=%s], %s"]:format(index, GetFlyoutInfo(index) or ""))
+                        end
+
+                    elseif slotType == MYSLOT_COMPANION then
+                        PickupSpell(index)
+
+                        if not GetCursorInfo() then
+                            MySlot:Print(L["Ignore unattained companion [id=%s], %s"]:format(index), GetSpellLink(index) or "")
+                        end
                     elseif slotType == MYSLOT_ITEM then
                         PickupItem(index)
+
+                        if not GetCursorInfo() then
+                            MySlot:Print(L["Ignore missing item [id=%s]"]:format(index)) -- TODO add item link
+                        end
                     elseif slotType == MYSLOT_SUMMONPET and strindex and strindex ~= curIndex then
                         C_PetJournal.PickupPet(strindex, false)
                         if not GetCursorInfo() then
