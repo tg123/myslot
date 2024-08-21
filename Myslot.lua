@@ -19,6 +19,7 @@ local PickupItem = C_Item and C_Item.PickupItem or _G.PickupItem
 local GetSpellInfo = C_Spell and C_Spell.GetSpellName or _G.GetSpellInfo
 local GetSpellLink = C_Spell and C_Spell.GetSpellLink or _G.GetSpellLink
 local PickupSpellBookItem = C_SpellBook and C_SpellBook.PickupSpellBookItem or _G.PickupSpellBookItem
+local GetAddOnMetadata = (C_AddOns and C_AddOns.GetAddOnMetadata) and C_AddOns.GetAddOnMetadata or _G.GetAddOnMetadata
 -- TWW Beta Compat End
 
 -- local MYSLOT_IS_DEBUG = true
