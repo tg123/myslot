@@ -231,6 +231,19 @@ local function CreateSettingMenu(opt)
         })
     end
 
+    -- 10.0
+    if select(4, GetBuildInfo()) > 100000 then
+        table.insert(actionbarlist, {
+            text = L["Skyriding Bar"],
+            isNotRadio = true,
+            keepShownOnClick = true,
+            arg1 = "action",
+            arg2 = 11,
+            checked = childchecked,
+            func = childclicked,
+        })        
+    end
+
     for i = 1, 4 do
 
         -- local _, _, _, spell = GetShapeshiftFormInfo(i)
@@ -405,7 +418,7 @@ do
     local settings = {
         {
             isTitle = true,
-            text = L["Ignore during Import"],
+            text = "|cffff0000" .. L["IGNORE"] .. "|r" .. L[" during Import"],
             notCheckable = true,
         }
     }
@@ -415,7 +428,7 @@ do
     tAppendAll(settings, {
         {
             isTitle = true,
-            text = L["Clear before Import"],
+            text = "|cffff0000" .. L["CLEAR"] .. "|r" .. L[" before Import"],
             notCheckable = true,
         }
     })
@@ -480,7 +493,7 @@ do
     local settings = {
         {
             isTitle = true,
-            text = L["Ignore during Export"],
+            text = "|cffff0000" .. L["IGNORE"] .. "|r" .. L[" during Export"],
             notCheckable = true,
         }
     }
