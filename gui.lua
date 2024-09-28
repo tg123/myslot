@@ -161,25 +161,16 @@ local function CreateSettingMenu(opt)
             func = childclicked,
         },
         {
-            text = OPTION_SHOW_ACTION_BAR:format(2),
+            text = OPTION_SHOW_ACTION_BAR:format(2), -- MultiBarBottomLeft
             isNotRadio = true,
             keepShownOnClick = true,
             arg1 = "action",
-            arg2 = RIGHT_ACTIONBAR_PAGE,
+            arg2 = BOTTOMLEFT_ACTIONBAR_PAGE,
             checked = childchecked,
             func = childclicked,
         },
         {
-            text = OPTION_SHOW_ACTION_BAR:format(3),
-            isNotRadio = true,
-            keepShownOnClick = true,
-            arg1 = "action",
-            arg2 = LEFT_ACTIONBAR_PAGE,
-            checked = childchecked,
-            func = childclicked,
-        },
-        {
-            text = OPTION_SHOW_ACTION_BAR:format(4),
+            text = OPTION_SHOW_ACTION_BAR:format(3), -- MultiBarBottomRight
             isNotRadio = true,
             keepShownOnClick = true,
             arg1 = "action",
@@ -188,17 +179,26 @@ local function CreateSettingMenu(opt)
             func = childclicked,
         },
         {
-            text = OPTION_SHOW_ACTION_BAR:format(5),
+            text = OPTION_SHOW_ACTION_BAR:format(4), -- MultiBarRight
             isNotRadio = true,
             keepShownOnClick = true,
             arg1 = "action",
-            arg2 = BOTTOMLEFT_ACTIONBAR_PAGE,
+            arg2 = RIGHT_ACTIONBAR_PAGE,
+            checked = childchecked,
+            func = childclicked,
+        },
+        {
+            text = OPTION_SHOW_ACTION_BAR:format(5), -- MultiBarLeft
+            isNotRadio = true,
+            keepShownOnClick = true,
+            arg1 = "action",
+            arg2 = LEFT_ACTIONBAR_PAGE,
             checked = childchecked,
             func = childclicked,
         },
     }
 
-    if MULTIBAR_5_ACTIONBAR_PAGE and MULTIBAR_6_ACTIONBAR_PAGE and MULTIBAR_7_ACTIONBAR_PAGE then
+    if MULTIBAR_5_ACTIONBAR_PAGE then
 
         table.insert(actionbarlist, {
             text = OPTION_SHOW_ACTION_BAR:format(6),
@@ -209,7 +209,9 @@ local function CreateSettingMenu(opt)
             checked = childchecked,
             func = childclicked,
         })
+    end
 
+    if MULTIBAR_6_ACTIONBAR_PAGE then
         table.insert(actionbarlist, {
             text = OPTION_SHOW_ACTION_BAR:format(7),
             isNotRadio = true,
@@ -219,7 +221,9 @@ local function CreateSettingMenu(opt)
             checked = childchecked,
             func = childclicked,
         })
+    end
 
+    if  MULTIBAR_7_ACTIONBAR_PAGE then
         table.insert(actionbarlist, {
             text = OPTION_SHOW_ACTION_BAR:format(8),
             isNotRadio = true,
