@@ -32,7 +32,6 @@ RegEvent("ADDON_LOADED", function()
         b:SetText(L["Open Myslot"])
         b:SetScript("OnClick", function()
             MySlot.MainFrame:Show()
-            InterfaceOptionsFrame_Show()
         end)
     end
 
