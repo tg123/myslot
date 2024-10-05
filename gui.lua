@@ -2,7 +2,8 @@ local _, MySlot = ...
 
 local L = MySlot.L
 local RegEvent = MySlot.regevent
-local MAX_PROFILES_COUNT = 50
+local MAX_PROFILES_COUNT = 100
+local IMPORT_BACKUP_COUNT = 1
 
 
 local f = CreateFrame("Frame", nil, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
@@ -393,6 +394,13 @@ do
         StaticPopupDialogs["MYSLOT_MSGBOX"].OnAccept = function()
             StaticPopup_Hide("MYSLOT_MSGBOX")
 
+            MySlot:Print(L["Starting backup..."])
+            local backup = MySlot:Export(actionOpt)
+            table.insert(MyslotExports["backups"], backup)
+            while #MyslotExports["backups"] > IMPORT_BACKUP_COUNT do
+                table.remove(MyslotExports["backups"], 1)
+            end
+
             MySlot:Clear("MACRO", clearOpt.ignoreMacros)
             MySlot:Clear("ACTION", clearOpt.ignoreActionBars)
             if clearOpt.ignoreBinding then
@@ -586,7 +594,11 @@ RegEvent("ADDON_LOADED", function()
         if not MyslotExports["exports"] then
             MyslotExports["exports"] = {}
         end
+        if not MyslotExports["backups"] then
+            MyslotExports["backups"] = {}
+        end
         local exports = MyslotExports["exports"]
+        local backups = MyslotExports["backups"]
 
         local onclick = function(self)
             local idx = self.value
@@ -600,8 +612,9 @@ RegEvent("ADDON_LOADED", function()
         end
 
         local create = function(name)
-            while #exports > MAX_PROFILES_COUNT do
-                table.remove(exports, 1)
+            if #exports > MAX_PROFILES_COUNT then
+                MySlot:Print(L["Too many profiles, please delete before create new one."])
+                return
             end
 
             local txt = {
@@ -640,12 +653,26 @@ RegEvent("ADDON_LOADED", function()
         -- exportEditbox:SetScript("OnTextChanged", function() save(false) end)
 
         UIDropDownMenu_Initialize(t, function()
+            local info = UIDropDownMenu_CreateInfo()
+            info.text = L["Before Last Import"]
+            info.customCheckIconTexture = "Interface\\Icons\\inv_scroll_04"
+            info.func = function()
+                local b = backups[1] -- only 1 backup now, will support more later
+                if b then
+                    exportEditbox:SetText(b)
+                    infolabel:SetText("")
+                    UIDropDownMenu_SetText(t, "")
+                end
+            end
+            UIDropDownMenu_AddButton(info)
+
             for i, txt in pairs(exports) do
                 -- print(txt.name)
                 local info = UIDropDownMenu_CreateInfo()
                 info.text = txt.name
                 info.value = i
                 info.func = onclick
+                info.customCheckIconTexture = "Interface\\Icons\\inv_scroll_03"
                 UIDropDownMenu_AddButton(info)
             end
         end)
