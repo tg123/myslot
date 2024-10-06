@@ -55,13 +55,25 @@ end
 
 local exportEditbox
 
+-- options
+do
+    local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
+    b:SetWidth(100)
+    b:SetHeight(25)
+    b:SetPoint("BOTTOMRIGHT", -145, 15)
+    b:SetText(OPTIONS)
+    b:SetScript("OnClick", function()
+        Settings.OpenToCategory(MySlot.settingcategory.ID)
+    end)
+end
+
 -- close
 do
     local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
     b:SetWidth(100)
     b:SetHeight(25)
     b:SetPoint("BOTTOMRIGHT", -40, 15)
-    b:SetText(L["Close"])
+    b:SetText(CLOSE)
     b:SetScript("OnClick", function() f:Hide() end)
 end
 
@@ -396,6 +408,15 @@ do
 
             MySlot:Print(L["Starting backup..."])
             local backup = MySlot:Export(actionOpt)
+
+            if not backup then
+                MySlot:Print(L["Backup failed"])
+
+                if not forceImport then
+                    return
+                end
+            end
+
             table.insert(MyslotExports["backups"], backup)
             while #MyslotExports["backups"] > IMPORT_BACKUP_COUNT do
                 table.remove(MyslotExports["backups"], 1)
