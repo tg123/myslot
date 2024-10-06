@@ -35,9 +35,9 @@ RegEvent("ADDON_LOADED", function()
         end)
     end
 
+    MyslotSettings = MyslotSettings or {}
 
     do
-        MyslotSettings = MyslotSettings or {}
         MyslotSettings.minimap = MyslotSettings.minimap or { hide = false }
         local config = MyslotSettings.minimap
 
@@ -97,6 +97,19 @@ RegEvent("ADDON_LOADED", function()
         b:SetText(L["Remove all Macros"])
         b:SetScript("OnClick", function()
             StaticPopup_Show("MYSLOT_CONFIRM_CLEAR", "MACRO", nil, "MACRO")
+        end)
+    end
+
+    do
+        local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
+        b:SetPoint("TOPLEFT", f, 15, doffset - 110)
+
+        b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
+        b.text:SetText(L["Allow"] .. " " .. "|cffff0000" .. L["CLEAR"] .. "|r" .. " " .. L[" before Import"])
+        b:SetChecked(MyslotSettings.allowclearonimport)
+        b:SetScript("OnClick", function()
+            MyslotSettings.allowclearonimport = b:GetChecked()
         end)
     end
 end)

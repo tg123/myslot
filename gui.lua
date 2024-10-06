@@ -458,6 +458,7 @@ do
 
     tAppendAll(settings, CreateSettingMenu(actionOpt))
 
+    local clearbegin = #settings + 1
     tAppendAll(settings, {
         {
             isTitle = true,
@@ -468,6 +469,7 @@ do
     tAppendAll(settings, CreateSettingMenu(clearOpt))
 
     table.remove(settings) -- remove pet action bar clearOpt, will support it later
+    local clearend = #settings
 
     tAppendAll(settings, {
         {
@@ -488,8 +490,15 @@ do
         }
     })
 
+    local settingswithoutclear = {}
+    tAppendAll(settingswithoutclear, settings)
+    for i = clearend, clearbegin, -1 do
+        table.remove(settingswithoutclear, i)
+    end
+
+
     ba:SetScript("OnClick", function(self, button)
-        EasyMenu(settings, menuFrame, "cursor", 0 , 0, "MENU");
+        EasyMenu(MyslotSettings.allowclearonimport and settings or settingswithoutclear, menuFrame, "cursor", 0 , 0, "MENU");
     end)
 end
 
