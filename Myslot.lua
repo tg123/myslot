@@ -103,11 +103,19 @@ local function CreateSpellOverrideMap()
             local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(skillLineIndex)
             for i = 1, skillLineInfo.numSpellBookItems do
                 local spellIndex = skillLineInfo.itemIndexOffset + i
-                local _, spellId = C_SpellBook.GetSpellBookItemType(spellIndex, Enum.SpellBookSpellBank.Player)
+                local spellType, id, spellId = C_SpellBook.GetSpellBookItemType(spellIndex, Enum.SpellBookSpellBank.Player)
                 if spellId then
                     local newid = C_Spell.GetOverrideSpell(spellId)
                     if newid ~= spellId then
                         spellOverride[newid] = spellId
+                    end
+                elseif spellType == Enum.SpellBookItemType.Flyout then
+                    local _, _, numSlots, isKnown = GetFlyoutInfo(id);
+                    if isKnown and (numSlots > 0) then
+                        for k = 1, numSlots do
+                            local spellID, overrideSpellID = GetFlyoutSlotInfo(id, k)
+                            spellOverride[overrideSpellID] = spellID
+                        end
                     end
                 end
             end
