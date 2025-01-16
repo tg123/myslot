@@ -753,7 +753,7 @@ function MySlot:RecoverData(msg, opt)
                         end
 
                         -- another fallback option - try to get base spell
-                        if not GetCursorInfo() then
+                        if not GetCursorInfo() and FindBaseSpellByID then
                             local baseSpellId = FindBaseSpellByID(index)
                             if baseSpellId then
                                 PickupSpell(baseSpellId)
