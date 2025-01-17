@@ -752,6 +752,14 @@ function MySlot:RecoverData(msg, opt)
                             end
                         end
 
+                        -- another fallback option - try to get base spell
+                        if not GetCursorInfo() and FindBaseSpellByID then
+                            local baseSpellId = FindBaseSpellByID(index)
+                            if baseSpellId then
+                                PickupSpell(baseSpellId)
+                            end
+                        end
+
                         if not GetCursorInfo() then
                             MySlot:Print(L["Ignore unlearned skill [id=%s], %s"]:format(index, GetSpellLink(index) or ""))
                         end
