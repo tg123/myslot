@@ -873,7 +873,34 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
         end
 
     elseif cmd == "clear" then
-        Settings.OpenToCategory(MySlot.settingcategory.ID)
+        opt = {
+            [1] = true,
+            [2] = true,
+            [3] = true,
+            [4] = true,
+            [5] = true,
+            [6] = true,
+            [7] = true,
+            [8] = true,
+            [9] = true,
+            [10] = true,
+            [11] = true,
+            [12] = true,
+            [13] = true,
+            [14] = true,
+            [15] = true,
+            ["ACCOUNT"] = true,
+            ["CHARACTOR"] = true,
+        }
+        if what == "action" then
+            MySlot:Clear("ACTION", opt)
+        elseif what == "macro" then
+            MySlot:Clear("MACRO", opt)
+        elseif what == "binding" then
+            MySlot:Clear("BINDING", opt)
+        else
+            Settings.OpenToCategory(MySlot.settingcategory.ID)
+        end
     elseif cmd == "trim" then
         if not MyslotExports then
             MyslotExports = {}
