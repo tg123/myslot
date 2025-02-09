@@ -70,7 +70,7 @@ $ git clone https://github.com/tg123/myslot.git Myslot
  * pull the localizations from wowace (optional)
 
 ```
-./update_locale.sh
+./extract_locale.sh
 ```
  
 #### Changing Protobuf
