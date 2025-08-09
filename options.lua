@@ -124,7 +124,13 @@ StaticPopupDialogs["MYSLOT_CONFIRM_CLEAR"] = {
     hideOnEscape = 1,
     multiple = 0,
     OnAccept = function(self, data)
-        local tx = self.editBox:GetText()
+        local editBox
+        if IsRetail() then
+            editBox = self.EditBox
+        else
+            editBox = self.editBox
+        end
+        local tx = editBox:GetText()
 
         if tx == data then
             MySlot:Clear(data, {
