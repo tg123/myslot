@@ -711,12 +711,7 @@ RegEvent("ADDON_LOADED", function()
 
         StaticPopupDialogs["MYSLOT_EXPORT_TITLE"].OnShow = function(self)
             local c = popctx.current
-            local editBox
-            if IsRetail() then
-                editBox = self.EditBox
-            else
-                editBox = self.editBox
-            end
+            local editBox = self.GetEditBox and self:GetEditBox() or self.editBox
             if c and exports[c] then
                 editBox:SetText(exports[c].name or "")
             end
@@ -726,12 +721,7 @@ RegEvent("ADDON_LOADED", function()
 
         StaticPopupDialogs["MYSLOT_EXPORT_TITLE"].OnAccept = function(self)
             local c = popctx.current
-            local editBox
-            if IsRetail() then
-                editBox = self.EditBox
-            else
-                editBox = self.editBox
-            end
+            local editBox = self.GetEditBox and self:GetEditBox() or self.editBox
             -- if c then rename
             if c and exports[c] then
                 local n = editBox:GetText()
