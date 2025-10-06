@@ -777,7 +777,7 @@ function MySlot:RecoverData(msg, opt)
                         PickupSpell(index)
 
                         if not GetCursorInfo() then
-                            MySlot:Print(L["Ignore unattained companion [id=%s], %s"]:format(index), GetSpellLink(index) or "")
+                            MySlot:Print(L["Ignore unattained companion [id=%s], %s"]:format(index, GetSpellLink(index) or ""))
                         end
                     elseif slotType == MYSLOT_ITEM then
                         PickupItem(index)
