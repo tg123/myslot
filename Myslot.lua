@@ -840,7 +840,13 @@ function MySlot:RecoverData(msg, opt)
                     key = b.key1.keycode
                 end
                 key = (mod ~= "NONE" and (mod .. "-") or "") .. key
-                SetBinding(key, command, 1)
+                local bindingContext = 1
+
+                if C_KeyBindings and C_KeyBindings.GetBindingContextForAction then
+                     bindingContext = C_KeyBindings.GetBindingContextForAction(command)
+                end
+
+                SetBinding(key, command, bindingContext)
             end
 
             if b.key2 then
@@ -849,7 +855,12 @@ function MySlot:RecoverData(msg, opt)
                     key = b.key2.keycode
                 end
                 local key = (mod ~= "NONE" and (mod .. "-") or "") .. key
-                SetBinding(key, command, 1)
+                local bindingContext = 1
+
+                if C_KeyBindings and C_KeyBindings.GetBindingContextForAction then
+                     bindingContext = C_KeyBindings.GetBindingContextForAction(command)
+                end
+                SetBinding(key, command, bindingContext)
             end
         end
         SaveBindings(GetCurrentBindingSet())
@@ -908,11 +919,16 @@ function MySlot:Clear(what, opt)
         end
     elseif what == "BINDING" then
         for i = 1, GetNumBindings() do
-            local _, _, key1, key2 = GetBinding(i)
+            local action, _, key1, key2 = GetBinding(i)
 
             for _, key in pairs({ key1, key2 }) do
                 if key then
-                    SetBinding(key, nil, 1)
+                    local bindingContext = 1
+
+                    if C_KeyBindings and C_KeyBindings.GetBindingContextForAction then
+                        bindingContext = C_KeyBindings.GetBindingContextForAction(action)
+                    end
+                    SetBinding(key, nil, bindingContext)
                 end
             end
         end
