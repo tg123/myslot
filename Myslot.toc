@@ -1,4 +1,4 @@
-## Interface: 110207
+## Interface: 120000, 110207
 ## Interface-Classic: 11508
 ## Interface-Mists: 50502
 ## Interface-Cata: 40402
