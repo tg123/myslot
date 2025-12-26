@@ -678,11 +678,12 @@ RegEvent("ADDON_LOADED", function()
             end
 
             exports[c].value = v
+            exports[c].savedAt = time()
             infolabel:SetText("")
         end
         -- exportEditbox:SetScript("OnTextChanged", function() save(false) end)
 
-        UIDropDownMenu_Initialize(t, function()
+        local function DropdownInit()
             local info = UIDropDownMenu_CreateInfo()
             info.text = L["Before Last Import"]
             info.customCheckIconTexture = "Interface\\Icons\\inv_scroll_04"
@@ -697,17 +698,91 @@ RegEvent("ADDON_LOADED", function()
             UIDropDownMenu_AddButton(info)
 
             for i, txt in pairs(exports) do
-                -- print(txt.name)
-                local info = UIDropDownMenu_CreateInfo()
-                info.text = txt.name
-                info.value = i
-                info.func = onclick
-                info.customCheckIconTexture = "Interface\\Icons\\inv_scroll_03"
-                UIDropDownMenu_AddButton(info)
+                local entryInfo = UIDropDownMenu_CreateInfo()
+                entryInfo.text = txt.name
+                entryInfo.value = i
+                entryInfo.func = onclick
+                entryInfo.customCheckIconTexture = "Interface\\Icons\\inv_scroll_03"
+                UIDropDownMenu_AddButton(entryInfo)
             end
-        end)
+        end
+
+        local function RefreshDropdown()
+            UIDropDownMenu_Initialize(t, DropdownInit)
+        end
+
+        RefreshDropdown()
 
         local popctx = {}
+
+        local function RestoreSelection(selectedProfile)
+            if not selectedProfile then
+                return
+            end
+
+            for idx, entry in ipairs(exports) do
+                if entry == selectedProfile then
+                    UIDropDownMenu_SetSelectedValue(t, idx)
+                    UIDropDownMenu_SetText(t, entry.name or "")
+                    return
+                end
+            end
+
+            UIDropDownMenu_SetSelectedValue(t, nil)
+            UIDropDownMenu_SetText(t, "")
+        end
+
+        local function SortProfilesByName()
+            if #exports <= 1 then
+                return
+            end
+
+            local selectedValue = UIDropDownMenu_GetSelectedValue(t)
+            local selectedProfile = selectedValue and exports[selectedValue] or nil
+
+            local originalOrder = {}
+            for idx, entry in ipairs(exports) do
+                originalOrder[entry] = idx
+            end
+
+            table.sort(exports, function(a, b)
+                local nameA = string.lower(a.name or "")
+                local nameB = string.lower(b.name or "")
+                if nameA == nameB then
+                    return originalOrder[a] < originalOrder[b]
+                end
+                return nameA < nameB
+            end)
+
+            RefreshDropdown()
+            RestoreSelection(selectedProfile)
+        end
+
+        local function SortProfilesByTime()
+            if #exports <= 1 then
+                return
+            end
+
+            local selectedValue = UIDropDownMenu_GetSelectedValue(t)
+            local selectedProfile = selectedValue and exports[selectedValue] or nil
+
+            local originalOrder = {}
+            for idx, entry in ipairs(exports) do
+                originalOrder[entry] = idx
+            end
+
+            table.sort(exports, function(a, b)
+                local timeA = a.savedAt or 0
+                local timeB = b.savedAt or 0
+                if timeA == timeB then
+                    return originalOrder[a] < originalOrder[b]
+                end
+                return timeA > timeB
+            end)
+
+            RefreshDropdown()
+            RestoreSelection(selectedProfile)
+        end
 
         StaticPopupDialogs["MYSLOT_EXPORT_TITLE"].OnShow = function(self)
             local c = popctx.current
@@ -785,19 +860,42 @@ RegEvent("ADDON_LOADED", function()
             end)
         end
 
+        local renameButton
         do
-            local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
-            b:SetWidth(70)
-            b:SetHeight(25)
-            b:SetPoint("TOPLEFT", t, 465, 0)
-            b:SetText(L["Rename"])
-            b:SetScript("OnClick", function()
+            renameButton = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
+            renameButton:SetWidth(70)
+            renameButton:SetHeight(25)
+            renameButton:SetPoint("TOPLEFT", t, 465, 0)
+            renameButton:SetText(L["Rename"])
+            renameButton:SetScript("OnClick", function()
                 local c = UIDropDownMenu_GetSelectedValue(t)
 
                 if c and exports[c] then
                     popctx.current = c
                     StaticPopup_Show("MYSLOT_EXPORT_TITLE")
                 end
+            end)
+        end
+
+        do
+            local organizeMenu = CreateFrame("Frame", nil, f, "UIDropDownMenuTemplate")
+            local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
+            b:SetWidth(70)
+            b:SetHeight(25)
+            b:SetPoint("LEFT", renameButton, "RIGHT", 5, 0)
+            b:SetText(L["Organize"])
+            b:SetScript("OnClick", function(self)
+                local menu = {
+                    {
+                        text = L["Sort by Name"],
+                        func = SortProfilesByName,
+                    },
+                    {
+                        text = L["Sort by Time"],
+                        func = SortProfilesByTime,
+                    },
+                }
+                EasyMenu(menu, organizeMenu, self, 0, 0, "MENU")
             end)
         end
 
