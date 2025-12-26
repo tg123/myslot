@@ -798,8 +798,10 @@ function MySlot:RecoverData(msg, opt)
                         if C_ToyBox and C_ToyBox.PickupToyBoxItem and C_ToyBox.PlayerHasToy then
                             if C_ToyBox.PlayerHasToy(index) then
                                 C_ToyBox.PickupToyBoxItem(index)
-                            end
-                            if not GetCursorInfo() then
+                                if not GetCursorInfo() then
+                                    MySlot:Print(L["Ignore toy [id=%s] - failed to pickup"]:format(index))
+                                end
+                            else
                                 MySlot:Print(L["Ignore unlearned toy [id=%s]"]:format(index))
                             end
                         else
