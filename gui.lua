@@ -883,15 +883,15 @@ RegEvent("ADDON_LOADED", function()
             b:SetWidth(70)
             b:SetHeight(25)
             b:SetPoint("LEFT", renameButton, "RIGHT", 5, 0)
-            b:SetText(L["Organize"] or "Organize")
+            b:SetText(L["Organize"])
             b:SetScript("OnClick", function(self)
                 local menu = {
                     {
-                        text = L["Sort by Name"] or "Sort by Name",
+                        text = L["Sort by Name"],
                         func = SortProfilesByName,
                     },
                     {
-                        text = L["Sort by Time"] or "Sort by Time",
+                        text = L["Sort by Time"],
                         func = SortProfilesByTime,
                     },
                 }
