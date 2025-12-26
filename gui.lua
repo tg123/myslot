@@ -678,6 +678,7 @@ RegEvent("ADDON_LOADED", function()
             end
 
             exports[c].value = v
+            exports[c].savedAt = time()
             infolabel:SetText("")
         end
         -- exportEditbox:SetScript("OnTextChanged", function() save(false) end)
@@ -751,6 +752,32 @@ RegEvent("ADDON_LOADED", function()
                     return originalOrder[a] < originalOrder[b]
                 end
                 return nameA < nameB
+            end)
+
+            RefreshDropdown()
+            RestoreSelection(selectedProfile)
+        end
+
+        local function SortProfilesByTime()
+            if #exports <= 1 then
+                return
+            end
+
+            local selectedValue = UIDropDownMenu_GetSelectedValue(t)
+            local selectedProfile = selectedValue and exports[selectedValue] or nil
+
+            local originalOrder = {}
+            for idx, entry in ipairs(exports) do
+                originalOrder[entry] = idx
+            end
+
+            table.sort(exports, function(a, b)
+                local timeA = a.savedAt or 0
+                local timeB = b.savedAt or 0
+                if timeA == timeB then
+                    return originalOrder[a] < originalOrder[b]
+                end
+                return timeA > timeB
             end)
 
             RefreshDropdown()
@@ -851,12 +878,25 @@ RegEvent("ADDON_LOADED", function()
         end
 
         do
+            local organizeMenu = CreateFrame("Frame", nil, f, "UIDropDownMenuTemplate")
             local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
             b:SetWidth(70)
             b:SetHeight(25)
             b:SetPoint("LEFT", renameButton, "RIGHT", 5, 0)
-            b:SetText(L["Sort"])
-            b:SetScript("OnClick", SortProfilesByName)
+            b:SetText(L["Organize"] or "Organize")
+            b:SetScript("OnClick", function(self)
+                local menu = {
+                    {
+                        text = L["Sort by Name"] or "Sort by Name",
+                        func = SortProfilesByName,
+                    },
+                    {
+                        text = L["Sort by Time"] or "Sort by Time",
+                        func = SortProfilesByTime,
+                    },
+                }
+                EasyMenu(menu, organizeMenu, self, 0, 0, "MENU")
+            end)
         end
 
     end
