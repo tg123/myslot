@@ -1,3 +1,7 @@
 .*
+!.gitignore
+!.pkgmeta
+!.luacheckrc
+!.github
 Myslot.zip
 *.wowace
