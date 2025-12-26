@@ -799,6 +799,9 @@ function MySlot:RecoverData(msg, opt)
                             if C_ToyBox.PlayerHasToy(index) then
                                 C_ToyBox.PickupToyBoxItem(index)
                             end
+                        else
+                            -- Fallback for older clients or if toy API is not available
+                            PickupItem(index)
                         end
 
                         if not GetCursorInfo() then
