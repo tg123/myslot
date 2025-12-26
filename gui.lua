@@ -258,7 +258,7 @@ local function CreateSettingMenu(opt)
             arg2 = 11,
             checked = childchecked,
             func = childclicked,
-        })        
+        })
     end
 
     for i = 1, 4 do
@@ -698,12 +698,12 @@ RegEvent("ADDON_LOADED", function()
 
             for i, txt in pairs(exports) do
                 -- print(txt.name)
-                local info = UIDropDownMenu_CreateInfo()
-                info.text = txt.name
-                info.value = i
-                info.func = onclick
-                info.customCheckIconTexture = "Interface\\Icons\\inv_scroll_03"
-                UIDropDownMenu_AddButton(info)
+                local itemInfo = UIDropDownMenu_CreateInfo()
+                itemInfo.text = txt.name
+                itemInfo.value = i
+                itemInfo.func = onclick
+                itemInfo.customCheckIconTexture = "Interface\\Icons\\inv_scroll_03"
+                UIDropDownMenu_AddButton(itemInfo)
             end
         end)
 
@@ -857,16 +857,16 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
         if profileString == "" then
             MySlot:Print(L["No profile found with name " .. what])
         else
-            local msg = MySlot:Import(profileString, { force = false })
+            local importMsg = MySlot:Import(profileString, { force = false })
 
-            if not msg then
+            if not importMsg then
                 return
             end
 
             local opt = {}
             CreateSettingMenu(opt)
 
-            MySlot:RecoverData(msg, {
+            MySlot:RecoverData(importMsg, {
                 actionOpt = opt,
                 clearOpt = opt,
             })

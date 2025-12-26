@@ -482,7 +482,6 @@ function MySlot:Import(text, opt)
 
     local force = opt.force
 
-    local ver = s[1]
     local crc = s[5] * 2 ^ 24 + s[6] * 2 ^ 16 + s[7] * 2 ^ 8 + s[8]
     s[5], s[6], s[7], s[8] = 0, 0, 0, 0
 
@@ -590,7 +589,7 @@ local function CreateFlyoutSpellbookMap()
 
     if SPELLS_PER_PAGE then
         for i = 1, GetNumSpellTabs() do
-            local tab, tabTex, offset, numSpells, isGuild, offSpecID = GetSpellTabInfo(i)
+            local _, _, offset, numSpells, _, offSpecID = GetSpellTabInfo(i)
             offSpecID = (offSpecID ~= 0)
             if not offSpecID then
                 offset = offset + 1
@@ -854,7 +853,7 @@ function MySlot:RecoverData(msg, opt)
                 if key == "KEYCODE" then
                     key = b.key2.keycode
                 end
-                local key = (mod ~= "NONE" and (mod .. "-") or "") .. key
+                key = (mod ~= "NONE" and (mod .. "-") or "") .. key
                 local bindingContext = 1
 
                 if C_KeyBindings and C_KeyBindings.GetBindingContextForAction then

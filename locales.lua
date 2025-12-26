@@ -14,7 +14,7 @@ MySlot.L = L
 
 --
 -- Use http://www.wowace.com/addons/myslot/localization/ to translate thanks
--- 
+--
 local locale = GetLocale()
 
 if locale == 'enUs' then
@@ -40,4 +40,3 @@ elseif locale == 'zhCN' then
 elseif locale == 'zhTW' then
 --@localization(locale="zhTW", format="lua_additive_table", handle-unlocalized="comment")@
 end
-

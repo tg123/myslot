@@ -485,7 +485,7 @@ local MYSLOT_MOD_KEYS = {
 local function r(d)
     local t = {}
     for k,v in pairs(d) do
-        t[v] = k    
+        t[v] = k
     end
     return t
 end
