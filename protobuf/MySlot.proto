@@ -25,6 +25,7 @@ message Slot {
 		SUMMONPET = 7;
 		COMPANION = 8;
 		SUMMONMOUNT = 9;
+		TOY = 10;
 	}
 
 	required SlotType type = 2;

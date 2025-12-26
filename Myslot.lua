@@ -36,6 +36,7 @@ local MYSLOT_EQUIPMENTSET = _MySlot.Slot.SlotType.EQUIPMENTSET
 local MYSLOT_EMPTY = _MySlot.Slot.SlotType.EMPTY
 local MYSLOT_SUMMONPET = _MySlot.Slot.SlotType.SUMMONPET
 local MYSLOT_SUMMONMOUNT = _MySlot.Slot.SlotType.SUMMONMOUNT
+local MYSLOT_TOY = _MySlot.Slot.SlotType.TOY
 local MYSLOT_NOTFOUND = "notfound"
 
 MySlot.SLOT_TYPE = {
@@ -209,6 +210,14 @@ function MySlot:GetActionInfo(slotId)
     local msg = _MySlot.Slot()
     msg.id = slotId
     msg.type = MySlot.SLOT_TYPE[slotType]
+    
+    -- Check if item is actually a toy
+    if slotType == "item" and C_ToyBox and C_ToyBox.PlayerHasToy then
+        if C_ToyBox.PlayerHasToy(index) then
+            msg.type = MYSLOT_TOY
+        end
+    end
+    
     if type(index) == 'string' then
         msg.strindex = index
         msg.index = 0
@@ -784,6 +793,16 @@ function MySlot:RecoverData(msg, opt)
 
                         if not GetCursorInfo() then
                             MySlot:Print(L["Ignore missing item [id=%s]"]:format(index)) -- TODO add item link
+                        end
+                    elseif slotType == MYSLOT_TOY then
+                        if C_ToyBox and C_ToyBox.PickupToyBoxItem and C_ToyBox.PlayerHasToy then
+                            if C_ToyBox.PlayerHasToy(index) then
+                                C_ToyBox.PickupToyBoxItem(index)
+                            end
+                        end
+
+                        if not GetCursorInfo() then
+                            MySlot:Print(L["Ignore unlearned toy [id=%s]"]:format(index))
                         end
                     elseif slotType == MYSLOT_SUMMONPET and strindex and strindex ~= curIndex then
                         C_PetJournal.PickupPet(strindex, false)
