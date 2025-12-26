@@ -4,16 +4,6 @@ unused_args = false
 trailing_whitespace = false
 max_line_length = false
 
-ignore = {
-    "211", -- unused variable
-    "213", -- unused loop variable
-    "421", -- shadowing in inner scope
-    "422", -- shadowing argument
-    "411", -- redefined variable
-    "612", -- trailing whitespace
-    "614", -- trailing whitespace in comment
-}
-
 exclude_files = {
     "libs/**",
     "protobuf/**",
