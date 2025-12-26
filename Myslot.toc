@@ -1,6 +1,6 @@
-## Interface: 120000, 110207
-## Interface-Classic: 11508
-## Interface-Mists: 50502
+## Interface: 110200
+## Interface-Classic: 11507
+## Interface-Mists: 50500
 ## Interface-Cata: 40402
 ## Interface-Wrath: 30404
 ## X-Curse-Project-ID: 48863
