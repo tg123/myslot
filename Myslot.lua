@@ -212,7 +212,7 @@ function MySlot:GetActionInfo(slotId)
     msg.type = MySlot.SLOT_TYPE[slotType]
     
     -- Check if item is actually a toy
-    if slotType == "item" and C_ToyBox and C_ToyBox.PlayerHasToy then
+    if slotType == "item" and index and type(index) == "number" and C_ToyBox and C_ToyBox.PlayerHasToy then
         if C_ToyBox.PlayerHasToy(index) then
             msg.type = MYSLOT_TOY
         end
@@ -799,13 +799,12 @@ function MySlot:RecoverData(msg, opt)
                             if C_ToyBox.PlayerHasToy(index) then
                                 C_ToyBox.PickupToyBoxItem(index)
                             end
+                            if not GetCursorInfo() then
+                                MySlot:Print(L["Ignore unlearned toy [id=%s]"]:format(index))
+                            end
                         else
-                            -- Fallback for older clients or if toy API is not available
-                            PickupItem(index)
-                        end
-
-                        if not GetCursorInfo() then
-                            MySlot:Print(L["Ignore unlearned toy [id=%s]"]:format(index))
+                            -- Toy API not available - toys are not supported in this WoW version
+                            MySlot:Print(L["Ignore toy [id=%s] - not supported in this WoW version"]:format(index))
                         end
                     elseif slotType == MYSLOT_SUMMONPET and strindex and strindex ~= curIndex then
                         C_PetJournal.PickupPet(strindex, false)
