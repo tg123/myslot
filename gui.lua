@@ -907,6 +907,12 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
         else
             Settings.OpenToCategory(MySlot.settingcategory.ID)
         end
+    elseif cmd == "e2e" then
+        if MySlot.TestHooks and MySlot.TestHooks.e2eRun then
+            MySlot.TestHooks.e2eRun()
+        else
+            MySlot:Print(L["E2E helper not available"])
+        end
     elseif cmd == "trim" then
         if not MyslotExports then
             MyslotExports = {}

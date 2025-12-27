@@ -58,5 +58,4 @@ local function run_e2e()
     print("Myslot e2e: import/export flow executed (length " .. #exportText .. ")")
 end
 
-SlashCmdList["MYSLOTE2E"] = run_e2e
-SLASH_MYSLOTE2E1 = "/myslot-e2e"
+MySlot.TestHooks.e2eRun = run_e2e

@@ -13,7 +13,6 @@ globals = {
     "MyslotExports",
     "MyslotSettings",
     "SLASH_MYSLOT1",
-    "SLASH_MYSLOTE2E1",
     "SlashCmdList",
     "StaticPopupDialogs",
     "opt",
