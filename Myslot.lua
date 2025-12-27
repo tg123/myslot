@@ -202,6 +202,8 @@ function MySlot:GetActionInfo(slotId)
         PickupAction(slotId)
         _, index = GetCursorInfo()
         PlaceAction(slotId)
+    elseif slotType == "spell" and subType == "assistedcombat" then
+        index = C_AssistedCombat.GetActionSpell()
     elseif not index then
         return nil
     end

@@ -32,6 +32,7 @@ read_globals = {
     "CLASS",
     "CLOSE",
     "C_AddOns",
+    "C_AssistedCombat",
     "C_EquipmentSet",
     "C_Item",
     "C_KeyBindings",
