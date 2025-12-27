@@ -4,6 +4,7 @@ local L = MySlot.L
 local RegEvent = MySlot.regevent
 local MAX_PROFILES_COUNT = 100
 local IMPORT_BACKUP_COUNT = 1
+local TestHooks = MySlot.TestHooks or {}
 
 
 local f = CreateFrame("Frame", nil, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
@@ -34,6 +35,7 @@ end)
 f:Hide()
 
 MySlot.MainFrame = f
+MySlot.TestHooks = TestHooks
 
 local menuFrame = CreateFrame("Frame", nil, UIParent, "UIDropDownMenuTemplate")
 
@@ -394,6 +396,8 @@ do
     b:SetHeight(25)
     b:SetPoint("BOTTOMLEFT", 200, 15)
     b:SetText(L["Import"])
+    TestHooks.importButton = b
+    TestHooks.importDialog = "MYSLOT_MSGBOX"
     b:SetScript("OnClick", function()
         local msg = MySlot:Import(exportEditbox:GetText(), {
             force = forceImport,
@@ -514,6 +518,7 @@ do
     b:SetHeight(25)
     b:SetPoint("BOTTOMLEFT", 40, 15)
     b:SetText(L["Export"])
+    TestHooks.exportButton = b
     b:SetScript("OnClick", function()
         local s = MySlot:Export(actionOpt)
         exportEditbox:SetText(s)
@@ -600,6 +605,7 @@ RegEvent("ADDON_LOADED", function()
         end)
 
         exportEditbox = edit
+        TestHooks.exportEditbox = edit
     end
 
 
@@ -900,6 +906,12 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
             MySlot:Clear("BINDING", opt)
         else
             Settings.OpenToCategory(MySlot.settingcategory.ID)
+        end
+    elseif cmd == "e2e" then
+        if MySlot.TestHooks and MySlot.TestHooks.e2eRun then
+            MySlot.TestHooks.e2eRun()
+        else
+            MySlot:Print(L["E2E helper not available"])
         end
     elseif cmd == "trim" then
         if not MyslotExports then

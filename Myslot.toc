@@ -42,3 +42,6 @@ keys.lua
 Myslot.lua
 gui.lua
 options.lua
+#@debug@
+wowtest\myslot-e2e.lua
+#@end-debug@
