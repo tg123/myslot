@@ -297,6 +297,7 @@ local t = {
    "SUMMONPET",
    "COMPANION",
    "SUMMONMOUNT",
+   "TOY",
    ["EMPTY"]=5,
    ["FLYOUT"]=4,
    ["SPELL"]=1,
@@ -306,6 +307,7 @@ local t = {
    ["MACRO"]=3,
    ["COMPANION"]=8,
    ["EQUIPMENTSET"]=6,
+   ["TOY"]=10,
 },
 }
    local function loadast()
