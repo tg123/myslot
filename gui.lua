@@ -77,7 +77,7 @@ do
     b:SetScript("OnClick", function() f:Hide() end)
 end
 
-local function CreateSettingMenu(opt)
+local function CreateSettingMenu(opt, onChanged)
 
     local tableref = function (name)
         if name == "action" then
@@ -101,6 +101,10 @@ local function CreateSettingMenu(opt)
         local t = tableref(self.arg1)
         t[self.arg2] = not t[self.arg2]
         UIDropDownMenu_RefreshAll(menuFrame)
+
+        if onChanged then
+            onChanged()
+        end
     end
 
     local parentchecked = function (self)
@@ -123,6 +127,10 @@ local function CreateSettingMenu(opt)
         end
 
         UIDropDownMenu_RefreshAll(menuFrame)
+
+        if onChanged then
+            onChanged()
+        end
     end
 
     opt.ignoreActionBars = opt.ignoreActionBars or {
@@ -298,6 +306,10 @@ local function CreateSettingMenu(opt)
             keepShownOnClick = true,
             func = function ()
                 opt.ignoreBinding = not opt.ignoreBinding
+
+                if onChanged then
+                    onChanged()
+                end
             end,
             checked = function ()
                 return opt.ignoreBinding
@@ -340,12 +352,50 @@ local function CreateSettingMenu(opt)
             keepShownOnClick = true,
             func = function ()
                 opt.ignorePetActionBar = not opt.ignorePetActionBar
+
+                if onChanged then
+                    onChanged()
+                end
             end,
             checked = function ()
                 return opt.ignorePetActionBar
             end,
         }, -- 4
     }
+end
+
+local function AllSettingMenuIgnored(opt)
+    if not opt then
+        return false
+    end
+
+    if not opt.ignoreActionBars then
+        return false
+    end
+    for _, v in pairs(opt.ignoreActionBars) do
+        if not v then
+            return false
+        end
+    end
+
+    if not opt.ignoreBinding then
+        return false
+    end
+
+    if not opt.ignoreMacros then
+        return false
+    end
+    for _, v in pairs(opt.ignoreMacros) do
+        if not v then
+            return false
+        end
+    end
+
+    if not opt.ignorePetActionBar then
+        return false
+    end
+
+    return true
 end
 
 local function DrawMenu(root, menuData)
@@ -514,6 +564,15 @@ do
     b:SetHeight(25)
     b:SetPoint("BOTTOMLEFT", 40, 15)
     b:SetText(L["Export"])
+
+    local function UpdateExportButtonState()
+        if AllSettingMenuIgnored(actionOpt) then
+            b:Disable()
+        else
+            b:Enable()
+        end
+    end
+
     b:SetScript("OnClick", function()
         local s = MySlot:Export(actionOpt)
         exportEditbox:SetText(s)
@@ -540,7 +599,9 @@ do
         }
     }
 
-    tAppendAll(settings, CreateSettingMenu(actionOpt))
+    tAppendAll(settings, CreateSettingMenu(actionOpt, UpdateExportButtonState))
+
+    UpdateExportButtonState()
 
     ba:SetScript("OnClick", function(self, button)
         EasyMenu(settings, menuFrame, "cursor", 0 , 0, "MENU");
