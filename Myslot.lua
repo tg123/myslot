@@ -464,6 +464,10 @@ function MySlot:Export(opt)
     -- }}}
 end
 
+local function IsEmptyTable(t)
+    return (t == nil) or (next(t) == nil)
+end
+
 function MySlot:Import(text, opt)
     if InCombatLockdown() then
         MySlot:Print(L["Import is not allowed when you are in combat"])
@@ -503,6 +507,12 @@ function MySlot:Import(text, opt)
     ct = TableToString(ct)
 
     local msg = _MySlot.Charactor():Parse(ct)
+
+    if IsEmptyTable(msg.slot) and IsEmptyTable(msg.bind) and IsEmptyTable(msg.macro) and not force then
+        MySlot:Print(L["Nothing to import"])
+        return
+    end
+
     return msg
 end
 
