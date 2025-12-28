@@ -894,7 +894,7 @@ RegEvent("ADDON_LOADED", function()
 end)
 
 SlashCmdList["MYSLOT"] = function(msg, editbox)
-    local cmd, what, arg3 = msg:match("^(%S*)%s*(%S*)%s*(.-)%s*$")
+    local cmd, what, mode = msg:match("^(%S*)%s*(%S*)%s*(.-)%s*$")
 
     if cmd == "load" then
 
@@ -927,11 +927,11 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
             local opt = {}
             CreateSettingMenu(opt)
 
-            -- Check if "ignore" argument is provided
+            -- Check if "ignore" mode is provided
             local skipClearEmpty = false
-            if arg3 and arg3:lower() == "ignore" then
+            if mode and mode:lower() == "ignore" then
                 skipClearEmpty = true
-                MySlot:Print(L["Loading profile in ignore mode - preserving existing bars"])
+                MySlot:Print(L["Loading in ignore mode"])
             end
 
             MySlot:RecoverData(importMsg, {
