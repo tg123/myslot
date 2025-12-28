@@ -42,6 +42,18 @@ You can use the command 'load' to import a profile by name
 
 You can add this line in a macro and safe it in your profile and swap from one profile to another by using the macro.
 
+#### Selective Import with Ignore Mode
+
+You can use the 'ignore' option to only import data that exists in the profile, leaving other action bars unchanged:
+
+    /myslot load ProfileName ignore
+
+This is useful when you have a shared profile that only contains specific action bars (e.g., a bar with mounts, professions, or macros that are common across all characters).
+
+For example:
+- If your "Horde-Mounts" profile only contains Bar 6, using `/myslot load Horde-Mounts ignore` will only update Bar 6 and leave all other bars unchanged
+- Without the 'ignore' option, bars not in the profile would be cleared
+
 
 ## Get Myslot
 

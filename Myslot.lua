@@ -828,11 +828,14 @@ function MySlot:RecoverData(msg, opt)
         end
     end
 
-    for i = 1, MYSLOT_MAX_ACTIONBAR do
-        if not opt.actionOpt.ignoreActionBars[math.ceil(i / 12)] and not slotBucket[i] then
-            if GetActionInfo(i) then
-                PickupAction(i)
-                ClearCursor()
+    -- Only clear empty slots if skipClearEmpty is not set
+    if not opt.skipClearEmpty then
+        for i = 1, MYSLOT_MAX_ACTIONBAR do
+            if not opt.actionOpt.ignoreActionBars[math.ceil(i / 12)] and not slotBucket[i] then
+                if GetActionInfo(i) then
+                    PickupAction(i)
+                    ClearCursor()
+                end
             end
         end
     end
