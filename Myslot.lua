@@ -447,6 +447,29 @@ function MySlot:Export(opt)
     end
 
     s = "# Wow Version: " .. GetBuildInfo() .. MYSLOT_LINE_SEP .. s
+    local exportDebugInfo = MySlot.TestHooks and MySlot.TestHooks.exportDebugInfo
+    if exportDebugInfo then
+        local okHook, dbg = pcall(exportDebugInfo)
+        if okHook then
+            local function prependDebugLine(value)
+                local debugLine = value and tostring(value)
+                if debugLine and debugLine ~= "" then
+                    s = "# DEBUG: " .. debugLine .. MYSLOT_LINE_SEP .. s
+                end
+            end
+
+            if type(dbg) == "string" then
+                prependDebugLine(dbg)
+            elseif type(dbg) == "table" then
+                -- reverse loop to maintain original order when prepending lines
+                for i = #dbg, 1, -1 do
+                    prependDebugLine(dbg[i])
+                end
+            elseif dbg ~= nil then
+                prependDebugLine(dbg)
+            end
+        end
+    end
     s = "# Myslot (https://myslot.net " .. L["<- share your profile here"]  ..")" .. MYSLOT_LINE_SEP .. s
 
     local d = base64.enc(t)

@@ -4,6 +4,8 @@ if (ADDONNAME or ""):lower() ~= "myslot" then
     return
 end
 
+MySlot.TestHooks = MySlot.TestHooks or {}
+
 local function click(button)
     if button and button.Click then
         button:Click()
@@ -59,3 +61,12 @@ local function run_e2e()
 end
 
 MySlot.TestHooks.e2eRun = run_e2e
+MySlot.TestHooks.exportDebugInfo = MySlot.TestHooks.exportDebugInfo or function()
+    local version, build, dateText = GetBuildInfo()
+    return {
+        "myslot-e2e",
+        "wow-version " .. tostring(version),
+        "wow-build " .. tostring(build),
+        "exported " .. (dateText or "unknown"),
+    }
+end
