@@ -3,17 +3,18 @@ on:
   push:
     tags:
       - 'v*'
+  pull_request:
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       
     - name: Create Package
       uses: BigWigsMods/packager@master
       with:
-        args: -S
+        args: ${{ github.event_name == 'pull_request' && '-S -d' || '-S' }}
       env:
         CF_API_KEY: ${{ secrets.CF_API_KEY }}
         WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
