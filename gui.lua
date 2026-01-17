@@ -788,8 +788,13 @@ RegEvent("ADDON_LOADED", function()
                 
                 -- Apply filter if enabled
                 local shouldShow = true
-                if MyslotSettings.filterCurrentClass and txt.class then
-                    shouldShow = (txt.class == currentClass)
+                if MyslotSettings.filterCurrentClass then
+                    -- Show if class matches or if profile has no class info (backward compatibility)
+                    if txt.class then
+                        shouldShow = (txt.class == currentClass)
+                    else
+                        shouldShow = true  -- Show profiles without class info
+                    end
                 end
                 
                 if shouldShow then
