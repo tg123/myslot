@@ -690,6 +690,25 @@ RegEvent("ADDON_LOADED", function()
         end
         local exports = MyslotExports["exports"]
         local backups = MyslotExports["backups"]
+        
+        -- Initialize settings for filter/sort
+        MyslotSettings = MyslotSettings or {}
+        MyslotSettings.filterCurrentClass = MyslotSettings.filterCurrentClass or false
+        MyslotSettings.sortAlphabetically = MyslotSettings.sortAlphabetically or false
+        
+        -- Helper function to extract class from exported text
+        local function ExtractClassFromExport(exportText)
+            if not exportText or exportText == "" then
+                return nil
+            end
+            -- Match pattern: # Class: ClassName or # CLASS: ClassName
+            -- Case-insensitive to handle variations and ensure backward compatibility
+            local _, _, className = string.find(exportText, "#%s*[Cc][Ll][Aa][Ss][Ss]%s*:%s*([^\n\r]+)")
+            if className then
+                return strtrim(className)
+            end
+            return nil
+        end
 
         local onclick = function(self)
             local idx = self.value
@@ -739,6 +758,7 @@ RegEvent("ADDON_LOADED", function()
             end
 
             exports[c].value = v
+            exports[c].class = ExtractClassFromExport(v)
             infolabel:SetText("")
         end
         -- exportEditbox:SetScript("OnTextChanged", function() save(false) end)
@@ -757,11 +777,44 @@ RegEvent("ADDON_LOADED", function()
             end
             UIDropDownMenu_AddButton(info)
 
+            -- Build list of profiles to show
+            local profilesToShow = {}
+            local currentClass = UnitClass("player")
+            
             for i, txt in pairs(exports) do
-                -- print(txt.name)
+                -- Ensure class is set (for backward compatibility with old profiles)
+                if not txt.class and txt.value and txt.value ~= "" then
+                    txt.class = ExtractClassFromExport(txt.value)
+                end
+                
+                -- Apply filter if enabled
+                local shouldShow = true
+                if MyslotSettings.filterCurrentClass then
+                    -- Show if class matches or if profile has no class info (backward compatibility)
+                    if txt.class then
+                        shouldShow = (txt.class == currentClass)
+                    else
+                        shouldShow = true  -- Show profiles without class info
+                    end
+                end
+                
+                if shouldShow then
+                    table.insert(profilesToShow, {index = i, name = txt.name, class = txt.class})
+                end
+            end
+            
+            -- Sort alphabetically if enabled
+            if MyslotSettings.sortAlphabetically then
+                table.sort(profilesToShow, function(a, b)
+                    return a.name < b.name
+                end)
+            end
+            
+            -- Add profiles to dropdown
+            for _, profile in ipairs(profilesToShow) do
                 local itemInfo = UIDropDownMenu_CreateInfo()
-                itemInfo.text = txt.name
-                itemInfo.value = i
+                itemInfo.text = profile.name
+                itemInfo.value = profile.index
                 itemInfo.func = onclick
                 itemInfo.customCheckIconTexture = "Interface\\Icons\\inv_scroll_03"
                 UIDropDownMenu_AddButton(itemInfo)
@@ -860,6 +913,44 @@ RegEvent("ADDON_LOADED", function()
                     StaticPopup_Show("MYSLOT_EXPORT_TITLE")
                 end
             end)
+        end
+        
+        -- Add filter and sort checkboxes
+        do
+            local function refreshDropdown()
+                UIDropDownMenu_Initialize(t, t.initialize)
+                CloseDropDownMenus()
+            end
+            
+            -- Filter by current class checkbox
+            local filterCheck = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
+            filterCheck:SetPoint("TOPLEFT", t, 240, -30)
+            filterCheck:SetSize(24, 24)
+            filterCheck:SetChecked(MyslotSettings.filterCurrentClass)
+            filterCheck:SetScript("OnClick", function(self)
+                MyslotSettings.filterCurrentClass = self:GetChecked()
+                refreshDropdown()
+            end)
+            
+            local filterLabel = filterCheck:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            filterLabel:SetPoint("LEFT", filterCheck, "RIGHT", 5, 0)
+            -- L table has metatable that returns key if not localized (see locales.lua)
+            filterLabel:SetText(L["Filter: Current Class Only"])
+            
+            -- Sort alphabetically checkbox
+            local sortCheck = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
+            sortCheck:SetPoint("TOPLEFT", t, 240, -55)
+            sortCheck:SetSize(24, 24)
+            sortCheck:SetChecked(MyslotSettings.sortAlphabetically)
+            sortCheck:SetScript("OnClick", function(self)
+                MyslotSettings.sortAlphabetically = self:GetChecked()
+                refreshDropdown()
+            end)
+            
+            local sortLabel = sortCheck:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            sortLabel:SetPoint("LEFT", sortCheck, "RIGHT", 5, 0)
+            -- L table has metatable that returns key if not localized (see locales.lua)
+            sortLabel:SetText(L["Sort Alphabetically"])
         end
 
     end
