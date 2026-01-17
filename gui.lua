@@ -691,23 +691,24 @@ RegEvent("ADDON_LOADED", function()
         local exports = MyslotExports["exports"]
         local backups = MyslotExports["backups"]
         
+        -- Initialize settings for filter/sort
+        MyslotSettings = MyslotSettings or {}
+        MyslotSettings.filterCurrentClass = MyslotSettings.filterCurrentClass or false
+        MyslotSettings.sortAlphabetically = MyslotSettings.sortAlphabetically or false
+        
         -- Helper function to extract class from exported text
         local function ExtractClassFromExport(exportText)
             if not exportText or exportText == "" then
                 return nil
             end
             -- Match pattern: # Class: ClassName or # CLASS: ClassName
+            -- Case-insensitive to handle variations and ensure backward compatibility
             local _, _, className = string.find(exportText, "#%s*[Cc][Ll][Aa][Ss][Ss]%s*:%s*([^\n\r]+)")
             if className then
                 return strtrim(className)
             end
             return nil
         end
-        
-        -- Initialize settings for filter/sort
-        MyslotSettings = MyslotSettings or {}
-        MyslotSettings.filterCurrentClass = MyslotSettings.filterCurrentClass or false
-        MyslotSettings.sortAlphabetically = MyslotSettings.sortAlphabetically or false
 
         local onclick = function(self)
             local idx = self.value
@@ -933,6 +934,7 @@ RegEvent("ADDON_LOADED", function()
             
             local filterLabel = filterCheck:CreateFontString(nil, "OVERLAY", "GameFontNormal")
             filterLabel:SetPoint("LEFT", filterCheck, "RIGHT", 5, 0)
+            -- L table has metatable that returns key if not localized (see locales.lua)
             filterLabel:SetText(L["Filter: Current Class Only"])
             
             -- Sort alphabetically checkbox
@@ -947,6 +949,7 @@ RegEvent("ADDON_LOADED", function()
             
             local sortLabel = sortCheck:CreateFontString(nil, "OVERLAY", "GameFontNormal")
             sortLabel:SetPoint("LEFT", sortCheck, "RIGHT", 5, 0)
+            -- L table has metatable that returns key if not localized (see locales.lua)
             sortLabel:SetText(L["Sort Alphabetically"])
         end
 
