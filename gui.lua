@@ -77,7 +77,7 @@ do
     b:SetScript("OnClick", function() f:Hide() end)
 end
 
-local function CreateSettingMenu(opt)
+local function CreateSettingMenu(opt, onChanged)
 
     local tableref = function (name)
         if name == "action" then
@@ -101,6 +101,10 @@ local function CreateSettingMenu(opt)
         local t = tableref(self.arg1)
         t[self.arg2] = not t[self.arg2]
         UIDropDownMenu_RefreshAll(menuFrame)
+
+        if onChanged then
+            onChanged()
+        end
     end
 
     local parentchecked = function (self)
@@ -123,6 +127,10 @@ local function CreateSettingMenu(opt)
         end
 
         UIDropDownMenu_RefreshAll(menuFrame)
+
+        if onChanged then
+            onChanged()
+        end
     end
 
     opt.ignoreActionBars = opt.ignoreActionBars or {
@@ -258,7 +266,7 @@ local function CreateSettingMenu(opt)
             arg2 = 11,
             checked = childchecked,
             func = childclicked,
-        })        
+        })
     end
 
     for i = 1, 4 do
@@ -298,6 +306,10 @@ local function CreateSettingMenu(opt)
             keepShownOnClick = true,
             func = function ()
                 opt.ignoreBinding = not opt.ignoreBinding
+
+                if onChanged then
+                    onChanged()
+                end
             end,
             checked = function ()
                 return opt.ignoreBinding
@@ -340,12 +352,50 @@ local function CreateSettingMenu(opt)
             keepShownOnClick = true,
             func = function ()
                 opt.ignorePetActionBar = not opt.ignorePetActionBar
+
+                if onChanged then
+                    onChanged()
+                end
             end,
             checked = function ()
                 return opt.ignorePetActionBar
             end,
         }, -- 4
     }
+end
+
+local function AllSettingMenuIgnored(opt)
+    if not opt then
+        return false
+    end
+
+    if not opt.ignoreActionBars then
+        return false
+    end
+    for _, v in pairs(opt.ignoreActionBars) do
+        if not v then
+            return false
+        end
+    end
+
+    if not opt.ignoreBinding then
+        return false
+    end
+
+    if not opt.ignoreMacros then
+        return false
+    end
+    for _, v in pairs(opt.ignoreMacros) do
+        if not v then
+            return false
+        end
+    end
+
+    if not opt.ignorePetActionBar then
+        return false
+    end
+
+    return true
 end
 
 local function DrawMenu(root, menuData)
@@ -514,6 +564,15 @@ do
     b:SetHeight(25)
     b:SetPoint("BOTTOMLEFT", 40, 15)
     b:SetText(L["Export"])
+
+    local function UpdateExportButtonState()
+        if AllSettingMenuIgnored(actionOpt) then
+            b:Disable()
+        else
+            b:Enable()
+        end
+    end
+
     b:SetScript("OnClick", function()
         local s = MySlot:Export(actionOpt)
         exportEditbox:SetText(s)
@@ -540,7 +599,9 @@ do
         }
     }
 
-    tAppendAll(settings, CreateSettingMenu(actionOpt))
+    tAppendAll(settings, CreateSettingMenu(actionOpt, UpdateExportButtonState))
+
+    UpdateExportButtonState()
 
     ba:SetScript("OnClick", function(self, button)
         EasyMenu(settings, menuFrame, "cursor", 0 , 0, "MENU");
@@ -682,7 +743,7 @@ RegEvent("ADDON_LOADED", function()
         end
         -- exportEditbox:SetScript("OnTextChanged", function() save(false) end)
 
-        local function DropdownInit()
+        UIDropDownMenu_Initialize(t, function()
             local info = UIDropDownMenu_CreateInfo()
             info.text = L["Before Last Import"]
             info.customCheckIconTexture = "Interface\\Icons\\inv_scroll_04"
@@ -697,65 +758,17 @@ RegEvent("ADDON_LOADED", function()
             UIDropDownMenu_AddButton(info)
 
             for i, txt in pairs(exports) do
-                local entryInfo = UIDropDownMenu_CreateInfo()
-                entryInfo.text = txt.name
-                entryInfo.value = i
-                entryInfo.func = onclick
-                entryInfo.customCheckIconTexture = "Interface\\Icons\\inv_scroll_03"
-                UIDropDownMenu_AddButton(entryInfo)
+                -- print(txt.name)
+                local itemInfo = UIDropDownMenu_CreateInfo()
+                itemInfo.text = txt.name
+                itemInfo.value = i
+                itemInfo.func = onclick
+                itemInfo.customCheckIconTexture = "Interface\\Icons\\inv_scroll_03"
+                UIDropDownMenu_AddButton(itemInfo)
             end
-        end
-
-        local function RefreshDropdown()
-            UIDropDownMenu_Initialize(t, DropdownInit)
-        end
-
-        RefreshDropdown()
+        end)
 
         local popctx = {}
-
-        local function RestoreSelection(selectedProfile)
-            if not selectedProfile then
-                return
-            end
-
-            for idx, entry in ipairs(exports) do
-                if entry == selectedProfile then
-                    UIDropDownMenu_SetSelectedValue(t, idx)
-                    UIDropDownMenu_SetText(t, entry.name or "")
-                    return
-                end
-            end
-
-            UIDropDownMenu_SetSelectedValue(t, nil)
-            UIDropDownMenu_SetText(t, "")
-        end
-
-        local function SortProfilesByName()
-            if #exports <= 1 then
-                return
-            end
-
-            local selectedValue = UIDropDownMenu_GetSelectedValue(t)
-            local selectedProfile = selectedValue and exports[selectedValue] or nil
-
-            local originalOrder = {}
-            for idx, entry in ipairs(exports) do
-                originalOrder[entry] = idx
-            end
-
-            table.sort(exports, function(a, b)
-                local nameA = string.lower(a.name or "")
-                local nameB = string.lower(b.name or "")
-                if nameA == nameB then
-                    return originalOrder[a] < originalOrder[b]
-                end
-                return nameA < nameB
-            end)
-
-            RefreshDropdown()
-            RestoreSelection(selectedProfile)
-        end
 
         StaticPopupDialogs["MYSLOT_EXPORT_TITLE"].OnShow = function(self)
             local c = popctx.current
@@ -833,14 +846,13 @@ RegEvent("ADDON_LOADED", function()
             end)
         end
 
-        local renameButton
         do
-            renameButton = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
-            renameButton:SetWidth(70)
-            renameButton:SetHeight(25)
-            renameButton:SetPoint("TOPLEFT", t, 465, 0)
-            renameButton:SetText(L["Rename"])
-            renameButton:SetScript("OnClick", function()
+            local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
+            b:SetWidth(70)
+            b:SetHeight(25)
+            b:SetPoint("TOPLEFT", t, 465, 0)
+            b:SetText(L["Rename"])
+            b:SetScript("OnClick", function()
                 local c = UIDropDownMenu_GetSelectedValue(t)
 
                 if c and exports[c] then
@@ -848,15 +860,6 @@ RegEvent("ADDON_LOADED", function()
                     StaticPopup_Show("MYSLOT_EXPORT_TITLE")
                 end
             end)
-        end
-
-        do
-            local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
-            b:SetWidth(70)
-            b:SetHeight(25)
-            b:SetPoint("LEFT", renameButton, "RIGHT", 5, 0)
-            b:SetText(L["Sort"])
-            b:SetScript("OnClick", SortProfilesByName)
         end
 
     end
@@ -915,16 +918,16 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
         if profileString == "" then
             MySlot:Print(L["No profile found with name " .. what])
         else
-            local msg = MySlot:Import(profileString, { force = false })
+            local importMsg = MySlot:Import(profileString, { force = false })
 
-            if not msg then
+            if not importMsg then
                 return
             end
 
             local opt = {}
             CreateSettingMenu(opt)
 
-            MySlot:RecoverData(msg, {
+            MySlot:RecoverData(importMsg, {
                 actionOpt = opt,
                 clearOpt = opt,
             })

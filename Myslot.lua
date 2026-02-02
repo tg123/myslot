@@ -202,6 +202,8 @@ function MySlot:GetActionInfo(slotId)
         PickupAction(slotId)
         _, index = GetCursorInfo()
         PlaceAction(slotId)
+    elseif slotType == "spell" and subType == "assistedcombat" then
+        index = C_AssistedCombat.GetActionSpell()
     elseif not index then
         return nil
     end
@@ -462,6 +464,10 @@ function MySlot:Export(opt)
     -- }}}
 end
 
+local function IsEmptyTable(t)
+    return (t == nil) or (next(t) == nil)
+end
+
 function MySlot:Import(text, opt)
     if InCombatLockdown() then
         MySlot:Print(L["Import is not allowed when you are in combat"])
@@ -482,7 +488,6 @@ function MySlot:Import(text, opt)
 
     local force = opt.force
 
-    local ver = s[1]
     local crc = s[5] * 2 ^ 24 + s[6] * 2 ^ 16 + s[7] * 2 ^ 8 + s[8]
     s[5], s[6], s[7], s[8] = 0, 0, 0, 0
 
@@ -502,6 +507,12 @@ function MySlot:Import(text, opt)
     ct = TableToString(ct)
 
     local msg = _MySlot.Charactor():Parse(ct)
+
+    if IsEmptyTable(msg.slot) and IsEmptyTable(msg.bind) and IsEmptyTable(msg.macro) and not force then
+        MySlot:Print(L["Nothing to import"])
+        return
+    end
+
     return msg
 end
 
@@ -590,7 +601,7 @@ local function CreateFlyoutSpellbookMap()
 
     if SPELLS_PER_PAGE then
         for i = 1, GetNumSpellTabs() do
-            local tab, tabTex, offset, numSpells, isGuild, offSpecID = GetSpellTabInfo(i)
+            local _, _, offset, numSpells, _, offSpecID = GetSpellTabInfo(i)
             offSpecID = (offSpecID ~= 0)
             if not offSpecID then
                 offset = offset + 1
@@ -840,7 +851,13 @@ function MySlot:RecoverData(msg, opt)
                     key = b.key1.keycode
                 end
                 key = (mod ~= "NONE" and (mod .. "-") or "") .. key
-                SetBinding(key, command, 1)
+                local bindingContext = 1
+
+                if C_KeyBindings and C_KeyBindings.GetBindingContextForAction then
+                     bindingContext = C_KeyBindings.GetBindingContextForAction(command)
+                end
+
+                SetBinding(key, command, bindingContext)
             end
 
             if b.key2 then
@@ -848,8 +865,13 @@ function MySlot:RecoverData(msg, opt)
                 if key == "KEYCODE" then
                     key = b.key2.keycode
                 end
-                local key = (mod ~= "NONE" and (mod .. "-") or "") .. key
-                SetBinding(key, command, 1)
+                key = (mod ~= "NONE" and (mod .. "-") or "") .. key
+                local bindingContext = 1
+
+                if C_KeyBindings and C_KeyBindings.GetBindingContextForAction then
+                     bindingContext = C_KeyBindings.GetBindingContextForAction(command)
+                end
+                SetBinding(key, command, bindingContext)
             end
         end
         SaveBindings(GetCurrentBindingSet())
@@ -908,11 +930,16 @@ function MySlot:Clear(what, opt)
         end
     elseif what == "BINDING" then
         for i = 1, GetNumBindings() do
-            local _, _, key1, key2 = GetBinding(i)
+            local action, _, key1, key2 = GetBinding(i)
 
             for _, key in pairs({ key1, key2 }) do
                 if key then
-                    SetBinding(key, nil, 1)
+                    local bindingContext = 1
+
+                    if C_KeyBindings and C_KeyBindings.GetBindingContextForAction then
+                        bindingContext = C_KeyBindings.GetBindingContextForAction(action)
+                    end
+                    SetBinding(key, nil, bindingContext)
                 end
             end
         end
