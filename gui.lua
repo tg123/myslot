@@ -875,6 +875,7 @@ RegEvent("ADDON_LOADED", function()
     local config = MyslotSettings.minimap
 
     icon:Register("Myslot", ldb:NewDataObject("Myslot", {
+            type = "launcher",
             icon = "Interface\\MacroFrame\\MacroFrame-Icon",
             OnClick = function()
                 f:SetShown(not f:IsShown())
