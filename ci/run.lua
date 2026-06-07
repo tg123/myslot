@@ -32,6 +32,7 @@ load_test("cases/base64.lua")
 load_test("cases/crc32.lua")
 load_test("cases/protobuf.lua")
 load_test("cases/roundtrip.lua")
+load_test("cases/wow_roundtrip.lua")
 
 local _, failed = MySlot.test.run(print)
 os.exit(failed == 0 and 0 or 1)
