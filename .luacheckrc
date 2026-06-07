@@ -58,6 +58,7 @@ read_globals = {
     "GameTooltipText",
     "GetActionInfo",
     "GetBinding",
+    "GetBindingAction",
     "GetBuildInfo",
     "GetCurrentBindingSet",
     "GetCursorInfo",
