@@ -95,7 +95,11 @@ local function schedule(fn)
 end
 
 function T.yield()
-    if coroutine.running() then coroutine.yield() end
+    -- coroutine.running() returns (nil) on the main thread in Lua 5.1, but
+    -- (thread, true) on the main thread in LuaJIT. Use the second return
+    -- value to detect "is main thread" so this is a true no-op in sync mode.
+    local co, is_main = coroutine.running()
+    if co and not is_main then coroutine.yield() end
 end
 
 -- Yield-safe pcall replacement. Lua 5.1 (and therefore WoW) cannot yield

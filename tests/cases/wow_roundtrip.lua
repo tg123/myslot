@@ -97,16 +97,28 @@ T.describe("in-game: action bar round-trip (via WoW API)", function()
     end))
 end)
 
+-- Create a test macro, reclaiming the slot if a previous run left one with
+-- the same name behind. Tests should fail (not skip) if the account truly
+-- has no macro slots free, otherwise we'd silently green-light a bug.
+local function create_test_macro(name, icon, body)
+    local existing = find_macro_by_name(name)
+    if existing then Host.delete_macro(existing) end
+    local id = Host.set_macro(name, icon, body)
+    T.assert.not_nil(id, "CreateMacro returned nil for '" .. name ..
+        "' (no free macro slots?)")
+    return id
+end
+
 -- ---------------------------------------------------------------------------
 T.describe("in-game: macro round-trip (via WoW API)", function()
 
     T.it("re-creates a deleted macro after Import+RecoverData", in_game(function()
+        -- WoW caps macro names at 16 chars; "MyslotE2E" + 4 digits = 13.
         local NAME = "MyslotE2E" .. math.random(1000, 9999)
         local BODY = "/say myslot-e2e-" .. tostring(math.random(1, 1e9))
         local ICON = "INV_MISC_QUESTIONMARK"
 
-        local id = Host.set_macro(NAME, ICON, BODY)
-        T.assert.not_nil(id)
+        local id = create_test_macro(NAME, ICON, BODY)
         T.assert.not_nil(find_macro_by_name(NAME))
 
         local text = MySlot:Export(full_opt())
@@ -125,10 +137,11 @@ T.describe("in-game: macro round-trip (via WoW API)", function()
 
     T.it("restores a macro placed on an action slot", in_game(function()
         local SLOT = 1
-        local NAME = "MyslotE2EBar" .. math.random(1000, 9999)
+        -- "MyslotBar" + 4 digits = 13 chars, within WoW's 16-char limit.
+        local NAME = "MyslotBar" .. math.random(1000, 9999)
         local BODY = "/say bar-" .. tostring(math.random(1, 1e9))
 
-        local mid = Host.set_macro(NAME, "INV_MISC_QUESTIONMARK", BODY)
+        local mid = create_test_macro(NAME, "INV_MISC_QUESTIONMARK", BODY)
         Host.clear_action(SLOT)
         Host.set_action(SLOT, "macro", mid)
         local t = GetActionInfo(SLOT)
@@ -261,8 +274,9 @@ T.describe("in-game: slot type round-trip (per type)", function()
     end))
 
     T.it("type=macro", in_game(function()
-        local name = "MyslotTypeMacro" .. math.random(1000, 9999)
-        local mid = Host.set_macro(name, "INV_MISC_QUESTIONMARK", "/say type-test")
+        -- "MyslotT" + 4 digits = 11 chars, within WoW's 16-char macro name limit.
+        local name = "MyslotT" .. math.random(1000, 9999)
+        local mid = create_test_macro(name, "INV_MISC_QUESTIONMARK", "/say type-test")
         roundtrip(function(s) Host.set_action(s, "macro", mid) end)
     end))
 
