@@ -7,12 +7,14 @@ max_line_length = false
 exclude_files = {
     "libs/**",
     "protobuf/**",
+    "ci/**",
 }
 
 globals = {
     "MyslotExports",
     "MyslotSettings",
     "SLASH_MYSLOT1",
+    "SLASH_MYSLOTTEST1",
     "SlashCmdList",
     "StaticPopupDialogs",
     "opt",
