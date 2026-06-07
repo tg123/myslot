@@ -7,3 +7,6 @@ ignore:
   - protobuf/Myslot.proto
   - README.markdown
   - extract_locale.sh
+  - tests
+  - ci
+  - .github

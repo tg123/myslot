@@ -1,10 +1,10 @@
-## Interface: 120000, 110207
+## Interface: 120005, 110207
 ## Interface-Classic: 11508
 ## Interface-BCC: 20505
 ## Interface-Wrath: 30405
 ## Interface-Titan: 38000
 ## Interface-Cata: 40402
-## Interface-Mists: 50503
+## Interface-Mists: 50504
 ## X-Curse-Project-ID: 48863
 ## X-Wago-ID: BKpq0BGE
 ## Title: Myslot
@@ -44,3 +44,14 @@ keys.lua
 Myslot.lua
 gui.lua
 options.lua
+
+#@debug@
+tests\framework.lua
+tests\host.lua
+tests\cases\base64.lua
+tests\cases\crc32.lua
+tests\cases\protobuf.lua
+tests\cases\roundtrip.lua
+tests\cases\wow_roundtrip.lua
+tests\runner.lua
+#@end-debug@

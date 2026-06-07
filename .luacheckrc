@@ -7,12 +7,14 @@ max_line_length = false
 exclude_files = {
     "libs/**",
     "protobuf/**",
+    "ci/**",
 }
 
 globals = {
     "MyslotExports",
     "MyslotSettings",
     "SLASH_MYSLOT1",
+    "SLASH_MYSLOTTEST1",
     "SlashCmdList",
     "StaticPopupDialogs",
     "opt",
@@ -31,6 +33,7 @@ read_globals = {
     "CHARACTER_SPECIFIC_MACROS",
     "CLASS",
     "CLOSE",
+    "ChatFontNormal",
     "C_AddOns",
     "C_AssistedCombat",
     "C_EquipmentSet",
@@ -51,9 +54,11 @@ read_globals = {
     "Enum",
     "FindBaseSpellByID",
     "GENERAL_MACROS",
+    "GameFontHighlight",
     "GameTooltipText",
     "GetActionInfo",
     "GetBinding",
+    "GetBindingAction",
     "GetBuildInfo",
     "GetCurrentBindingSet",
     "GetCursorInfo",
@@ -102,6 +107,7 @@ read_globals = {
     "PickupAction",
     "PickupMacro",
     "PickupPetAction",
+    "PickupSpell",
     "PickupPetSpell",
     "PlaceAction",
     "PlayerSpellsFrame",
