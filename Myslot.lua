@@ -22,8 +22,8 @@ local PickupSpellBookItem = C_SpellBook and C_SpellBook.PickupSpellBookItem or _
 local GetAddOnMetadata = (C_AddOns and C_AddOns.GetAddOnMetadata) and C_AddOns.GetAddOnMetadata or _G.GetAddOnMetadata
 -- TWW Beta Compat End
 -- Polyfill for deprecated Blizzard Macro Globals in Midnight 12.1
-MAX_ACCOUNT_MACROS = MAX_ACCOUNT_MACROS or 120
-MAX_CHARACTER_MACROS = MAX_CHARACTER_MACROS or 18
+local MAX_ACCOUNT_MACROS = MAX_ACCOUNT_MACROS or 120
+local MAX_CHARACTER_MACROS = MAX_CHARACTER_MACROS or 18
 -- Polyfill for deprecated Blizzard Macro Globals in Midnight 12.1 END
 -- local MYSLOT_IS_DEBUG = true
 local MYSLOT_LINE_SEP = IsWindowsClient() and "\r\n" or "\n"
