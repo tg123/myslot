@@ -378,7 +378,7 @@ T.describe("in-game: slot type round-trip (per type)", function()
     end))
 
     T.it("type=outfit", in_game(function()
-        if not (C_TransmogOutfitInfo and C_TransmogOutfitInfo.GetOutfitsInfo) then
+        if not (C_TransmogOutfitInfo and C_TransmogOutfitInfo.GetOutfitsInfo and C_TransmogOutfitInfo.PickupOutfit) then
             T.skip("no transmog outfit API")
         end
         local outfits = C_TransmogOutfitInfo.GetOutfitsInfo()

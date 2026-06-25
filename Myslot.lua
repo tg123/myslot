@@ -953,12 +953,13 @@ function MySlot:RecoverData(msg, opt)
                     elseif slotType == MYSLOT_EQUIPMENTSET then
                         C_EquipmentSet.PickupEquipmentSet(index)
                     elseif slotType == MYSLOT_OUTFIT then
-                        if C_TransmogOutfitInfo then
+                        if C_TransmogOutfitInfo and C_TransmogOutfitInfo.PickupOutfit then
                             C_TransmogOutfitInfo.PickupOutfit(index)
 
                             -- id may not exist on this character/account; fall
                             -- back to matching the saved outfit by name.
-                            if not GetCursorInfo() and strindex and strindex ~= "" then
+                            if not GetCursorInfo() and strindex and strindex ~= ""
+                                and C_TransmogOutfitInfo.GetOutfitInfoByName then
                                 local outfitInfo = C_TransmogOutfitInfo.GetOutfitInfoByName(strindex)
                                 if outfitInfo then
                                     C_TransmogOutfitInfo.PickupOutfit(outfitInfo.outfitID)
@@ -966,7 +967,7 @@ function MySlot:RecoverData(msg, opt)
                             end
 
                             if not GetCursorInfo() then
-                                MySlot:Print(L["Ignore unknown outfit [id=%s]"]:format(strindex or index))
+                                MySlot:Print(L["Ignore unknown outfit [id=%s, name=%s]"]:format(index, strindex or ""))
                             end
                         end
                     end
