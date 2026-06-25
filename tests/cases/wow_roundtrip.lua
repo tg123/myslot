@@ -26,18 +26,6 @@ local function recover_opt()
     return { actionOpt = full_opt() }
 end
 
-local function in_game(fn)
-    return function()
-        if not Host.in_wow then T.skip("in-game only") end
-        local snap = Host.snapshot()
-        -- T.safe_run is a yield-aware pcall (Lua 5.1 can't yield across a
-        -- real pcall). Guarantees restore() runs even on assert failure.
-        local ok, err = T.safe_run(fn)
-        Host.restore(snap)
-        if not ok then error(err, 0) end
-    end
-end
-
 local MAX_MACROS = (MAX_ACCOUNT_MACROS or 120) + (MAX_CHARACTER_MACROS or 18)
 
 local function find_macro_by_name(name)
@@ -46,6 +34,41 @@ local function find_macro_by_name(name)
         if n == name then return i, body end
     end
     return nil
+end
+
+-- Every macro the suite creates is named "Myslot..." (MyslotE2E/MyslotBar/
+-- MyslotT). RecoverData never deletes macros (removing a user's macros would be
+-- destructive), so snapshot/restore can't reclaim what a test created. Without
+-- this purge those macros pile up across runs until the 120-macro account cap
+-- fills and CreateMacro starts failing. Collect matches in one pass, then delete
+-- highest-index first so the lower indices we still need stay valid.
+local function purge_test_macros()
+    if not Host.in_wow then return end
+    local hits = {}
+    for i = 1, MAX_MACROS do
+        local n = GetMacroInfo(i)
+        if n and n:match("^Myslot") then hits[#hits + 1] = i end
+    end
+    for j = #hits, 1, -1 do
+        DeleteMacro(hits[j])
+    end
+end
+
+local function in_game(fn)
+    return function()
+        if not Host.in_wow then T.skip("in-game only") end
+        -- Drop any leftover test macros first so they never get baked into the
+        -- snapshot (and thus re-created by restore).
+        purge_test_macros()
+        local snap = Host.snapshot()
+        -- T.safe_run is a yield-aware pcall (Lua 5.1 can't yield across a
+        -- real pcall). Guarantees restore() runs even on assert failure.
+        local ok, err = T.safe_run(fn)
+        -- Clean up whatever this test created, then restore the pristine state.
+        purge_test_macros()
+        Host.restore(snap)
+        if not ok then error(err, 0) end
+    end
 end
 
 -- ---------------------------------------------------------------------------
@@ -106,6 +129,10 @@ local function create_test_macro(name, icon, body)
     local id = Host.set_macro(name, icon, body)
     T.assert.not_nil(id, "CreateMacro returned nil for '" .. name ..
         "' (no free macro slots?)")
+    -- Classic Era commits a new macro to GetMacroInfo only on the next frame, so
+    -- yield once to let it become queryable by name/body before we (or
+    -- RecoverData's macro index) look it up. No-op in CI (sync mode).
+    T.yield()
     return id
 end
 
@@ -129,6 +156,9 @@ T.describe("in-game: macro round-trip (via WoW API)", function()
         local msg = MySlot:Import(text, { force = true })
         T.assert.not_nil(msg)
         MySlot:RecoverData(msg, recover_opt())
+
+        -- Let the macro RecoverData just created commit before querying it.
+        T.yield()
 
         local found_id, found_body = find_macro_by_name(NAME)
         T.assert.not_nil(found_id)
@@ -155,6 +185,9 @@ T.describe("in-game: macro round-trip (via WoW API)", function()
 
         local msg = MySlot:Import(text, { force = true })
         MySlot:RecoverData(msg, recover_opt())
+
+        -- Let the macro RecoverData just created commit before querying it.
+        T.yield()
 
         local new_mid, new_body = find_macro_by_name(NAME)
         T.assert.not_nil(new_mid)

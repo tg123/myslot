@@ -11,6 +11,11 @@ local function full_opt()
     }
 end
 
+-- Empty protobuf repeated fields decode to nil (not an empty table), so a
+-- character/state with e.g. no action slots yields msg.slot == nil. Treat that
+-- as length 0 instead of erroring on #nil.
+local function len(t) return t and #t or 0 end
+
 T.describe("Export/Import round-trip", function()
 
     T.it("Export+Import produces a parseable message", function()
@@ -60,15 +65,15 @@ T.describe("Export/Import round-trip", function()
         T.assert.not_nil(m1)
         T.assert.not_nil(m2)
         T.assert.equal(m1.ver, m2.ver)
-        T.assert.equal(#m1.slot,  #m2.slot)
-        T.assert.equal(#m1.macro, #m2.macro)
-        T.assert.equal(#m1.bind,  #m2.bind)
-        for i = 1, #m1.slot do
+        T.assert.equal(len(m1.slot),  len(m2.slot))
+        T.assert.equal(len(m1.macro), len(m2.macro))
+        T.assert.equal(len(m1.bind),  len(m2.bind))
+        for i = 1, len(m1.slot) do
             T.assert.equal(m1.slot[i].id,    m2.slot[i].id,    "slot["..i.."].id")
             T.assert.equal(m1.slot[i].type,  m2.slot[i].type,  "slot["..i.."].type")
             T.assert.equal(m1.slot[i].index, m2.slot[i].index, "slot["..i.."].index")
         end
-        for i = 1, #m1.macro do
+        for i = 1, len(m1.macro) do
             T.assert.equal(m1.macro[i].name, m2.macro[i].name)
             T.assert.equal(m1.macro[i].body, m2.macro[i].body)
             T.assert.equal(m1.macro[i].icon, m2.macro[i].icon)

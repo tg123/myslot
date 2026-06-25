@@ -8,6 +8,7 @@ ADDONSELF.crc32 = {}
 local crc32 = ADDONSELF.crc32
 
 local bit_band, bit_bxor, bit_rshift = bit.band, bit.bxor, bit.rshift
+local co_running, co_yield = coroutine.running, coroutine.yield
 local consts = {
     0x00000000, 0x77073096, 0xEE0E612C, 0x990951BA, 0x076DC419, 0x706AF48F,
     0xE963A535, 0x9E6495A3, 0x0EDB8832, 0x79DCB8A4, 0xE0D5E91E, 0x97D2D988,
@@ -58,6 +59,15 @@ local function enc(t)
     local crc, l = 0xFFFFFFFF, #t
     for i = 1, l do
         crc = bit_bxor(bit_rshift(crc, 8), consts[bit_band(bit_bxor(crc, t[i]), 0xFF) + 1])
+        -- Hashing a large payload (e.g. all 180 action slots plus bindings) is a
+        -- long, tight loop that can trip WoW's "script ran too long" watchdog.
+        -- When running inside a coroutine (async import/export or the test
+        -- harness), yield periodically so the watchdog resets. No-op on the main
+        -- thread.
+        if i % 1024 == 0 then
+            local co, isMain = co_running()
+            if co and not isMain then co_yield() end
+        end
     end
     return bit_bxor(crc, -1)
 end

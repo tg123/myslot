@@ -35,6 +35,62 @@ f:Hide()
 
 MySlot.MainFrame = f
 
+-- {{{ Import progress bar
+-- Shown while a large profile is restored. RecoverData now runs across frames
+-- (MySlot:RunAsync) so it can't trip the "script ran too long" watchdog on big
+-- profiles (notably WoW Classic Era 1.15, which has a stricter script budget).
+local progressFrame = CreateFrame("Frame", nil, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+progressFrame:SetSize(360, 70)
+progressFrame:SetPoint("CENTER", 0, 0)
+progressFrame:SetFrameStrata("FULLSCREEN_DIALOG")
+progressFrame:SetToplevel(true)
+progressFrame:SetBackdrop({
+    bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+    tile = true,
+    tileSize = 32,
+    edgeSize = 32,
+    insets = {left = 8, right = 8, top = 8, bottom = 8}
+})
+progressFrame:SetBackdropColor(0, 0, 0)
+progressFrame:Hide()
+
+local progressText = progressFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+progressText:SetPoint("TOP", 0, -14)
+
+local progressBar = CreateFrame("StatusBar", nil, progressFrame)
+progressBar:SetSize(320, 18)
+progressBar:SetPoint("BOTTOM", 0, 16)
+progressBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+progressBar:SetStatusBarColor(0.2, 0.6, 1.0)
+progressBar:SetMinMaxValues(0, 1)
+progressBar:SetValue(0)
+
+local progressBg = progressBar:CreateTexture(nil, "BACKGROUND")
+progressBg:SetAllPoints(progressBar)
+progressBg:SetColorTexture(0, 0, 0, 0.6)
+
+local function ShowImportProgress()
+    progressBar:SetValue(0)
+    progressText:SetText(L["Importing..."])
+    progressFrame:Show()
+end
+
+local function SetImportProgress(frac)
+    frac = frac or 0
+    if frac < 0 then frac = 0 elseif frac > 1 then frac = 1 end
+    progressBar:SetValue(frac)
+    progressText:SetText(("%s %d%%"):format(L["Importing..."], math.floor(frac * 100 + 0.5)))
+end
+
+local function HideImportProgress(ok)
+    progressFrame:Hide()
+    if ok == false then
+        MySlot:Print(L["Import failed"])
+    end
+end
+-- }}}
+
 local menuFrame = CreateFrame("Frame", nil, UIParent, "UIDropDownMenuTemplate")
 
 -- title
@@ -478,10 +534,13 @@ do
                 MySlot:Clear("BINDING")
             end
 
-            MySlot:RecoverData(msg, {
-                actionOpt = actionOpt,
-                clearOpt = clearOpt,
-            })
+            ShowImportProgress()
+            MySlot:RunAsync(function()
+                MySlot:RecoverData(msg, {
+                    actionOpt = actionOpt,
+                    clearOpt = clearOpt,
+                })
+            end, SetImportProgress, HideImportProgress)
         end
         StaticPopup_Show("MYSLOT_MSGBOX")
     end)
