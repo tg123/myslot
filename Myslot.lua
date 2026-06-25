@@ -39,6 +39,7 @@ local MYSLOT_EQUIPMENTSET = _MySlot.Slot.SlotType.EQUIPMENTSET
 local MYSLOT_EMPTY = _MySlot.Slot.SlotType.EMPTY
 local MYSLOT_SUMMONPET = _MySlot.Slot.SlotType.SUMMONPET
 local MYSLOT_SUMMONMOUNT = _MySlot.Slot.SlotType.SUMMONMOUNT
+local MYSLOT_OUTFIT = _MySlot.Slot.SlotType.OUTFIT
 local MYSLOT_NOTFOUND = "notfound"
 
 MySlot.SLOT_TYPE = {
@@ -52,6 +53,7 @@ MySlot.SLOT_TYPE = {
     ["equipmentset"] = MYSLOT_EQUIPMENTSET,
     ["summonpet"] = MYSLOT_SUMMONPET,
     ["summonmount"] = MYSLOT_SUMMONMOUNT,
+    ["outfit"] = MYSLOT_OUTFIT,
     [MYSLOT_NOTFOUND] = MYSLOT_EMPTY,
 }
 -- }}}
@@ -260,12 +262,23 @@ end
 -- {{{ GetActionInfo
 function MySlot:GetActionInfo(slotId)
     local slotType, index, subType = GetActionInfo(slotId)
+    local strindexOverride = nil
     if MySlot.SLOT_TYPE[slotType] == MYSLOT_EQUIPMENTSET then
         -- i starts from 0 https://github.com/tg123/myslot/issues/10 weird blz
         for i = 0, C_EquipmentSet.GetNumEquipmentSets() do
             if C_EquipmentSet.GetEquipmentSetInfo(i) == index then
                 index = i
                 break
+            end
+        end
+    elseif MySlot.SLOT_TYPE[slotType] == MYSLOT_OUTFIT then
+        -- `index` is the account-wide outfitID. Also record the outfit name so
+        -- Import can fall back to matching by name when the id doesn't exist
+        -- (e.g. importing someone else's export). https://github.com/tg123/myslot/issues/110
+        if C_TransmogOutfitInfo and C_TransmogOutfitInfo.GetOutfitInfo then
+            local outfitInfo = C_TransmogOutfitInfo.GetOutfitInfo(index)
+            if outfitInfo then
+                strindexOverride = outfitInfo.name
             end
         end
     elseif not MySlot.SLOT_TYPE[slotType] then
@@ -291,6 +304,9 @@ function MySlot:GetActionInfo(slotId)
         msg.index = 0
     else
         msg.index = index
+    end
+    if strindexOverride then
+        msg.strindex = strindexOverride
     end
     return msg
 end
@@ -936,6 +952,24 @@ function MySlot:RecoverData(msg, opt)
                         PickupAction(slotId)
                     elseif slotType == MYSLOT_EQUIPMENTSET then
                         C_EquipmentSet.PickupEquipmentSet(index)
+                    elseif slotType == MYSLOT_OUTFIT then
+                        if C_TransmogOutfitInfo and C_TransmogOutfitInfo.PickupOutfit then
+                            C_TransmogOutfitInfo.PickupOutfit(index)
+
+                            -- id may not exist on this character/account; fall
+                            -- back to matching the saved outfit by name.
+                            if not GetCursorInfo() and strindex and strindex ~= ""
+                                and C_TransmogOutfitInfo.GetOutfitInfoByName then
+                                local outfitInfo = C_TransmogOutfitInfo.GetOutfitInfoByName(strindex)
+                                if outfitInfo then
+                                    C_TransmogOutfitInfo.PickupOutfit(outfitInfo.outfitID)
+                                end
+                            end
+
+                            if not GetCursorInfo() then
+                                MySlot:Print(L["Ignore unknown outfit [id=%s, name=%s]"]:format(index, strindex or ""))
+                            end
+                        end
                     end
 
                     if GetCursorInfo() then

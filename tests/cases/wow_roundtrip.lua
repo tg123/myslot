@@ -377,6 +377,21 @@ T.describe("in-game: slot type round-trip (per type)", function()
         end)
     end))
 
+    T.it("type=outfit", in_game(function()
+        if not (C_TransmogOutfitInfo and C_TransmogOutfitInfo.GetOutfitsInfo and C_TransmogOutfitInfo.PickupOutfit) then
+            T.skip("no transmog outfit API")
+        end
+        local outfits = C_TransmogOutfitInfo.GetOutfitsInfo()
+        if not outfits or #outfits == 0 then T.skip("no saved outfits") end
+        local outfitID = outfits[1].outfitID
+        roundtrip(function(s)
+            ClearCursor()
+            C_TransmogOutfitInfo.PickupOutfit(outfitID)
+            PlaceAction(s)
+            ClearCursor()
+        end)
+    end))
+
     T.it("type=flyout", in_game(function()
         local flyoutID
         for tab = 1, (GetNumSpellTabs and GetNumSpellTabs() or 0) do

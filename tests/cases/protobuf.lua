@@ -48,4 +48,17 @@ T.describe("protobuf Charactor message", function()
         T.assert.equal(7, out.id)
         T.assert.equal("ASSISTEDCOMBAT", out.strindex)
     end)
+
+    T.it("round-trips an outfit slot (id + name)", function()
+        local s = _MySlot.Slot()
+        s.id = 42
+        s.type = _MySlot.Slot.SlotType.OUTFIT
+        s.index = 1234
+        s.strindex = "My Cool Outfit"
+        local out = _MySlot.Slot():Parse(s:Serialize())
+        T.assert.equal(42, out.id)
+        T.assert.equal(1234, out.index)
+        T.assert.equal("My Cool Outfit", out.strindex)
+        T.assert.equal(_MySlot.Slot.SlotType.OUTFIT, _MySlot.Slot.SlotType[out.type])
+    end)
 end)
