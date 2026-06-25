@@ -79,7 +79,6 @@ read_globals = {
     "GetSpecializationInfo",
     "GetSpellBookItemInfo",
     "GetSpellTabInfo",
-    "geterrorhandler",
     "GetTalentInfo",
     "GetTalentTabInfo",
     "InCombatLockdown",

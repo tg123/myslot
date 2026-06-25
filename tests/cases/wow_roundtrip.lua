@@ -36,8 +36,20 @@ local function find_macro_by_name(name)
     return nil
 end
 
--- Every macro the suite creates is named "Myslot..." (MyslotE2E/MyslotBar/
--- MyslotT). RecoverData never deletes macros (removing a user's macros would be
+-- Every macro the suite creates uses one of these exact prefixes. We match only
+-- these (not a broad "^Myslot") so running /myslottest never deletes a player's
+-- real macros that happen to start with "Myslot".
+local TEST_MACRO_PREFIXES = { "MyslotE2E", "MyslotBar", "MyslotT" }
+
+local function is_test_macro(name)
+    if not name then return false end
+    for _, prefix in ipairs(TEST_MACRO_PREFIXES) do
+        if name:sub(1, #prefix) == prefix then return true end
+    end
+    return false
+end
+
+-- RecoverData never deletes macros (removing a user's macros would be
 -- destructive), so snapshot/restore can't reclaim what a test created. Without
 -- this purge those macros pile up across runs until the 120-macro account cap
 -- fills and CreateMacro starts failing. Collect matches in one pass, then delete
@@ -47,7 +59,7 @@ local function purge_test_macros()
     local hits = {}
     for i = 1, MAX_MACROS do
         local n = GetMacroInfo(i)
-        if n and n:match("^Myslot") then hits[#hits + 1] = i end
+        if is_test_macro(n) then hits[#hits + 1] = i end
     end
     for j = #hits, 1, -1 do
         DeleteMacro(hits[j])

@@ -52,6 +52,7 @@ tests\cases\base64.lua
 tests\cases\crc32.lua
 tests\cases\protobuf.lua
 tests\cases\roundtrip.lua
+tests\cases\runasync.lua
 tests\cases\wow_roundtrip.lua
 tests\runner.lua
 #@end-debug@

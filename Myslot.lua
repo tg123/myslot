@@ -58,6 +58,11 @@ MySlot.SLOT_TYPE = {
 
 local MYSLOT_BIND_CUSTOM_FLAG = 0xFFFF
 
+-- WoW provides geterrorhandler(); plain Lua (CI / standalone harness) does not.
+-- Resolve it once with a print-based fallback so RunAsync's error paths never
+-- raise "attempt to call a nil value" and mask the original error.
+local geterrorhandler = _G.geterrorhandler or function() return print end
+
 -- Yield back to the WoW runtime when running inside a coroutine (e.g. the test
 -- harness, or any future async import/export driver). This lets the per-script
 -- watchdog ("script ran too long") reset between heavy phases. It is a no-op on
