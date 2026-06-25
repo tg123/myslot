@@ -58,14 +58,78 @@ MySlot.SLOT_TYPE = {
 
 local MYSLOT_BIND_CUSTOM_FLAG = 0xFFFF
 
+-- WoW provides geterrorhandler(); plain Lua (CI / standalone harness) does not.
+-- Resolve it once with a print-based fallback so RunAsync's error paths never
+-- raise "attempt to call a nil value" and mask the original error.
+local geterrorhandler = _G.geterrorhandler or function() return print end
+
+-- Yield back to the WoW runtime when running inside a coroutine (e.g. the test
+-- harness, or any future async import/export driver). This lets the per-script
+-- watchdog ("script ran too long") reset between heavy phases. It is a no-op on
+-- the main thread, so synchronous callers (the GUI import path) are unaffected.
+local function MaybeYield(progress)
+    -- coroutine.running() returns nil on the main thread in Lua 5.1, but
+    -- (thread, true) on the main thread in LuaJIT. The second return value tells
+    -- the two apart so this stays a true no-op when not actually in a coroutine.
+    -- The optional `progress` (0..1) is forwarded to the async runner so callers
+    -- like RecoverData can drive a progress bar; synchronous callers ignore it.
+    local co, isMain = coroutine.running()
+    if co and not isMain then
+        coroutine.yield(progress)
+    end
+end
+
+-- Run fn() inside a coroutine, pumping it one step per frame with C_Timer so
+-- heavy work (e.g. importing a large profile) yields back to the WoW runtime and
+-- never trips the "script ran too long" watchdog. Values yielded by fn (a 0..1
+-- progress fraction, via MaybeYield) are forwarded to onProgress; onDone(ok) is
+-- called when the coroutine finishes or errors. Falls back to a synchronous call
+-- when no frame scheduler is available (CI / very old clients).
+function MySlot:RunAsync(fn, onProgress, onDone)
+    if not (C_Timer and C_Timer.After) then
+        local ok, err = pcall(fn)
+        if not ok then
+            geterrorhandler()(err)
+        end
+        if onProgress then onProgress(1) end
+        if onDone then onDone(ok) end
+        return
+    end
+
+    local co = coroutine.create(fn)
+    local function step()
+        local ok, progress = coroutine.resume(co)
+        if not ok then
+            geterrorhandler()(progress)
+            if onDone then onDone(false) end
+            return
+        end
+        if coroutine.status(co) == "dead" then
+            if onProgress then onProgress(1) end
+            if onDone then onDone(true) end
+            return
+        end
+        if onProgress and type(progress) == "number" then
+            onProgress(progress)
+        end
+        C_Timer.After(0, step)
+    end
+    step()
+end
+
 -- {{{ MergeTable
 -- return item count merge into target
 local function MergeTable(target, source)
     if source then
         assert(type(target) == 'table' and type(source) == 'table')
+        local n = 0
         for _, b in ipairs(source) do
             assert(b < 256)
             target[#target + 1] = b
+            n = n + 1
+            if n % 1024 == 0 then
+                MaybeYield()
+            end
         end
         return #source
     else
@@ -82,6 +146,9 @@ local function StringToTable(s)
     local r = {}
     for i = 1, string.len(s) do
         r[#r + 1] = string.byte(s, i)
+        if i % 1024 == 0 then
+            MaybeYield()
+        end
     end
     return r
 end
@@ -91,8 +158,13 @@ local function TableToString(s)
         return ''
     end
     local t = {}
+    local n = 0
     for _, c in pairs(s) do
         t[#t + 1] = string.char(c)
+        n = n + 1
+        if n % 1024 == 0 then
+            MaybeYield()
+        end
     end
     return table.concat(t)
 end
@@ -390,6 +462,11 @@ function MySlot:Export(opt)
             end
         end
 
+        -- Yield once per action bar (12 slots) so scanning all 180 slots can't
+        -- trip the "script ran too long" watchdog. No-op outside a coroutine.
+        if i % 12 == 0 then
+            MaybeYield()
+        end
     end
 
     msg.bind = {}
@@ -398,6 +475,9 @@ function MySlot:Export(opt)
             local m = self:GetBindingInfo(i)
             if m then
                 msg.bind[#msg.bind + 1] = m
+            end
+            if i % 32 == 0 then
+                MaybeYield()
             end
         end
     end
@@ -524,13 +604,11 @@ local function UnifyCRLF(text)
     return strtrim(text)
 end
 
--- Find macro by index/name/body
-function MySlot:FindMacro(macroInfo)
-    if not macroInfo then
-        return
-    end
-    -- cache local macro index
-    -- {{{
+-- Build a lookup of the character's current macros keyed by both "name_body"
+-- and "body". Scanning all 138 macro slots is expensive, so callers that do
+-- many lookups (RecoverData) should build this once and reuse it instead of
+-- rebuilding per lookup.
+function MySlot:BuildMacroIndex()
     local localMacro = {}
     for i = 1, MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS do
         local name, _, body = GetMacroInfo(i)
@@ -539,9 +617,21 @@ function MySlot:FindMacro(macroInfo)
             localMacro[name .. "_" .. body] = i
             localMacro[body] = i
         end
+        if i % 30 == 0 then
+            MaybeYield()
+        end
     end
-    -- }}}
+    return localMacro
+end
 
+-- Find macro by index/name/body. Pass a prebuilt localMacro index (see
+-- BuildMacroIndex) to avoid rescanning every macro slot on each call.
+function MySlot:FindMacro(macroInfo, localMacro)
+    if not macroInfo then
+        return
+    end
+
+    localMacro = localMacro or MySlot:BuildMacroIndex()
 
     local name = macroInfo["name"]
     local body = macroInfo["body"]
@@ -552,12 +642,14 @@ function MySlot:FindMacro(macroInfo)
 end
 
 -- {{{ FindOrCreateMacro
-function MySlot:FindOrCreateMacro(macroInfo)
+function MySlot:FindOrCreateMacro(macroInfo, localMacro)
     if not macroInfo then
         return
     end
 
-    local localIndex = MySlot:FindMacro(macroInfo)
+    localMacro = localMacro or MySlot:BuildMacroIndex()
+
+    local localIndex = MySlot:FindMacro(macroInfo, localMacro)
     if localIndex then
         return localIndex
     else
@@ -588,6 +680,10 @@ function MySlot:FindOrCreateMacro(macroInfo)
             end
             local newid = CreateMacro(name, icon, body, perchar >= 2)
             if newid then
+                -- Keep the shared index in sync so later lookups in the same
+                -- recovery pass find this macro instead of creating a duplicate.
+                localMacro[name .. "_" .. body] = newid
+                localMacro[body] = newid
                 return newid
             end
         end
@@ -674,8 +770,25 @@ function MySlot:RecoverData(msg, opt)
 
     local slotBucket = {}
 
+    -- Progress accounting for the async runner / progress bar. Total work is the
+    -- number of macros + action slots to restore + the clear-unused sweep. Each
+    -- yield below reports the running fraction; nil-safe when fields are empty.
+    local numMacro = msg.macro and #msg.macro or 0
+    local numSlot  = msg.slot and #msg.slot or 0
+    local totalWork = numMacro + numSlot + MYSLOT_MAX_ACTIONBAR
+    local function pct(done)
+        if totalWork <= 0 then return nil end
+        return done / totalWork
+    end
+
     -- {{{ Macro
     local macro = {}
+
+    -- Build the local macro index once and reuse it for every lookup below.
+    -- Rebuilding it per FindMacro/FindOrCreateMacro call scans all 138 macro
+    -- slots each time, which on large payloads trips WoW's "script ran too long"
+    -- watchdog and can leave duplicate macros behind.
+    local localMacro = MySlot:BuildMacroIndex()
 
     for _, s in pairs(msg.slot or {}) do
         local slotId = s.id
@@ -691,10 +804,10 @@ function MySlot:RecoverData(msg, opt)
         end
     end
 
+    local macroProcessed = 0
     for _, m in pairs(msg.macro or {}) do
         local macroId = m.id
         local icon = m.icon
-
         local name = m.name
         local body = m.body
 
@@ -710,11 +823,11 @@ function MySlot:RecoverData(msg, opt)
         if (not opt.actionOpt.ignoreMacros["ACCOUNT"] and macroId <= MAX_ACCOUNT_MACROS)
         or (not opt.actionOpt.ignoreMacros["CHARACTOR"] and macroId > MAX_ACCOUNT_MACROS)
         then
-            newid = self:FindOrCreateMacro(info)
+            newid = self:FindOrCreateMacro(info, localMacro)
         end
 
         if not newid then
-            newid = self:FindMacro(info)
+            newid = self:FindMacro(info, localMacro)
         end
 
         if newid then
@@ -727,10 +840,14 @@ function MySlot:RecoverData(msg, opt)
         else
             MySlot:Print(L["Ignore unknown macro [id=%s]"]:format(macroId))
         end
+
+        macroProcessed = macroProcessed + 1
+        MaybeYield(pct(macroProcessed))
     end
     -- }}} Macro
 
 
+    local slotProcessed = 0
     for _, s in pairs(msg.slot or {}) do
         local slotId = s.id
         local slotType = _MySlot.Slot.SlotType[s.type]
@@ -829,8 +946,14 @@ function MySlot:RecoverData(msg, opt)
             end) then
             MySlot:Print(L["[WARN] Ignore slot due to an unknown error DEBUG INFO = [S=%s T=%s I=%s] Please send Importing Text and DEBUG INFO to %s"]:format(slotId, slotType, index, MYSLOT_AUTHOR))
         end
+
+        slotProcessed = slotProcessed + 1
+        if slotProcessed % 12 == 0 then
+            MaybeYield(pct(numMacro + slotProcessed))
+        end
     end
 
+    local clearProcessed = 0
     for i = 1, MYSLOT_MAX_ACTIONBAR do
         if not opt.actionOpt.ignoreActionBars[math.ceil(i / 12)] and not slotBucket[i] then
             if GetActionInfo(i) then
@@ -838,10 +961,16 @@ function MySlot:RecoverData(msg, opt)
                 ClearCursor()
             end
         end
+
+        clearProcessed = clearProcessed + 1
+        if clearProcessed % 12 == 0 then
+            MaybeYield(pct(numMacro + numSlot + clearProcessed))
+        end
     end
 
     if not opt.actionOpt.ignoreBinding then
 
+        local bindProcessed = 0
         for _, b in pairs(msg.bind or {}) do
             local command = b.command
             if b.id ~= MYSLOT_BIND_CUSTOM_FLAG then
@@ -875,6 +1004,11 @@ function MySlot:RecoverData(msg, opt)
                      bindingContext = C_KeyBindings.GetBindingContextForAction(command)
                 end
                 SetBinding(key, command, bindingContext)
+            end
+
+            bindProcessed = bindProcessed + 1
+            if bindProcessed % 32 == 0 then
+                MaybeYield()
             end
         end
         SaveBindings(GetCurrentBindingSet())

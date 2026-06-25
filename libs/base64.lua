@@ -12,12 +12,23 @@ local CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 local function enc(data)
     local t = {}
 
+    local n = 0
     for _, x in pairs(data) do
         local r, b = '', x
         for i = 8, 1, -1 do
             r = r .. (b % 2 ^ i - b % 2 ^ (i - 1) > 0 and '1' or '0')
         end
         t[#t + 1] = r
+        n = n + 1
+        -- Encoding a large payload is a long, tight loop that can trip WoW's
+        -- "script ran too long" watchdog. When inside a coroutine (async
+        -- import/export or the test harness), yield periodically so the watchdog
+        -- resets. No-op on the main thread. NB: we can only yield here, not in
+        -- the gsub callbacks below, since Lua 5.1 can't yield across a C call.
+        if n % 1024 == 0 then
+            local co, isMain = coroutine.running()
+            if co and not isMain then coroutine.yield() end
+        end
     end
 
     t[#t + 1] = '0000'
