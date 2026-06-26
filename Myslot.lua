@@ -20,6 +20,10 @@ local GetSpellInfo = C_Spell and C_Spell.GetSpellName or _G.GetSpellInfo
 local GetSpellLink = C_Spell and C_Spell.GetSpellLink or _G.GetSpellLink
 local PickupSpellBookItem = C_SpellBook and C_SpellBook.PickupSpellBookItem or _G.PickupSpellBookItem
 local GetAddOnMetadata = (C_AddOns and C_AddOns.GetAddOnMetadata) and C_AddOns.GetAddOnMetadata or _G.GetAddOnMetadata
+-- GetFlyoutInfo is retail-only (nil on Classic 2.5.x); fall back to a no-op so
+-- importing a retail profile's flyout slot degrades to "ignore unlearned skill"
+-- instead of throwing the generic "unknown error" inside RecoverData.
+local GetFlyoutInfo = _G.GetFlyoutInfo or function() return nil end
 -- TWW Beta Compat End
 -- Polyfill for deprecated Blizzard Macro Globals in Midnight 12.1
 local MAX_ACCOUNT_MACROS = MAX_ACCOUNT_MACROS or 120
