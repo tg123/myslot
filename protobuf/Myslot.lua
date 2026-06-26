@@ -13,11 +13,13 @@ local t = {
    {5},
    {6},
    {7},
+   {38},
    ["Bind"]={6},
    ["Slot"]={4},
    ["Macro"]={5},
    ["Charactor"]={3},
    ["Key"]={7},
+   ["ClickBinding"]={38},
 },
 -- Table: {3}
 {
@@ -57,6 +59,7 @@ local t = {
    {16},
    {17},
    {18},
+   {40},
    {19},
    {20},
    ["ver"]={19},
@@ -66,6 +69,7 @@ local t = {
    ["petslot"]={17},
    ["name"]={20},
    ["cooldownManager"]={18},
+   ["clickBinding"]={40},
 },
 -- Table: {9}
 {
@@ -318,6 +322,63 @@ local t = {
    ["MACRO"]=3,
    ["COMPANION"]=8,
    ["EQUIPMENTSET"]=6,
+},
+-- Table: {38}
+{
+   ["fields"]={39},
+   ["name"]="ClickBinding",
+   [".type"]="message",
+},
+-- Table: {39}
+{
+   {41},
+   {42},
+   {43},
+   {44},
+   ["type"]={41},
+   ["actionID"]={42},
+   ["button"]={43},
+   ["modifiers"]={44},
+},
+-- Table: {40}
+{
+   ["ftype"]="ClickBinding",
+   ["name"]="clickBinding",
+   [".type"]="field",
+   ["rule"]="repeated",
+   ["tag"]=6,
+},
+-- Table: {41}
+{
+   ["ftype"]="uint32",
+   ["name"]="type",
+   [".type"]="field",
+   ["rule"]="required",
+   ["tag"]=1,
+},
+-- Table: {42}
+{
+   ["ftype"]="uint32",
+   ["name"]="actionID",
+   [".type"]="field",
+   ["rule"]="required",
+   ["tag"]=2,
+},
+-- Table: {43}
+{
+   ["ftype"]="string",
+   ["name"]="button",
+   [".type"]="field",
+   ["rule"]="optional",
+   ["tag"]=3,
+},
+-- Table: {44}
+{
+   ["ftype"]="uint32",
+   ["name"]="modifiers",
+   [".type"]="field",
+   ["rule"]="optional",
+   ["tag"]=4,
 },
 }
    local function loadast()

@@ -74,6 +74,26 @@ function T.assert.not_nil(v, msg)
     if v == nil then error(msg or "expected non-nil", 2) end
 end
 
+-- Shared default printer: WoW chat frame in-game, plain print in CI.
+local function default_printer(line)
+    if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
+        DEFAULT_CHAT_FRAME:AddMessage(line)
+    else
+        print(line)
+    end
+end
+
+-- T._printer is repointed at the active run's printer so T.log() lands in the
+-- same output stream as the ok/skip/FAIL lines. Tests call T.log(...) to emit
+-- indented "debug:" diagnostics that show up between result lines.
+T._printer = default_printer
+function T.log(...)
+    local n = select("#", ...)
+    local parts = {}
+    for i = 1, n do parts[i] = tostring((select(i, ...))) end
+    T._printer("         debug: " .. table.concat(parts, " "))
+end
+
 -- printer(line) defaults to print outside WoW, DEFAULT_CHAT_FRAME inside.
 -- T.run(printer, on_done):
 --   * If on_done is provided, runs async: each test runs in a coroutine and
@@ -149,13 +169,8 @@ local function record(state, suite, test, ok, err)
 end
 
 function T.run(printer, on_done)
-    printer = printer or function(line)
-        if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
-            DEFAULT_CHAT_FRAME:AddMessage(line)
-        else
-            print(line)
-        end
-    end
+    printer = printer or default_printer
+    T._printer = printer
 
     local state = {
         printer = printer, passed = 0, failed = 0, skipped = 0, failures = {},
