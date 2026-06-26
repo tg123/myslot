@@ -67,64 +67,38 @@ RegEvent("ADDON_LOADED", function()
         t:SetPoint("TOPLEFT", f, 15, doffset)
     end
 
-    do
+    -- Running vertical cursor so hidden rows (e.g. Cooldown Manager on Classic)
+    -- don't leave a gap; each row advances the offset by 30px.
+    local rowy = doffset - 20
+    local function AddClearButton(text, what)
         local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
         b:SetWidth(240)
         b:SetHeight(25)
-        b:SetPoint("TOPLEFT", 15, doffset - 20)
-        b:SetText(L["Remove everything in ActionBar"])
+        b:SetPoint("TOPLEFT", 15, rowy)
+        b:SetText(text)
         b:SetScript("OnClick", function()
-            StaticPopup_Show("MYSLOT_CONFIRM_CLEAR", "ACTION", nil, "ACTION")
+            StaticPopup_Show("MYSLOT_CONFIRM_CLEAR", what, nil, what)
         end)
+        rowy = rowy - 30
     end
 
-    do
-        local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
-        b:SetWidth(240)
-        b:SetHeight(25)
-        b:SetPoint("TOPLEFT", 15, doffset - 50)
-        b:SetText(L["Remove all Key Bindings"])
-        b:SetScript("OnClick", function()
-            StaticPopup_Show("MYSLOT_CONFIRM_CLEAR", "BINDING", nil, "BINDING")
-        end)
+    AddClearButton(L["Remove everything in ActionBar"], "ACTION")
+    AddClearButton(L["Remove all Key Bindings"], "BINDING")
+    AddClearButton(L["Remove all Macros"], "MACRO")
+
+    -- Cooldown Manager is retail-only; only offer it where supported.
+    if MySlot:IsCooldownManagerSupported() then
+        AddClearButton(L["Remove all Cooldown Manager"], "COOLDOWNMANAGER")
     end
 
-    do
-        local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
-        b:SetWidth(240)
-        b:SetHeight(25)
-        b:SetPoint("TOPLEFT", 15, doffset - 80)
-        b:SetText(L["Remove all Macros"])
-        b:SetScript("OnClick", function()
-            StaticPopup_Show("MYSLOT_CONFIRM_CLEAR", "MACRO", nil, "MACRO")
-        end)
-    end
-
-    do
-        local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
-        b:SetWidth(240)
-        b:SetHeight(25)
-        b:SetPoint("TOPLEFT", 15, doffset - 110)
-        b:SetText(L["Remove all Cooldown Manager"])
-        b:SetScript("OnClick", function()
-            StaticPopup_Show("MYSLOT_CONFIRM_CLEAR", "COOLDOWNMANAGER", nil, "COOLDOWNMANAGER")
-        end)
-    end
-
-    do
-        local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
-        b:SetWidth(240)
-        b:SetHeight(25)
-        b:SetPoint("TOPLEFT", 15, doffset - 140)
-        b:SetText(L["Remove all Click Cast Bindings"])
-        b:SetScript("OnClick", function()
-            StaticPopup_Show("MYSLOT_CONFIRM_CLEAR", "CLICKBINDING", nil, "CLICKBINDING")
-        end)
+    -- Click Cast Bindings are retail-only; only offer it where supported.
+    if MySlot:IsClickBindingSupported() then
+        AddClearButton(L["Remove all Click Cast Bindings"], "CLICKBINDING")
     end
 
     do
         local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
-        b:SetPoint("TOPLEFT", f, 15, doffset - 170)
+        b:SetPoint("TOPLEFT", f, 15, rowy)
 
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)

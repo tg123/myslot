@@ -512,7 +512,7 @@ function MySlot:Export(opt)
         end
     end
 
-    if not opt.ignoreCooldownManager and C_CooldownViewer and C_CooldownViewer.GetLayoutData then
+    if not opt.ignoreCooldownManager and self:IsCooldownManagerSupported() then
         local layout = C_CooldownViewer.GetLayoutData()
         if layout and layout ~= "" then
             msg.cooldownManager = layout
@@ -520,7 +520,7 @@ function MySlot:Export(opt)
     end
 
     msg.clickBinding = {}
-    if not opt.ignoreClickBindings and C_ClickBindings and C_ClickBindings.GetProfileInfo then
+    if not opt.ignoreClickBindings and self:IsClickBindingSupported() then
         for _, info in ipairs(C_ClickBindings.GetProfileInfo()) do
             local c = _MySlot.ClickBinding()
             c.type = info.type
@@ -894,6 +894,64 @@ local function MoveAllCooldownsToNotDisplayed()
     return true
 end
 
+-- Cooldown Manager (Cooldown Viewer) is retail-only in practice. Its
+-- Blizzard_CooldownViewer addon carries "## AllowLoadGameType: standard", so it
+-- only loads on retail. The C_CooldownViewer C-namespace (incl. GetLayoutData,
+-- SetLayoutData and even IsCooldownViewerAvailable) is ALSO present on Classic
+-- clients where that addon never loads, so neither a namespace check nor
+-- IsCooldownViewerAvailable() can tell the two apart. Detect the addon actually
+-- being loaded (which also guarantees CooldownViewerSettings, used by import).
+local IsAddOnLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or _G.IsAddOnLoaded
+function MySlot:IsCooldownManagerSupported()
+    return IsAddOnLoaded
+        and IsAddOnLoaded("Blizzard_CooldownViewer")
+        and C_CooldownViewer
+        and C_CooldownViewer.GetLayoutData
+        and C_CooldownViewer.SetLayoutData
+        and true
+        or false
+end
+
+-- Click Cast Bindings (C_ClickBindings) are retail-only. Unlike C_CooldownViewer,
+-- the namespace is genuinely ABSENT on Classic (Blizzard's own SecureTemplates
+-- notes "If Classic has ClickBindings someday, remove this"), so a namespace
+-- check is sufficient and correct here.
+function MySlot:IsClickBindingSupported()
+    return C_ClickBindings
+        and C_ClickBindings.GetProfileInfo
+        and C_ClickBindings.SetProfileByInfo
+        and true
+        or false
+end
+
+-- The pet action bar exists on every client, but only some classes can ever
+-- control a pet (and thus have a pet action bar). The player's class is fixed
+-- for the session, so this is a stable signal for hiding the pet option for
+-- classes that can never have a pet (unlike HasPetUI, which tracks whether a
+-- pet is currently out).
+local PET_CAPABLE_CLASSES = {
+    HUNTER = true,
+    WARLOCK = true,
+    DEATHKNIGHT = true,
+}
+-- Mages only gain a controllable pet (Water Elemental) with its own pet action
+-- bar on WotLK and later; on Vanilla/TBC-era clients a mage never has a pet
+-- action bar, so gate them on the client's interface version.
+local MAGE_PET_MIN_INTERFACE = 30000
+function MySlot:IsPetActionBarSupported()
+    local _, class = UnitClass("player")
+    if class == nil then
+        return false
+    end
+    if PET_CAPABLE_CLASSES[class] then
+        return true
+    end
+    if class == "MAGE" then
+        return (select(4, GetBuildInfo()) or 0) >= MAGE_PET_MIN_INTERFACE
+    end
+    return false
+end
+
 function MySlot:RecoverData(msg, opt)
     -- {{{ Cache Spells
     --cache spells
@@ -1217,13 +1275,13 @@ function MySlot:RecoverData(msg, opt)
 
 
     if not opt.actionOpt.ignoreCooldownManager and msg.cooldownManager and msg.cooldownManager ~= ""
-        and C_CooldownViewer and C_CooldownViewer.SetLayoutData then
+        and self:IsCooldownManagerSupported() then
         ApplyCooldownLayout(msg.cooldownManager)
     end
 
 
     if not opt.actionOpt.ignoreClickBindings and not IsEmptyTable(msg.clickBinding)
-        and C_ClickBindings and C_ClickBindings.SetProfileByInfo then
+        and self:IsClickBindingSupported() then
         -- Enum.ClickBindingType.Macro; macros are referenced by index, which the
         -- macro restore above may have relocated, so remap through macroIdMap.
         local MACRO_TYPE = (Enum and Enum.ClickBindingType and Enum.ClickBindingType.Macro) or 2
@@ -1288,13 +1346,15 @@ function MySlot:Clear(what, opt)
         end
         SaveBindings(GetCurrentBindingSet())
     elseif what == "COOLDOWNMANAGER" then
-        MoveAllCooldownsToNotDisplayed()
+        if self:IsCooldownManagerSupported() then
+            MoveAllCooldownsToNotDisplayed()
+        end
     elseif what == "CLICKBINDING" then
         -- Remove all click bindings by committing an empty profile.
         -- (ResetCurrentProfile reverts to the Blizzard default, which isn't "remove
         -- all"; SetProfileByInfo is the real save/commit API.)
         -- SetProfileByInfo is protected in combat, so skip while in combat lockdown.
-        if C_ClickBindings and C_ClickBindings.SetProfileByInfo and not InCombatLockdown() then
+        if self:IsClickBindingSupported() and not InCombatLockdown() then
             C_ClickBindings.SetProfileByInfo({})
         end
     end

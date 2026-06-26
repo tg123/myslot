@@ -110,6 +110,56 @@ T.describe("Export/Import round-trip", function()
         T.assert.equal(nil, msg)
     end)
 
+    T.it("reports cooldown manager support based on the loaded addon", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+
+        -- Stub-backed CI env has Blizzard_CooldownViewer loaded -> supported.
+        T.assert.equal(true, MySlot:IsCooldownManagerSupported())
+
+        -- Classic clients ship the C_CooldownViewer namespace but never load the
+        -- Blizzard_CooldownViewer addon, so support must be false there.
+        _G.WowStub.cooldown_addon_loaded = false
+        T.assert.equal(false, MySlot:IsCooldownManagerSupported())
+        _G.WowStub.cooldown_addon_loaded = true
+    end)
+
+    T.it("reports click binding support based on C_ClickBindings", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+
+        T.assert.equal(true, MySlot:IsClickBindingSupported())
+
+        -- The C_ClickBindings namespace is genuinely absent on Classic.
+        local saved = _G.C_ClickBindings
+        _G.C_ClickBindings = nil
+        T.assert.equal(false, MySlot:IsClickBindingSupported())
+        _G.C_ClickBindings = saved
+    end)
+
+    T.it("reports pet action bar support based on the player's class", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+
+        local saved = _G.WowStub.player.class
+
+        _G.WowStub.player.class = "HUNTER"
+        T.assert.equal(true, MySlot:IsPetActionBarSupported())
+
+        -- A class that can never have a pet hides the pet action bar option.
+        _G.WowStub.player.class = "ROGUE"
+        T.assert.equal(false, MySlot:IsPetActionBarSupported())
+
+        -- Mages only have a controllable pet bar on WotLK+ (interface >= 30000);
+        -- on Vanilla/TBC-era clients the pet option stays hidden for them.
+        local saved_iface = _G.WowStub.interface_version
+        _G.WowStub.player.class = "MAGE"
+        _G.WowStub.interface_version = 110000
+        T.assert.equal(true, MySlot:IsPetActionBarSupported())
+        _G.WowStub.interface_version = 11507
+        T.assert.equal(false, MySlot:IsPetActionBarSupported())
+        _G.WowStub.interface_version = saved_iface
+
+        _G.WowStub.player.class = saved
+    end)
+
     T.it("export captures the cooldown manager layout blob", function()
         -- Drives the C_CooldownViewer stub: Export should pull GetLayoutData()
         -- into msg.cooldownManager. The SetLayoutData import wiring is covered by
