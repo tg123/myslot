@@ -43,6 +43,7 @@ function Stub.reset()
     }
     Stub.cooldown_moves = {}     -- [cooldownID] = category the cooldown was moved to
     Stub.cooldown_saved = false  -- set when SaveCurrentLayout runs
+    Stub.cooldown_addon_loaded = true  -- Blizzard_CooldownViewer loaded? (retail=true)
     Stub.click_bindings = {}     -- vector of ClickBindingInfo {type, actionID, button, modifiers}
 end
 
@@ -112,6 +113,18 @@ C_CooldownViewer = {
         return Stub.cooldown_category_set[category] or {}
     end,
 }
+
+-- C_AddOns.IsAddOnLoaded gates Cooldown Manager support: Blizzard_CooldownViewer
+-- only loads on retail ("## AllowLoadGameType: standard"), while the
+-- C_CooldownViewer C-namespace is present on Classic too. Tests can flip
+-- Stub.cooldown_addon_loaded = false to simulate a Classic client.
+C_AddOns = C_AddOns or {}
+C_AddOns.IsAddOnLoaded = C_AddOns.IsAddOnLoaded or function(name)
+    if name == "Blizzard_CooldownViewer" then
+        return Stub.cooldown_addon_loaded ~= false
+    end
+    return true
+end
 
 -- Pseudo-categories used by the settings UI to represent "Not Displayed".
 Enum = Enum or {}

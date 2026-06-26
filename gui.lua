@@ -347,7 +347,7 @@ local function CreateSettingMenu(opt, onChanged)
         -- end
     end
 
-    return {
+    local menu = {
         {
             text = ACTIONBARS_LABEL,
             hasArrow = true,
@@ -454,6 +454,27 @@ local function CreateSettingMenu(opt, onChanged)
             end,
         }, -- 6
     }
+
+    -- Some categories are retail-only; drop their entries where the client
+    -- doesn't support them (e.g. Classic) so we never offer an option that
+    -- can't apply.
+    local unsupported = {}
+    if not MySlot:IsCooldownManagerSupported() then
+        unsupported[L["Cooldown Manager"]] = true
+    end
+    if not MySlot:IsClickBindingSupported() then
+        unsupported[L["Click Cast Bindings"]] = true
+    end
+    if not MySlot:IsPetActionBarSupported() then
+        unsupported[PET .. " " .. ACTIONBARS_LABEL] = true
+    end
+    for i = #menu, 1, -1 do
+        if menu[i].text and unsupported[menu[i].text] then
+            table.remove(menu, i)
+        end
+    end
+
+    return menu
 end
 
 local function AllSettingMenuIgnored(opt)
@@ -483,15 +504,15 @@ local function AllSettingMenuIgnored(opt)
         end
     end
 
-    if not opt.ignorePetActionBar then
+    if MySlot:IsPetActionBarSupported() and not opt.ignorePetActionBar then
         return false
     end
 
-    if not opt.ignoreCooldownManager then
+    if MySlot:IsCooldownManagerSupported() and not opt.ignoreCooldownManager then
         return false
     end
 
-    if not opt.ignoreClickBindings then
+    if MySlot:IsClickBindingSupported() and not opt.ignoreClickBindings then
         return false
     end
 
@@ -641,20 +662,23 @@ do
     end
     tAppendAll(settings, clearMenu)
 
-    tAppendAll(settings, {
-        {
-            text = L["Cooldown Manager"],
-            notCheckable = false,
-            isNotRadio = true,
-            keepShownOnClick = true,
-            func = function ()
-                clearOpt.removeCooldownManager = not clearOpt.removeCooldownManager
-            end,
-            checked = function ()
-                return clearOpt.removeCooldownManager
-            end,
-        },
-    })
+    -- Cooldown Manager "remove all" only makes sense on clients that have it.
+    if MySlot:IsCooldownManagerSupported() then
+        tAppendAll(settings, {
+            {
+                text = L["Cooldown Manager"],
+                notCheckable = false,
+                isNotRadio = true,
+                keepShownOnClick = true,
+                func = function ()
+                    clearOpt.removeCooldownManager = not clearOpt.removeCooldownManager
+                end,
+                checked = function ()
+                    return clearOpt.removeCooldownManager
+                end,
+            },
+        })
+    end
 
     local clearend = #settings
 

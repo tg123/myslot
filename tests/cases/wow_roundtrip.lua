@@ -146,7 +146,13 @@ local function create_test_macro(name, icon, body)
     -- yield once to let it become queryable by name/body before we (or
     -- RecoverData's macro index) look it up. No-op in CI (sync mode).
     T.yield()
-    return id
+    -- Trust the live macro list for the authoritative index: CreateMacro's return
+    -- value is NOT the macro index on Classic Era, so deleting/placing by it would
+    -- target the wrong macro. find_macro_by_name gives the real index on every
+    -- client (and equals CreateMacro's return on retail).
+    local index = find_macro_by_name(name)
+    T.assert.not_nil(index, "macro '" .. name .. "' not queryable after create")
+    return index
 end
 
 -- ---------------------------------------------------------------------------
@@ -478,8 +484,8 @@ end)
 T.describe("in-game: cooldown manager round-trip (via WoW API)", function()
 
     T.it("restores the cooldown manager layout and refreshes the live state", in_game(function()
-        if not (C_CooldownViewer and C_CooldownViewer.GetLayoutData and C_CooldownViewer.SetLayoutData) then
-            T.skip("no cooldown viewer API")
+        if not MySlot:IsCooldownManagerSupported() then
+            T.skip("no cooldown manager support")
         end
         local original = C_CooldownViewer.GetLayoutData()
         if not original or original == "" then T.skip("no cooldown layout configured") end
