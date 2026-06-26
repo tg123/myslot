@@ -508,6 +508,13 @@ function MySlot:Export(opt)
         end
     end
 
+    if not opt.ignoreCooldownManager and C_CooldownViewer and C_CooldownViewer.GetLayoutData then
+        local layout = C_CooldownViewer.GetLayoutData()
+        if layout and layout ~= "" then
+            msg.cooldownManager = layout
+        end
+    end
+
     local ct = msg:Serialize()
     local t = { MYSLOT_VER, 86, 04, 22, 0, 0, 0, 0 }
     MergeTable(t, StringToTable(ct))
@@ -607,7 +614,8 @@ function MySlot:Import(text, opt)
 
     local msg = _MySlot.Charactor():Parse(ct)
 
-    if IsEmptyTable(msg.slot) and IsEmptyTable(msg.bind) and IsEmptyTable(msg.macro) and not force then
+    if IsEmptyTable(msg.slot) and IsEmptyTable(msg.bind) and IsEmptyTable(msg.macro)
+        and (msg.cooldownManager == nil or msg.cooldownManager == "") and not force then
         MySlot:Print(L["Nothing to import"])
         return
     end
@@ -762,6 +770,111 @@ local function CreateFlyoutSpellbookMap()
     end
 
     return flyouts
+end
+
+-- The live Cooldown Manager keeps an in-memory copy of the layouts in
+-- CooldownViewerSettings. Writing the datastore with C_CooldownViewer.SetLayoutData
+-- alone does NOT update that copy, so the visible bars never refresh and the stale
+-- copy overwrites our blob on the next save. To actually apply an imported layout we
+-- push it through the settings serializer, reload the in-memory layouts from the
+-- datastore, activate the layout for the current spec, and notify listeners (the
+-- live viewer and settings panel both refresh on "CooldownViewerSettings.OnDataChanged").
+local function ApplyCooldownLayout(blob)
+    if not (C_CooldownViewer and C_CooldownViewer.SetLayoutData) then
+        return false
+    end
+
+    local settings = CooldownViewerSettings
+    local layoutManager = settings and settings.GetLayoutManager and settings:GetLayoutManager()
+    local serializer = settings and settings.GetSerializer and settings:GetSerializer()
+    local dataProvider = settings and settings.GetDataProvider and settings:GetDataProvider()
+
+    if layoutManager and serializer and dataProvider
+        and serializer.SetSerializedData and serializer.ReadData
+        and layoutManager.InitMemberVariables and layoutManager.ClearActiveLayout
+        and dataProvider.SwitchToBestLayoutForSpec then
+        serializer:SetSerializedData(blob)        -- write datastore + clear serializer cache
+        layoutManager:InitMemberVariables()       -- drop stale in-memory layouts
+        layoutManager:ClearActiveLayout()
+        serializer:ReadData()                     -- re-read layouts from the datastore
+        dataProvider:SwitchToBestLayoutForSpec()  -- activate the layout for the current spec
+
+        if dataProvider.MarkDirty then
+            dataProvider:MarkDirty()
+        end
+
+        if layoutManager.SetHasPendingChanges then
+            layoutManager:SetHasPendingChanges(false)
+        end
+
+        if layoutManager.NotifyListeners then
+            layoutManager:NotifyListeners()       -- refresh the live bars + settings panel
+        end
+    else
+        -- Settings UI unavailable; fall back to a plain datastore write.
+        C_CooldownViewer.SetLayoutData(blob)
+    end
+
+    return true
+end
+
+-- Simulate dragging every cooldown into the "Not Displayed" section of the
+-- Cooldown Manager, mirroring CooldownViewerSettings drag-to-category behavior.
+-- SetLayoutData("") only resets to the Blizzard default layout (which still shows
+-- the default cooldowns), so to actually empty the bars we move each cooldown into
+-- the hidden pseudo-categories (HiddenSpell / HiddenAura) via the settings data
+-- provider and persist the result.
+local function MoveAllCooldownsToNotDisplayed()
+    if not (C_CooldownViewer and C_CooldownViewer.GetCooldownViewerCategorySet) then
+        return false
+    end
+
+    if not (CooldownViewerSettings and CooldownViewerSettings.GetDataProvider) then
+        return false
+    end
+
+    local category = Enum and Enum.CooldownViewerCategory
+    if not category then
+        return false
+    end
+
+    local hiddenByCategory = {
+        [category.Essential] = category.HiddenSpell,
+        [category.Utility] = category.HiddenSpell,
+        [category.TrackedBuff] = category.HiddenAura,
+        [category.TrackedBar] = category.HiddenAura,
+    }
+
+    local dataProvider = CooldownViewerSettings:GetDataProvider()
+    if not (dataProvider and dataProvider.SetCooldownToCategory) then
+        return false
+    end
+
+    for cooldownCategory, hiddenCategory in pairs(hiddenByCategory) do
+        if hiddenCategory ~= nil then
+            local cooldownIDs = C_CooldownViewer.GetCooldownViewerCategorySet(cooldownCategory, true)
+            if cooldownIDs then
+                for _, cooldownID in ipairs(cooldownIDs) do
+                    dataProvider:SetCooldownToCategory(cooldownID, hiddenCategory)
+                end
+            end
+        end
+    end
+
+    if CooldownViewerSettings.SaveCurrentLayout then
+        CooldownViewerSettings:SaveCurrentLayout()
+    end
+
+    if CooldownViewerSettings.RefreshLayout then
+        CooldownViewerSettings:RefreshLayout()
+    end
+
+    local layoutManager = CooldownViewerSettings.GetLayoutManager and CooldownViewerSettings:GetLayoutManager()
+    if layoutManager and layoutManager.NotifyListeners then
+        layoutManager:NotifyListeners()
+    end
+
+    return true
 end
 
 function MySlot:RecoverData(msg, opt)
@@ -1076,6 +1189,12 @@ function MySlot:RecoverData(msg, opt)
     end
 
 
+    if not opt.actionOpt.ignoreCooldownManager and msg.cooldownManager and msg.cooldownManager ~= ""
+        and C_CooldownViewer and C_CooldownViewer.SetLayoutData then
+        ApplyCooldownLayout(msg.cooldownManager)
+    end
+
+
     MySlot:Print(L["All slots were restored"])
 end
 
@@ -1115,5 +1234,7 @@ function MySlot:Clear(what, opt)
             end
         end
         SaveBindings(GetCurrentBindingSet())
+    elseif what == "COOLDOWNMANAGER" then
+        MoveAllCooldownsToNotDisplayed()
     end
 end

@@ -217,6 +217,8 @@ local function CreateSettingMenu(opt, onChanged)
 
     opt.ignorePetActionBar = false
 
+    opt.ignoreCooldownManager = false
+
     -- https://warcraft.wiki.gg/wiki/Action_slot
     local actionbarlist = {
         {
@@ -417,6 +419,22 @@ local function CreateSettingMenu(opt, onChanged)
                 return opt.ignorePetActionBar
             end,
         }, -- 4
+        {
+            text = L["Cooldown Manager"],
+            notCheckable = false,
+            isNotRadio = true,
+            keepShownOnClick = true,
+            func = function ()
+                opt.ignoreCooldownManager = not opt.ignoreCooldownManager
+
+                if onChanged then
+                    onChanged()
+                end
+            end,
+            checked = function ()
+                return opt.ignoreCooldownManager
+            end,
+        }, -- 5
     }
 end
 
@@ -448,6 +466,10 @@ local function AllSettingMenuIgnored(opt)
     end
 
     if not opt.ignorePetActionBar then
+        return false
+    end
+
+    if not opt.ignoreCooldownManager then
         return false
     end
 
@@ -533,6 +555,9 @@ do
             if clearOpt.ignoreBinding then
                 MySlot:Clear("BINDING")
             end
+            if clearOpt.removeCooldownManager then
+                MySlot:Clear("COOLDOWNMANAGER")
+            end
 
             ShowImportProgress()
             MySlot:RunAsync(function()
@@ -577,7 +602,24 @@ do
     })
     tAppendAll(settings, CreateSettingMenu(clearOpt))
 
+    table.remove(settings) -- remove cooldown manager clearOpt, replaced by explicit remove-all below
     table.remove(settings) -- remove pet action bar clearOpt, will support it later
+
+    tAppendAll(settings, {
+        {
+            text = L["Cooldown Manager"],
+            notCheckable = false,
+            isNotRadio = true,
+            keepShownOnClick = true,
+            func = function ()
+                clearOpt.removeCooldownManager = not clearOpt.removeCooldownManager
+            end,
+            checked = function ()
+                return clearOpt.removeCooldownManager
+            end,
+        },
+    })
+
     local clearend = #settings
 
     tAppendAll(settings, {

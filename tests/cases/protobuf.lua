@@ -61,4 +61,11 @@ T.describe("protobuf Charactor message", function()
         T.assert.equal("My Cool Outfit", out.strindex)
         T.assert.equal(_MySlot.Slot.SlotType.OUTFIT, _MySlot.Slot.SlotType[out.type])
     end)
+
+    T.it("round-trips the cooldown manager layout blob", function()
+        local msg = _MySlot.Charactor()
+        msg.cooldownManager = "1|deadbeefBASE64BLOB=="
+        local out = _MySlot.Charactor():Parse(msg:Serialize())
+        T.assert.equal("1|deadbeefBASE64BLOB==", out.cooldownManager)
+    end)
 end)

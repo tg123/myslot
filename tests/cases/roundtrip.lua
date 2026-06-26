@@ -109,4 +109,39 @@ T.describe("Export/Import round-trip", function()
         local msg = MySlot:Import("# only a comment\n", { force = true })
         T.assert.equal(nil, msg)
     end)
+
+    T.it("export captures the cooldown manager layout blob", function()
+        -- Drives the C_CooldownViewer stub: Export should pull GetLayoutData()
+        -- into msg.cooldownManager. The SetLayoutData import wiring is covered by
+        -- the in-game suite (RecoverData isn't CI-safe).
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+        local layout = "1|FAKECOOLDOWNLAYOUTBLOB=="
+        _G.WowStub.cooldown_layout = layout
+
+        local msg = MySlot:Import(MySlot:Export(full_opt()), { force = true })
+        T.assert.equal(layout, msg.cooldownManager)
+
+        -- And it's omitted when there's nothing to export.
+        Host.reset()
+        local msg2 = MySlot:Import(MySlot:Export(full_opt()), { force = true })
+        T.assert.equal(nil, msg2.cooldownManager)
+    end)
+
+    T.it("Clear COOLDOWNMANAGER moves every cooldown to Not Displayed", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+        local Cat = Enum.CooldownViewerCategory
+
+        MySlot:Clear("COOLDOWNMANAGER")
+
+        -- Spell categories (Essential/Utility) move to HiddenSpell,
+        -- aura categories (TrackedBuff/TrackedBar) move to HiddenAura.
+        T.assert.equal(Cat.HiddenSpell, _G.WowStub.cooldown_moves[101])
+        T.assert.equal(Cat.HiddenSpell, _G.WowStub.cooldown_moves[102])
+        T.assert.equal(Cat.HiddenSpell, _G.WowStub.cooldown_moves[201])
+        T.assert.equal(Cat.HiddenAura, _G.WowStub.cooldown_moves[301])
+        T.assert.equal(Cat.HiddenAura, _G.WowStub.cooldown_moves[401])
+        T.assert.equal(true, _G.WowStub.cooldown_saved)
+    end)
 end)
