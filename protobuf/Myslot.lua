@@ -58,59 +58,61 @@ local t = {
    {17},
    {18},
    {19},
-   ["ver"]={18},
+   {20},
+   ["ver"]={19},
    ["bind"]={15},
    ["slot"]={14},
    ["macro"]={16},
    ["petslot"]={17},
-   ["name"]={19},
+   ["name"]={20},
+   ["cooldownManager"]={18},
 },
 -- Table: {9}
 {
-   {20},
    {21},
    {22},
    {23},
-   ["id"]={20},
-   ["type"]={21},
-   ["index"]={22},
-   ["strindex"]={23},
+   {24},
+   ["id"]={21},
+   ["type"]={22},
+   ["index"]={23},
+   ["strindex"]={24},
 },
 -- Table: {10}
 {
-   {24},
-   ["SlotType"]={24},
+   {25},
+   ["SlotType"]={25},
 },
 -- Table: {11}
 {
-   {25},
    {26},
    {27},
    {28},
-   ["id"]={27},
-   ["icon"]={28},
-   ["name"]={25},
-   ["body"]={26},
+   {29},
+   ["id"]={28},
+   ["icon"]={29},
+   ["name"]={26},
+   ["body"]={27},
 },
 -- Table: {12}
 {
-   {29},
    {30},
    {31},
    {32},
-   ["command"]={32},
-   ["key1"]={30},
-   ["id"]={29},
-   ["key2"]={31},
+   {33},
+   ["command"]={33},
+   ["key1"]={31},
+   ["id"]={30},
+   ["key2"]={32},
 },
 -- Table: {13}
 {
-   {33},
    {34},
    {35},
-   ["mod"]={34},
-   ["key"]={33},
-   ["keycode"]={35},
+   {36},
+   ["mod"]={35},
+   ["key"]={34},
+   ["keycode"]={36},
 },
 -- Table: {14}
 {
@@ -146,13 +148,21 @@ local t = {
 },
 -- Table: {18}
 {
+   ["ftype"]="string",
+   ["name"]="cooldownManager",
+   [".type"]="field",
+   ["rule"]="optional",
+   ["tag"]=5,
+},
+-- Table: {19}
+{
    ["ftype"]="uint32",
    ["name"]="ver",
    [".type"]="field",
    ["rule"]="optional",
    ["tag"]=14,
 },
--- Table: {19}
+-- Table: {20}
 {
    ["ftype"]="string",
    ["name"]="name",
@@ -160,7 +170,7 @@ local t = {
    ["rule"]="optional",
    ["tag"]=15,
 },
--- Table: {20}
+-- Table: {21}
 {
    ["ftype"]="uint32",
    ["name"]="id",
@@ -168,7 +178,7 @@ local t = {
    ["rule"]="required",
    ["tag"]=1,
 },
--- Table: {21}
+-- Table: {22}
 {
    ["ftype"]="SlotType",
    ["name"]="type",
@@ -176,7 +186,7 @@ local t = {
    ["rule"]="required",
    ["tag"]=2,
 },
--- Table: {22}
+-- Table: {23}
 {
    ["ftype"]="uint32",
    ["name"]="index",
@@ -184,7 +194,7 @@ local t = {
    ["rule"]="required",
    ["tag"]=3,
 },
--- Table: {23}
+-- Table: {24}
 {
    ["ftype"]="string",
    ["name"]="strindex",
@@ -192,13 +202,13 @@ local t = {
    ["rule"]="optional",
    ["tag"]=4,
 },
--- Table: {24}
+-- Table: {25}
 {
    [".type"]="enum",
    ["name"]="SlotType",
-   ["values"]={36},
+   ["values"]={37},
 },
--- Table: {25}
+-- Table: {26}
 {
    ["ftype"]="string",
    ["name"]="name",
@@ -206,7 +216,7 @@ local t = {
    ["rule"]="required",
    ["tag"]=1,
 },
--- Table: {26}
+-- Table: {27}
 {
    ["ftype"]="string",
    ["name"]="body",
@@ -214,7 +224,7 @@ local t = {
    ["rule"]="required",
    ["tag"]=2,
 },
--- Table: {27}
+-- Table: {28}
 {
    ["ftype"]="uint32",
    ["name"]="id",
@@ -222,7 +232,7 @@ local t = {
    ["rule"]="required",
    ["tag"]=3,
 },
--- Table: {28}
+-- Table: {29}
 {
    ["ftype"]="string",
    ["name"]="icon",
@@ -230,7 +240,7 @@ local t = {
    ["rule"]="required",
    ["tag"]=4,
 },
--- Table: {29}
+-- Table: {30}
 {
    ["ftype"]="uint32",
    ["name"]="id",
@@ -238,7 +248,7 @@ local t = {
    ["rule"]="required",
    ["tag"]=1,
 },
--- Table: {30}
+-- Table: {31}
 {
    ["ftype"]="Key",
    ["name"]="key1",
@@ -246,7 +256,7 @@ local t = {
    ["rule"]="optional",
    ["tag"]=2,
 },
--- Table: {31}
+-- Table: {32}
 {
    ["ftype"]="Key",
    ["name"]="key2",
@@ -254,7 +264,7 @@ local t = {
    ["rule"]="optional",
    ["tag"]=3,
 },
--- Table: {32}
+-- Table: {33}
 {
    ["ftype"]="string",
    ["name"]="command",
@@ -262,7 +272,7 @@ local t = {
    ["rule"]="optional",
    ["tag"]=15,
 },
--- Table: {33}
+-- Table: {34}
 {
    ["ftype"]="uint32",
    ["name"]="key",
@@ -270,7 +280,7 @@ local t = {
    ["rule"]="required",
    ["tag"]=1,
 },
--- Table: {34}
+-- Table: {35}
 {
    ["ftype"]="uint32",
    ["name"]="mod",
@@ -278,7 +288,7 @@ local t = {
    ["rule"]="required",
    ["tag"]=2,
 },
--- Table: {35}
+-- Table: {36}
 {
    ["ftype"]="string",
    ["name"]="keycode",
@@ -286,7 +296,7 @@ local t = {
    ["rule"]="optional",
    ["tag"]=15,
 },
--- Table: {36}
+-- Table: {37}
 {
    "SPELL",
    "ITEM",
@@ -301,13 +311,13 @@ local t = {
    ["EMPTY"]=5,
    ["FLYOUT"]=4,
    ["SPELL"]=1,
+   ["OUTFIT"]=10,
    ["ITEM"]=2,
    ["SUMMONMOUNT"]=9,
    ["SUMMONPET"]=7,
    ["MACRO"]=3,
    ["COMPANION"]=8,
    ["EQUIPMENTSET"]=6,
-   ["OUTFIT"]=10,
 },
 }
    local function loadast()

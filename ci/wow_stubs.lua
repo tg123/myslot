@@ -32,6 +32,17 @@ function Stub.reset()
     Stub.macros = {}          -- [macroId] = { name, icon, body }
     Stub.bindings = {}        -- [i] = { action, header, key1, key2 }
     Stub.pet_active = false
+    Stub.cooldown_layout = nil  -- opaque Cooldown Manager layout blob
+    -- Base category membership returned by GetCooldownViewerCategorySet:
+    --   Essential=0, Utility=1, TrackedBuff=2, TrackedBar=3
+    Stub.cooldown_category_set = {
+        [0] = { 101, 102 },
+        [1] = { 201 },
+        [2] = { 301 },
+        [3] = { 401 },
+    }
+    Stub.cooldown_moves = {}     -- [cooldownID] = category the cooldown was moved to
+    Stub.cooldown_saved = false  -- set when SaveCurrentLayout runs
 end
 
 Stub.reset()
@@ -90,6 +101,39 @@ end
 -- --- Pet -------------------------------------------------------------------
 function IsPetActive() return Stub.pet_active end
 function GetPetActionInfo() return nil end
+
+-- --- Cooldown Manager (Cooldown Viewer) ------------------------------------
+-- Opaque layout blob passthrough: Export reads it, Import writes it back.
+C_CooldownViewer = {
+    GetLayoutData = function() return Stub.cooldown_layout end,
+    SetLayoutData = function(data) Stub.cooldown_layout = data end,
+    GetCooldownViewerCategorySet = function(category, _allowUnlearned)
+        return Stub.cooldown_category_set[category] or {}
+    end,
+}
+
+-- Pseudo-categories used by the settings UI to represent "Not Displayed".
+Enum = Enum or {}
+Enum.CooldownViewerCategory = {
+    Essential = 0,
+    Utility = 1,
+    TrackedBuff = 2,
+    TrackedBar = 3,
+    HiddenSpell = -1,
+    HiddenAura = -2,
+}
+
+-- Minimal settings frame so MySlot can drive drag-to-"Not Displayed" moves.
+local cooldownDataProvider = {
+    SetCooldownToCategory = function(_self, cooldownID, category)
+        Stub.cooldown_moves[cooldownID] = category
+    end,
+}
+CooldownViewerSettings = {
+    GetDataProvider = function() return cooldownDataProvider end,
+    SaveCurrentLayout = function() Stub.cooldown_saved = true end,
+    RefreshLayout = function() end,
+}
 
 -- --- Bindings --------------------------------------------------------------
 function GetNumBindings() return #Stub.bindings end

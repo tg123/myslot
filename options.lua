@@ -69,7 +69,7 @@ RegEvent("ADDON_LOADED", function()
 
     do
         local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
-        b:SetWidth(200)
+        b:SetWidth(240)
         b:SetHeight(25)
         b:SetPoint("TOPLEFT", 15, doffset - 20)
         b:SetText(L["Remove everything in ActionBar"])
@@ -80,7 +80,7 @@ RegEvent("ADDON_LOADED", function()
 
     do
         local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
-        b:SetWidth(200)
+        b:SetWidth(240)
         b:SetHeight(25)
         b:SetPoint("TOPLEFT", 15, doffset - 50)
         b:SetText(L["Remove all Key Bindings"])
@@ -91,7 +91,7 @@ RegEvent("ADDON_LOADED", function()
 
     do
         local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
-        b:SetWidth(200)
+        b:SetWidth(240)
         b:SetHeight(25)
         b:SetPoint("TOPLEFT", 15, doffset - 80)
         b:SetText(L["Remove all Macros"])
@@ -101,8 +101,19 @@ RegEvent("ADDON_LOADED", function()
     end
 
     do
+        local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
+        b:SetWidth(240)
+        b:SetHeight(25)
+        b:SetPoint("TOPLEFT", 15, doffset - 110)
+        b:SetText(L["Remove all Cooldown Manager"])
+        b:SetScript("OnClick", function()
+            StaticPopup_Show("MYSLOT_CONFIRM_CLEAR", "COOLDOWNMANAGER", nil, "COOLDOWNMANAGER")
+        end)
+    end
+
+    do
         local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
-        b:SetPoint("TOPLEFT", f, 15, doffset - 110)
+        b:SetPoint("TOPLEFT", f, 15, doffset - 140)
 
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)

@@ -7,6 +7,8 @@ message Charactor {
 
 	repeated Slot petslot = 4;
 
+	optional string cooldownManager = 5;
+
 	optional uint32 ver = 14;
 	optional string name = 15;
 }

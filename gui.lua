@@ -217,6 +217,8 @@ local function CreateSettingMenu(opt, onChanged)
 
     opt.ignorePetActionBar = false
 
+    opt.ignoreCooldownManager = false
+
     -- https://warcraft.wiki.gg/wiki/Action_slot
     local actionbarlist = {
         {
@@ -417,6 +419,22 @@ local function CreateSettingMenu(opt, onChanged)
                 return opt.ignorePetActionBar
             end,
         }, -- 4
+        {
+            text = L["Cooldown Manager"],
+            notCheckable = false,
+            isNotRadio = true,
+            keepShownOnClick = true,
+            func = function ()
+                opt.ignoreCooldownManager = not opt.ignoreCooldownManager
+
+                if onChanged then
+                    onChanged()
+                end
+            end,
+            checked = function ()
+                return opt.ignoreCooldownManager
+            end,
+        }, -- 5
     }
 end
 
@@ -448,6 +466,10 @@ local function AllSettingMenuIgnored(opt)
     end
 
     if not opt.ignorePetActionBar then
+        return false
+    end
+
+    if not opt.ignoreCooldownManager then
         return false
     end
 
@@ -533,6 +555,9 @@ do
             if clearOpt.ignoreBinding then
                 MySlot:Clear("BINDING")
             end
+            if clearOpt.removeCooldownManager then
+                MySlot:Clear("COOLDOWNMANAGER")
+            end
 
             ShowImportProgress()
             MySlot:RunAsync(function()
@@ -575,9 +600,37 @@ do
             notCheckable = true,
         }
     })
-    tAppendAll(settings, CreateSettingMenu(clearOpt))
+    -- Pet Action Bar and Cooldown Manager have no per-category clear here (pet
+    -- isn't supported yet; cooldown is offered as an explicit "Remove all" below),
+    -- so drop them by identity rather than by position to stay robust against any
+    -- future change to CreateSettingMenu's entry order.
+    local clearMenu = CreateSettingMenu(clearOpt)
+    local clearExcludedText = {
+        [PET .. " " .. ACTIONBARS_LABEL] = true,
+        [L["Cooldown Manager"]] = true,
+    }
+    for i = #clearMenu, 1, -1 do
+        if clearMenu[i].text and clearExcludedText[clearMenu[i].text] then
+            table.remove(clearMenu, i)
+        end
+    end
+    tAppendAll(settings, clearMenu)
 
-    table.remove(settings) -- remove pet action bar clearOpt, will support it later
+    tAppendAll(settings, {
+        {
+            text = L["Cooldown Manager"],
+            notCheckable = false,
+            isNotRadio = true,
+            keepShownOnClick = true,
+            func = function ()
+                clearOpt.removeCooldownManager = not clearOpt.removeCooldownManager
+            end,
+            checked = function ()
+                return clearOpt.removeCooldownManager
+            end,
+        },
+    })
+
     local clearend = #settings
 
     tAppendAll(settings, {
