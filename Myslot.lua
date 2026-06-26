@@ -1053,7 +1053,11 @@ function MySlot:RecoverData(msg, opt)
                         end
 
                         if not GetCursorInfo() then
-                            MySlot:Print(L["Ignore unlearned skill [flyoutid=%s], %s"]:format(index, GetFlyoutInfo(index) or ""))
+                            -- GetFlyoutInfo can be absent (Classic) or throw on an
+                            -- unknown id (TBC) for a flyout learned only on retail;
+                            -- guard it so this stays a friendly skip, not a hard error.
+                            local ok, fname = pcall(GetFlyoutInfo, index)
+                            MySlot:Print(L["Ignore unlearned skill [flyoutid=%s], %s"]:format(index, (ok and fname) or ""))
                         end
 
                     elseif slotType == MYSLOT_COMPANION then
