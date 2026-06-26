@@ -600,10 +600,21 @@ do
             notCheckable = true,
         }
     })
-    tAppendAll(settings, CreateSettingMenu(clearOpt))
-
-    table.remove(settings) -- remove cooldown manager clearOpt, replaced by explicit remove-all below
-    table.remove(settings) -- remove pet action bar clearOpt, will support it later
+    -- Pet Action Bar and Cooldown Manager have no per-category clear here (pet
+    -- isn't supported yet; cooldown is offered as an explicit "Remove all" below),
+    -- so drop them by identity rather than by position to stay robust against any
+    -- future change to CreateSettingMenu's entry order.
+    local clearMenu = CreateSettingMenu(clearOpt)
+    local clearExcludedText = {
+        [PET .. " " .. ACTIONBARS_LABEL] = true,
+        [L["Cooldown Manager"]] = true,
+    }
+    for i = #clearMenu, 1, -1 do
+        if clearMenu[i].text and clearExcludedText[clearMenu[i].text] then
+            table.remove(clearMenu, i)
+        end
+    end
+    tAppendAll(settings, clearMenu)
 
     tAppendAll(settings, {
         {
