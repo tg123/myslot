@@ -933,11 +933,23 @@ local PET_CAPABLE_CLASSES = {
     HUNTER = true,
     WARLOCK = true,
     DEATHKNIGHT = true,
-    MAGE = true,
 }
+-- Mages only gain a controllable pet (Water Elemental) with its own pet action
+-- bar on WotLK and later; on Vanilla/TBC-era clients a mage never has a pet
+-- action bar, so gate them on the client's interface version.
+local MAGE_PET_MIN_INTERFACE = 30000
 function MySlot:IsPetActionBarSupported()
     local _, class = UnitClass("player")
-    return class ~= nil and PET_CAPABLE_CLASSES[class] or false
+    if class == nil then
+        return false
+    end
+    if PET_CAPABLE_CLASSES[class] then
+        return true
+    end
+    if class == "MAGE" then
+        return (select(4, GetBuildInfo()) or 0) >= MAGE_PET_MIN_INTERFACE
+    end
+    return false
 end
 
 function MySlot:RecoverData(msg, opt)

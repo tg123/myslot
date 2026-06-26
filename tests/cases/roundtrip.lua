@@ -147,6 +147,16 @@ T.describe("Export/Import round-trip", function()
         _G.WowStub.player.class = "ROGUE"
         T.assert.equal(false, MySlot:IsPetActionBarSupported())
 
+        -- Mages only have a controllable pet bar on WotLK+ (interface >= 30000);
+        -- on Vanilla/TBC-era clients the pet option stays hidden for them.
+        local saved_iface = _G.WowStub.interface_version
+        _G.WowStub.player.class = "MAGE"
+        _G.WowStub.interface_version = 110000
+        T.assert.equal(true, MySlot:IsPetActionBarSupported())
+        _G.WowStub.interface_version = 11507
+        T.assert.equal(false, MySlot:IsPetActionBarSupported())
+        _G.WowStub.interface_version = saved_iface
+
         _G.WowStub.player.class = saved
     end)
 

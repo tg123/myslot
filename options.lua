@@ -98,7 +98,7 @@ RegEvent("ADDON_LOADED", function()
 
     do
         local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
-        b:SetPoint("TOPLEFT", f, 15, rowy - 30)
+        b:SetPoint("TOPLEFT", f, 15, rowy)
 
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)
