@@ -20,6 +20,10 @@ local GetSpellInfo = C_Spell and C_Spell.GetSpellName or _G.GetSpellInfo
 local GetSpellLink = C_Spell and C_Spell.GetSpellLink or _G.GetSpellLink
 local PickupSpellBookItem = C_SpellBook and C_SpellBook.PickupSpellBookItem or _G.PickupSpellBookItem
 local GetAddOnMetadata = (C_AddOns and C_AddOns.GetAddOnMetadata) and C_AddOns.GetAddOnMetadata or _G.GetAddOnMetadata
+-- GetFlyoutInfo is retail-only (nil on Classic 2.5.x); fall back to a no-op so
+-- importing a retail profile's flyout slot degrades to "ignore unlearned skill"
+-- instead of throwing the generic "unknown error" inside RecoverData.
+local GetFlyoutInfo = _G.GetFlyoutInfo or function() return nil end
 -- TWW Beta Compat End
 -- Polyfill for deprecated Blizzard Macro Globals in Midnight 12.1
 local MAX_ACCOUNT_MACROS = MAX_ACCOUNT_MACROS or 120
@@ -515,6 +519,18 @@ function MySlot:Export(opt)
         end
     end
 
+    msg.clickBinding = {}
+    if not opt.ignoreClickBindings and C_ClickBindings and C_ClickBindings.GetProfileInfo then
+        for _, info in ipairs(C_ClickBindings.GetProfileInfo()) do
+            local c = _MySlot.ClickBinding()
+            c.type = info.type
+            c.actionID = info.actionID or 0
+            c.button = info.button
+            c.modifiers = info.modifiers or 0
+            msg.clickBinding[#msg.clickBinding + 1] = c
+        end
+    end
+
     local ct = msg:Serialize()
     local t = { MYSLOT_VER, 86, 04, 22, 0, 0, 0, 0 }
     MergeTable(t, StringToTable(ct))
@@ -615,6 +631,7 @@ function MySlot:Import(text, opt)
     local msg = _MySlot.Charactor():Parse(ct)
 
     if IsEmptyTable(msg.slot) and IsEmptyTable(msg.bind) and IsEmptyTable(msg.macro)
+        and IsEmptyTable(msg.clickBinding)
         and (msg.cooldownManager == nil or msg.cooldownManager == "") and not force then
         MySlot:Print(L["Nothing to import"])
         return
@@ -913,6 +930,11 @@ function MySlot:RecoverData(msg, opt)
     -- {{{ Macro
     local macro = {}
 
+    -- Maps an exported macro id (source character slot index) to the macro id
+    -- it resolved to on this character. Click bindings of type Macro reference a
+    -- macro by index, so they need this remap to survive import.
+    local macroIdMap = {}
+
     -- Build the local macro index once and reuse it for every lookup below.
     -- Rebuilding it per FindMacro/FindOrCreateMacro call scans all 138 macro
     -- slots each time, which on large payloads trips WoW's "script ran too long"
@@ -960,6 +982,7 @@ function MySlot:RecoverData(msg, opt)
         end
 
         if newid then
+            macroIdMap[macroId] = newid
             for _, slotId in pairs(macro[macroId] or {}) do
                 if not opt.actionOpt.ignoreActionBars[math.ceil(slotId / 12)] then
                     PickupMacro(newid)
@@ -1030,7 +1053,11 @@ function MySlot:RecoverData(msg, opt)
                         end
 
                         if not GetCursorInfo() then
-                            MySlot:Print(L["Ignore unlearned skill [flyoutid=%s], %s"]:format(index, GetFlyoutInfo(index) or ""))
+                            -- GetFlyoutInfo can be absent (Classic) or throw on an
+                            -- unknown id (TBC) for a flyout learned only on retail;
+                            -- guard it so this stays a friendly skip, not a hard error.
+                            local ok, fname = pcall(GetFlyoutInfo, index)
+                            MySlot:Print(L["Ignore unlearned skill [flyoutid=%s], %s"]:format(index, (ok and fname) or ""))
                         end
 
                     elseif slotType == MYSLOT_COMPANION then
@@ -1195,6 +1222,32 @@ function MySlot:RecoverData(msg, opt)
     end
 
 
+    if not opt.actionOpt.ignoreClickBindings and not IsEmptyTable(msg.clickBinding)
+        and C_ClickBindings and C_ClickBindings.SetProfileByInfo then
+        -- Enum.ClickBindingType.Macro; macros are referenced by index, which the
+        -- macro restore above may have relocated, so remap through macroIdMap.
+        local MACRO_TYPE = (Enum and Enum.ClickBindingType and Enum.ClickBindingType.Macro) or 2
+        local profile = {}
+        for _, c in ipairs(msg.clickBinding) do
+            local actionID = c.actionID
+            local keep = true
+            if c.type == MACRO_TYPE then
+                actionID = macroIdMap[c.actionID]
+                keep = actionID ~= nil
+            end
+            if keep then
+                profile[#profile + 1] = {
+                    type = c.type,
+                    actionID = actionID,
+                    button = c.button,
+                    modifiers = c.modifiers or 0,
+                }
+            end
+        end
+        C_ClickBindings.SetProfileByInfo(profile)
+    end
+
+
     MySlot:Print(L["All slots were restored"])
 end
 
@@ -1236,5 +1289,13 @@ function MySlot:Clear(what, opt)
         SaveBindings(GetCurrentBindingSet())
     elseif what == "COOLDOWNMANAGER" then
         MoveAllCooldownsToNotDisplayed()
+    elseif what == "CLICKBINDING" then
+        -- Remove all click bindings by committing an empty profile.
+        -- (ResetCurrentProfile reverts to the Blizzard default, which isn't "remove
+        -- all"; SetProfileByInfo is the real save/commit API.)
+        -- SetProfileByInfo is protected in combat, so skip while in combat lockdown.
+        if C_ClickBindings and C_ClickBindings.SetProfileByInfo and not InCombatLockdown() then
+            C_ClickBindings.SetProfileByInfo({})
+        end
     end
 end

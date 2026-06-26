@@ -43,6 +43,7 @@ function Stub.reset()
     }
     Stub.cooldown_moves = {}     -- [cooldownID] = category the cooldown was moved to
     Stub.cooldown_saved = false  -- set when SaveCurrentLayout runs
+    Stub.click_bindings = {}     -- vector of ClickBindingInfo {type, actionID, button, modifiers}
 end
 
 Stub.reset()
@@ -133,6 +134,22 @@ CooldownViewerSettings = {
     GetDataProvider = function() return cooldownDataProvider end,
     SaveCurrentLayout = function() Stub.cooldown_saved = true end,
     RefreshLayout = function() end,
+}
+
+-- --- Click Cast Bindings ---------------------------------------------------
+-- Profile passthrough: Export reads the vector, Import writes it back.
+Enum.ClickBindingType = {
+    None = 0,
+    Spell = 1,
+    Macro = 2,
+    Interaction = 3,
+    PetAction = 4,
+}
+
+C_ClickBindings = {
+    GetProfileInfo = function() return Stub.click_bindings end,
+    SetProfileByInfo = function(info) Stub.click_bindings = info end,
+    ResetCurrentProfile = function() Stub.click_bindings = {} end,
 }
 
 -- --- Bindings --------------------------------------------------------------

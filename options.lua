@@ -112,8 +112,19 @@ RegEvent("ADDON_LOADED", function()
     end
 
     do
+        local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
+        b:SetWidth(240)
+        b:SetHeight(25)
+        b:SetPoint("TOPLEFT", 15, doffset - 140)
+        b:SetText(L["Remove all Click Cast Bindings"])
+        b:SetScript("OnClick", function()
+            StaticPopup_Show("MYSLOT_CONFIRM_CLEAR", "CLICKBINDING", nil, "CLICKBINDING")
+        end)
+    end
+
+    do
         local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
-        b:SetPoint("TOPLEFT", f, 15, doffset - 140)
+        b:SetPoint("TOPLEFT", f, 15, doffset - 170)
 
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         b.text:SetPoint("LEFT", b, "RIGHT", 0, 1)

@@ -301,18 +301,44 @@ T.describe("in-game: slot type round-trip (per type)", function()
         T.assert.equal(before_i, after_i)
     end
 
-    T.it("type=spell", in_game(function()
-        local spellID
-        for tab = 1, (GetNumSpellTabs and GetNumSpellTabs() or 0) do
-            local _, _, offset, num = GetSpellTabInfo(tab)
-            for i = (offset or 0) + 1, (offset or 0) + (num or 0) do
-                local stype, id = GetSpellBookItemInfo(i, BOOKTYPE_SPELL)
-                if stype == "SPELL" and id then spellID = id; break end
-            end
-            if spellID then break end
+    -- Find the first action slot already holding `wantType` ("spell", "flyout",
+    -- "summonmount", ...). The classic GetSpellBookItemInfo/BOOKTYPE_SPELL scan was
+    -- removed in 12.0, and journal "pick the first collected entry" placement is
+    -- flaky (some entries can't be placed), so for these types we reuse whatever the
+    -- player already has on their bars.
+    local function find_action_of_type(wantType)
+        for i = 1, 180 do
+            local t, id = GetActionInfo(i)
+            if t == wantType then return i, id end
         end
-        if not spellID then T.skip("no known spells found") end
-        roundtrip(function(s) Host.set_action(s, "spell", spellID) end)
+        return nil
+    end
+
+    -- Round-trip a type by clearing an existing slot of that type and letting
+    -- RecoverData restore it from the export. This exercises MySlot's real restore
+    -- path for the type instead of re-implementing per-type pickup in the test.
+    local function roundtrip_existing(wantType, label)
+        local slot = find_action_of_type(wantType)
+        if not slot then T.skip("no " .. (label or wantType) .. " on action bars") end
+        local before_t, before_i = GetActionInfo(slot)
+
+        local text = MySlot:Export(full_opt())
+        T.assert.not_nil(text)
+
+        Host.clear_action(slot)
+        T.assert.equal(nil, GetActionInfo(slot))
+
+        local msg = MySlot:Import(text, { force = true })
+        T.assert.not_nil(msg)
+        MySlot:RecoverData(msg, recover_opt())
+
+        local after_t, after_i = GetActionInfo(slot)
+        T.assert.equal(before_t, after_t)
+        T.assert.equal(before_i, after_i)
+    end
+
+    T.it("type=spell", in_game(function()
+        roundtrip_existing("spell")
     end))
 
     T.it("type=item", in_game(function()
@@ -327,21 +353,7 @@ T.describe("in-game: slot type round-trip (per type)", function()
     end))
 
     T.it("type=mount", in_game(function()
-        if not (C_MountJournal and C_MountJournal.GetMountIDs) then
-            T.skip("no mount journal API")
-        end
-        local mountID
-        for _, id in ipairs(C_MountJournal.GetMountIDs()) do
-            local info = { C_MountJournal.GetMountInfoByID(id) }
-            if info[11] then mountID = id; break end -- isCollected
-        end
-        if not mountID then T.skip("no collected mounts") end
-        roundtrip(function(s)
-            ClearCursor()
-            C_MountJournal.Pickup(mountID)
-            PlaceAction(s)
-            ClearCursor()
-        end)
+        roundtrip_existing("summonmount", "mount")
     end))
 
     T.it("type=battle pet", in_game(function()
@@ -394,22 +406,7 @@ T.describe("in-game: slot type round-trip (per type)", function()
     end))
 
     T.it("type=flyout", in_game(function()
-        local flyoutID
-        for tab = 1, (GetNumSpellTabs and GetNumSpellTabs() or 0) do
-            local _, _, offset, num = GetSpellTabInfo(tab)
-            for i = (offset or 0) + 1, (offset or 0) + (num or 0) do
-                local stype, id = GetSpellBookItemInfo(i, BOOKTYPE_SPELL)
-                if stype == "FLYOUT" and id then flyoutID = id; break end
-            end
-            if flyoutID then break end
-        end
-        if not flyoutID then T.skip("no flyouts known") end
-        roundtrip(function(s)
-            ClearCursor()
-            PickupSpell(flyoutID)
-            PlaceAction(s)
-            ClearCursor()
-        end)
+        roundtrip_existing("flyout")
     end))
 end)
 
@@ -553,5 +550,82 @@ T.describe("in-game: cooldown manager round-trip (via WoW API)", function()
         for _, c in ipairs({ Cat.Essential, Cat.Utility, Cat.TrackedBuff, Cat.TrackedBar }) do
             T.assert.equal(0, #dataProvider:GetOrderedCooldownIDsForCategory(c, true))
         end
+    end))
+end)
+
+T.describe("in-game: click cast binding round-trip (via WoW API)", function()
+
+    T.it("restores the click cast binding profile after clearing it", in_game(function()
+        if not (C_ClickBindings and C_ClickBindings.GetProfileInfo
+            and C_ClickBindings.SetProfileByInfo) then
+            T.skip("no click bindings API")
+        end
+        if InCombatLockdown() then T.skip("click bindings are protected in combat") end
+
+        -- The in_game wrapper's snapshot/restore already captures the player's real
+        -- click-binding profile (Export/RecoverData round-trip it), so it is put back
+        -- afterwards regardless of what this test does.
+
+        local Spell = (Enum and Enum.ClickBindingType and Enum.ClickBindingType.Spell) or 1
+        local Interaction = (Enum and Enum.ClickBindingType and Enum.ClickBindingType.Interaction) or 3
+        local Target = (Enum and Enum.ClickBindingInteraction and Enum.ClickBindingInteraction.Target) or 1
+        local OpenMenu = (Enum and Enum.ClickBindingInteraction and Enum.ClickBindingInteraction.OpenContextMenu) or 2
+
+        -- Find a real click-bindable spell from the player's action bars so we exercise
+        -- the spellID path. Fall back to a second distinct interaction if none exists
+        -- (distinct actions so neither binding gets collapsed by the profile).
+        local second
+        if C_ClickBindings.CanSpellBeClickBound then
+            for i = 1, 180 do
+                local t, id = GetActionInfo(i)
+                if t == "spell" and id and C_ClickBindings.CanSpellBeClickBound(id) then
+                    second = { type = Spell, actionID = id, button = "Button5", modifiers = 1 }
+                    break
+                end
+            end
+        end
+        if not second then
+            second = { type = Interaction, actionID = OpenMenu, button = "Button5", modifiers = 1 }
+        end
+        T.log("seed: Button4 interaction/Target +",
+            "Button5 type=" .. tostring(second.type) .. " actionID=" .. tostring(second.actionID))
+
+        C_ClickBindings.SetProfileByInfo({
+            { type = Interaction, actionID = Target, button = "Button4", modifiers = 0 },
+            second,
+        })
+
+        local opt = full_opt()
+        opt.ignoreClickBindings = false
+        local msg = MySlot:Import(MySlot:Export(opt), { force = true })
+        T.assert.not_nil(msg)
+        for i, c in ipairs(msg.clickBinding) do
+            T.log(("exported[%d]: button=%s type=%s actionID=%s modifiers=%s")
+                :format(i, tostring(c.button), tostring(c.type), tostring(c.actionID), tostring(c.modifiers)))
+        end
+        T.assert.equal(2, #msg.clickBinding)
+
+        -- Wipe to an empty profile, then restore from the exported message.
+        C_ClickBindings.SetProfileByInfo({})
+        T.log("after wipe: profile has " .. #C_ClickBindings.GetProfileInfo() .. " binding(s)")
+        T.assert.equal(0, #C_ClickBindings.GetProfileInfo())
+
+        MySlot:RecoverData(msg, { actionOpt = opt })
+
+        local now = C_ClickBindings.GetProfileInfo()
+        for i, c in ipairs(now) do
+            T.log(("restored[%d]: button=%s type=%s actionID=%s modifiers=%s")
+                :format(i, tostring(c.button), tostring(c.type), tostring(c.actionID), tostring(c.modifiers)))
+        end
+        T.assert.equal(2, #now)
+        local byButton = {}
+        for _, c in ipairs(now) do byButton[c.button] = c end
+        T.assert.not_nil(byButton["Button4"])
+        T.assert.not_nil(byButton["Button5"])
+        T.assert.equal(Interaction, byButton["Button4"].type)
+        T.assert.equal(Target, byButton["Button4"].actionID)
+        T.assert.equal(second.type, byButton["Button5"].type)
+        T.assert.equal(second.actionID, byButton["Button5"].actionID)
+        T.assert.equal(1, byButton["Button5"].modifiers)
     end))
 end)

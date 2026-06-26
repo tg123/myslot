@@ -36,6 +36,7 @@ read_globals = {
     "ChatFontNormal",
     "C_AddOns",
     "C_AssistedCombat",
+    "C_ClickBindings",
     "C_CooldownViewer",
     "C_EquipmentSet",
     "C_Item",

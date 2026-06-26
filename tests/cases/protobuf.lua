@@ -68,4 +68,33 @@ T.describe("protobuf Charactor message", function()
         local out = _MySlot.Charactor():Parse(msg:Serialize())
         T.assert.equal("1|deadbeefBASE64BLOB==", out.cooldownManager)
     end)
+
+    T.it("round-trips click cast bindings", function()
+        local msg = _MySlot.Charactor()
+        msg.clickBinding = {}
+
+        local c1 = _MySlot.ClickBinding()
+        c1.type = 1
+        c1.actionID = 17116
+        c1.button = "Button1"
+        c1.modifiers = 1
+        msg.clickBinding[1] = c1
+
+        local c2 = _MySlot.ClickBinding()
+        c2.type = 2
+        c2.actionID = 5
+        c2.button = "Button2"
+        c2.modifiers = 0
+        msg.clickBinding[2] = c2
+
+        local out = _MySlot.Charactor():Parse(msg:Serialize())
+        T.assert.equal(2, #out.clickBinding)
+        T.assert.equal(1, out.clickBinding[1].type)
+        T.assert.equal(17116, out.clickBinding[1].actionID)
+        T.assert.equal("Button1", out.clickBinding[1].button)
+        T.assert.equal(1, out.clickBinding[1].modifiers)
+        T.assert.equal(2, out.clickBinding[2].type)
+        T.assert.equal(5, out.clickBinding[2].actionID)
+        T.assert.equal("Button2", out.clickBinding[2].button)
+    end)
 end)

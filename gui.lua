@@ -219,6 +219,8 @@ local function CreateSettingMenu(opt, onChanged)
 
     opt.ignoreCooldownManager = false
 
+    opt.ignoreClickBindings = false
+
     -- https://warcraft.wiki.gg/wiki/Action_slot
     local actionbarlist = {
         {
@@ -435,6 +437,22 @@ local function CreateSettingMenu(opt, onChanged)
                 return opt.ignoreCooldownManager
             end,
         }, -- 5
+        {
+            text = L["Click Cast Bindings"],
+            notCheckable = false,
+            isNotRadio = true,
+            keepShownOnClick = true,
+            func = function ()
+                opt.ignoreClickBindings = not opt.ignoreClickBindings
+
+                if onChanged then
+                    onChanged()
+                end
+            end,
+            checked = function ()
+                return opt.ignoreClickBindings
+            end,
+        }, -- 6
     }
 end
 
@@ -470,6 +488,10 @@ local function AllSettingMenuIgnored(opt)
     end
 
     if not opt.ignoreCooldownManager then
+        return false
+    end
+
+    if not opt.ignoreClickBindings then
         return false
     end
 
@@ -557,6 +579,9 @@ do
             end
             if clearOpt.removeCooldownManager then
                 MySlot:Clear("COOLDOWNMANAGER")
+            end
+            if clearOpt.ignoreClickBindings then
+                MySlot:Clear("CLICKBINDING")
             end
 
             ShowImportProgress()

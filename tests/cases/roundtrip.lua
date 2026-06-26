@@ -144,4 +144,40 @@ T.describe("Export/Import round-trip", function()
         T.assert.equal(Cat.HiddenAura, _G.WowStub.cooldown_moves[401])
         T.assert.equal(true, _G.WowStub.cooldown_saved)
     end)
+
+    T.it("export captures the click cast binding profile", function()
+        -- Drives the C_ClickBindings stub: Export should pull GetProfileInfo()
+        -- into msg.clickBinding. The SetProfileByInfo import wiring is covered by
+        -- the in-game suite (RecoverData isn't CI-safe).
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+        _G.WowStub.click_bindings = {
+            { type = 1, actionID = 17116, button = "Button1", modifiers = 1 },
+            { type = 3, actionID = 1,     button = "Button2", modifiers = 0 },
+        }
+
+        local msg = MySlot:Import(MySlot:Export(full_opt()), { force = true })
+        T.assert.equal(2, len(msg.clickBinding))
+        T.assert.equal(1, msg.clickBinding[1].type)
+        T.assert.equal(17116, msg.clickBinding[1].actionID)
+        T.assert.equal("Button1", msg.clickBinding[1].button)
+        T.assert.equal(1, msg.clickBinding[1].modifiers)
+        T.assert.equal(3, msg.clickBinding[2].type)
+
+        -- And it's omitted when there's nothing to export.
+        Host.reset()
+        local msg2 = MySlot:Import(MySlot:Export(full_opt()), { force = true })
+        T.assert.equal(0, len(msg2.clickBinding))
+    end)
+
+    T.it("Clear CLICKBINDING resets the profile", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+        _G.WowStub.click_bindings = {
+            { type = 1, actionID = 100, button = "Button1", modifiers = 0 },
+        }
+
+        MySlot:Clear("CLICKBINDING")
+        T.assert.equal(0, #_G.WowStub.click_bindings)
+    end)
 end)
