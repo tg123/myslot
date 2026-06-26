@@ -76,14 +76,14 @@ T.describe("protobuf Charactor message", function()
         local c1 = _MySlot.ClickBinding()
         c1.type = 1
         c1.actionID = 17116
-        c1.button = "BUTTON1"
+        c1.button = "Button1"
         c1.modifiers = 1
         msg.clickBinding[1] = c1
 
         local c2 = _MySlot.ClickBinding()
         c2.type = 2
         c2.actionID = 5
-        c2.button = "BUTTON2"
+        c2.button = "Button2"
         c2.modifiers = 0
         msg.clickBinding[2] = c2
 
@@ -91,10 +91,10 @@ T.describe("protobuf Charactor message", function()
         T.assert.equal(2, #out.clickBinding)
         T.assert.equal(1, out.clickBinding[1].type)
         T.assert.equal(17116, out.clickBinding[1].actionID)
-        T.assert.equal("BUTTON1", out.clickBinding[1].button)
+        T.assert.equal("Button1", out.clickBinding[1].button)
         T.assert.equal(1, out.clickBinding[1].modifiers)
         T.assert.equal(2, out.clickBinding[2].type)
         T.assert.equal(5, out.clickBinding[2].actionID)
-        T.assert.equal("BUTTON2", out.clickBinding[2].button)
+        T.assert.equal("Button2", out.clickBinding[2].button)
     end)
 end)

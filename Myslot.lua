@@ -1220,7 +1220,7 @@ function MySlot:RecoverData(msg, opt)
         -- macro restore above may have relocated, so remap through macroIdMap.
         local MACRO_TYPE = (Enum and Enum.ClickBindingType and Enum.ClickBindingType.Macro) or 2
         local profile = {}
-        for _, c in pairs(msg.clickBinding) do
+        for _, c in ipairs(msg.clickBinding) do
             local actionID = c.actionID
             local keep = true
             if c.type == MACRO_TYPE then
@@ -1285,7 +1285,8 @@ function MySlot:Clear(what, opt)
         -- Remove all click bindings by committing an empty profile.
         -- (ResetCurrentProfile reverts to the Blizzard default, which isn't "remove
         -- all"; SetProfileByInfo is the real save/commit API.)
-        if C_ClickBindings and C_ClickBindings.SetProfileByInfo then
+        -- SetProfileByInfo is protected in combat, so skip while in combat lockdown.
+        if C_ClickBindings and C_ClickBindings.SetProfileByInfo and not InCombatLockdown() then
             C_ClickBindings.SetProfileByInfo({})
         end
     end

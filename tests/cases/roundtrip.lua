@@ -152,15 +152,15 @@ T.describe("Export/Import round-trip", function()
         if Host.in_wow then T.skip("CI-only (stub-backed)") end
         Host.reset()
         _G.WowStub.click_bindings = {
-            { type = 1, actionID = 17116, button = "BUTTON1", modifiers = 1 },
-            { type = 3, actionID = 1,     button = "BUTTON2", modifiers = 0 },
+            { type = 1, actionID = 17116, button = "Button1", modifiers = 1 },
+            { type = 3, actionID = 1,     button = "Button2", modifiers = 0 },
         }
 
         local msg = MySlot:Import(MySlot:Export(full_opt()), { force = true })
         T.assert.equal(2, len(msg.clickBinding))
         T.assert.equal(1, msg.clickBinding[1].type)
         T.assert.equal(17116, msg.clickBinding[1].actionID)
-        T.assert.equal("BUTTON1", msg.clickBinding[1].button)
+        T.assert.equal("Button1", msg.clickBinding[1].button)
         T.assert.equal(1, msg.clickBinding[1].modifiers)
         T.assert.equal(3, msg.clickBinding[2].type)
 
@@ -174,7 +174,7 @@ T.describe("Export/Import round-trip", function()
         if Host.in_wow then T.skip("CI-only (stub-backed)") end
         Host.reset()
         _G.WowStub.click_bindings = {
-            { type = 1, actionID = 100, button = "BUTTON1", modifiers = 0 },
+            { type = 1, actionID = 100, button = "Button1", modifiers = 0 },
         }
 
         MySlot:Clear("CLICKBINDING")
