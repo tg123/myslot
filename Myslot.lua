@@ -957,7 +957,7 @@ end
 -- sort/filter prefs and renders the returned rows.
 --
 --   exports     array of { name, value, class? } loadout entries (storage order)
---   sort        "date" (storage/insertion order, default), "name" (A-Z), or
+--   sort        "date" (newest first, default), "name" (A-Z), or
 --               "class" (grouped by class token, then name)
 --   filterClass when true, hide entries whose class differs from myClass; entries
 --               with no stored class (legacy) are always shown
@@ -995,8 +995,13 @@ function MySlot:OrderLoadouts(exports, sort, filterClass, myClass)
             end
             return byName(a, b)
         end)
+    else
+        -- "date": newest first. Entries are appended on create, so a higher
+        -- storage index means more recent -- reverse the ascending order.
+        for i = 1, math.floor(#order / 2) do
+            order[i], order[#order - i + 1] = order[#order - i + 1], order[i]
+        end
     end
-    -- "date": leave order as ascending storage index (== insertion/creation order)
 
     local rows = {}
     local lastClass, haveLast = nil, false

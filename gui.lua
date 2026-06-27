@@ -590,9 +590,11 @@ do
                 end
             end
 
-            table.insert(MyslotExports["backups"], { value = backup, time = time() })
-            while #MyslotExports["backups"] > IMPORT_BACKUP_COUNT do
-                table.remove(MyslotExports["backups"], 1)
+            if backup then
+                table.insert(MyslotExports["backups"], { value = backup, time = time() })
+                while #MyslotExports["backups"] > IMPORT_BACKUP_COUNT do
+                    table.remove(MyslotExports["backups"], 1)
+                end
             end
 
             MySlot:Clear("MACRO", clearOpt.ignoreMacros)

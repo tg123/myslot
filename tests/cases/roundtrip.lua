@@ -252,9 +252,9 @@ T.describe("Loadout ordering (issue #102)", function()
         return out
     end
 
-    T.it("date sort keeps storage (insertion) order", function()
+    T.it("date sort lists newest (highest index) first", function()
         local rows = MySlot:OrderLoadouts(sample(), "date", false, "DRUID")
-        T.assert.same({ 1, 2, 3, 4 }, indices(rows))
+        T.assert.same({ 4, 3, 2, 1 }, indices(rows))
     end)
 
     T.it("name sort orders case-insensitively A-Z", function()
@@ -277,7 +277,7 @@ T.describe("Loadout ordering (issue #102)", function()
 
     T.it("only-my-class filter hides other classes but keeps legacy entries", function()
         local rows = MySlot:OrderLoadouts(sample(), "date", true, "DRUID")
-        -- DRUID 1,3 kept; HUNTER 2 hidden; legacy gamma(4) always shown
-        T.assert.same({ 1, 3, 4 }, indices(rows))
+        -- DRUID 1,3 kept; HUNTER 2 hidden; legacy gamma(4) always shown; newest first
+        T.assert.same({ 4, 3, 1 }, indices(rows))
     end)
 end)
