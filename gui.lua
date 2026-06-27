@@ -3,7 +3,7 @@ local _, MySlot = ...
 local L = MySlot.L
 local RegEvent = MySlot.regevent
 local MAX_PROFILES_COUNT = 100
-local IMPORT_BACKUP_COUNT = 1
+local IMPORT_BACKUP_COUNT = 3
 
 
 local f = CreateFrame("Frame", nil, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
@@ -547,8 +547,10 @@ local function DrawMenu(root, menuData)
 
 end
 
-local EasyMenu = _G.EasyMenu or function (settings)
-    MenuUtil.CreateContextMenu(UIParent, function(ownerRegion, rootDescription)
+-- Always use the modern Menu API (Blizzard_Menu ships on every flavor, 1.x ->
+-- retail), so the import/export popups match the loadout dropdown's look.
+local EasyMenu = function (settings, owner)
+    MenuUtil.CreateContextMenu(owner or UIParent, function(ownerRegion, rootDescription)
         DrawMenu(rootDescription, settings)
     end)
 end
@@ -588,7 +590,7 @@ do
                 end
             end
 
-            table.insert(MyslotExports["backups"], backup)
+            table.insert(MyslotExports["backups"], { value = backup, time = time() })
             while #MyslotExports["backups"] > IMPORT_BACKUP_COUNT do
                 table.remove(MyslotExports["backups"], 1)
             end
@@ -709,7 +711,7 @@ do
 
 
     ba:SetScript("OnClick", function(self, button)
-        EasyMenu(MyslotSettings.allowclearonimport and settings or settingswithoutclear, menuFrame, "cursor", 0 , 0, "MENU");
+        EasyMenu(MyslotSettings.allowclearonimport and settings or settingswithoutclear, self);
     end)
 end
 
@@ -765,7 +767,7 @@ do
     UpdateExportButtonState()
 
     ba:SetScript("OnClick", function(self, button)
-        EasyMenu(settings, menuFrame, "cursor", 0 , 0, "MENU");
+        EasyMenu(settings, self);
     end)
 end
 
@@ -826,9 +828,60 @@ RegEvent("ADDON_LOADED", function()
 
 
     do
-        local t = CreateFrame("Frame", nil, f, "UIDropDownMenuTemplate")
-        t:SetPoint("TOPLEFT", f, 5, -45)
-        UIDropDownMenu_SetWidth(t, 200)
+        -- Gold "binding button" look (UIMenuButtonStretchTemplate, the same family
+        -- as the keybinding selector). The menu itself is opened via
+        -- MenuUtil.CreateContextMenu on click, so its border matches the
+        -- import/export popups exactly.
+        local t = CreateFrame("Button", nil, f, "UIMenuButtonStretchTemplate")
+        t:SetPoint("TOPLEFT", f, 25, -45)
+        t:SetSize(240, 26)
+
+        -- Scroll icon on the left, downward dropdown arrow on the right.
+        do
+            local icon = t:CreateTexture(nil, "OVERLAY")
+            icon:SetTexture("Interface\\Icons\\inv_scroll_03")
+            icon:SetSize(18, 18)
+            icon:SetPoint("LEFT", t, "LEFT", 6, 0)
+
+            local arrow = t:CreateTexture(nil, "OVERLAY")
+            arrow:SetPoint("RIGHT", t, "RIGHT", -6, 0)
+            local atlas
+            for _, name in ipairs({ "common-dropdown-classic-a-buttonDown", "common-dropdown-a-buttonDown" }) do
+                if C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(name) then
+                    atlas = name
+                    break
+                end
+            end
+            if atlas then
+                arrow:SetAtlas(atlas)
+                arrow:SetSize(16, 16)
+            else
+                -- Rotate the right-pointing expand arrow to point down.
+                arrow:SetTexture("Interface\\ChatFrame\\ChatFrameExpandArrow")
+                arrow:SetSize(16, 16)
+                arrow:SetRotation(-math.pi / 2)
+            end
+        end
+
+        -- This template ships no text region, so add a left-aligned label of our
+        -- own, sitting between the scroll icon and the arrow.
+        local label = t:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        label:SetPoint("LEFT", t, "LEFT", 28, 0)
+        label:SetPoint("RIGHT", t, "RIGHT", -22, 0)
+        label:SetJustifyH("LEFT")
+        label:SetWordWrap(false)
+
+        -- Drives the gold button's label (selected loadout name). When nothing is
+        -- selected, show a greyed placeholder instead of an empty bar.
+        local function setButtonText(s)
+            if s and s ~= "" then
+                label:SetText(s)
+                label:SetTextColor(1, 0.82, 0)
+            else
+                label:SetText(L["Select a profile"])
+                label:SetTextColor(0.5, 0.5, 0.5)
+            end
+        end
         do
             local tt = t:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
             tt:SetPoint("BOTTOMLEFT", t, "TOPLEFT", 20, 0)
@@ -852,16 +905,24 @@ RegEvent("ADDON_LOADED", function()
         local exports = MyslotExports["exports"]
         local backups = MyslotExports["backups"]
 
-        local onclick = function(self)
-            local idx = self.value
-            UIDropDownMenu_SetSelectedValue(t, idx)
+        -- Currently selected loadout, identified by its storage index in
+        -- `exports`. The modern dropdown has no built-in selection model for our
+        -- index-as-identity scheme, so we track it ourselves and drive the text.
+        local selectedIdx
 
-            local n = exports[idx] and exports[idx].name or ""
-            UIDropDownMenu_SetText(t, n)
+        local function setSelected(idx)
+            selectedIdx = idx
+            setButtonText(idx and exports[idx] and exports[idx].name or "")
+        end
 
+        local function selectLoadout(idx)
+            setSelected(idx)
             local v = exports[idx] and exports[idx].value or ""
             exportEditbox:SetText(v)
         end
+
+        -- Nothing is selected on load, so show the greyed placeholder immediately.
+        setSelected(nil)
 
         local create = function(name)
             if #exports > MAX_PROFILES_COUNT then
@@ -870,21 +931,16 @@ RegEvent("ADDON_LOADED", function()
             end
 
             local txt = {
-                name = name
+                name = name,
+                class = select(2, UnitClass("player")),
             }
             table.insert(exports, txt)
-
-            local info = UIDropDownMenu_CreateInfo()
-            info.text = txt.name
-            info.value = #exports
-            info.func = onclick
-            UIDropDownMenu_AddButton(info)
 
             return true
         end
 
         local save = function(force)
-            local c = UIDropDownMenu_GetSelectedValue(t)
+            local c = selectedIdx
             local v = exportEditbox:GetText()
             if not force and v == "" then
                 return
@@ -894,39 +950,132 @@ RegEvent("ADDON_LOADED", function()
                 if not create(n) then
                     return
                 end
-                UIDropDownMenu_SetSelectedValue(t, #exports)
-                UIDropDownMenu_SetText(t, n)
                 c = #exports
+                setSelected(c)
             end
 
             exports[c].value = v
             infolabel:SetText("")
         end
-        -- exportEditbox:SetScript("OnTextChanged", function() save(false) end)
 
-        UIDropDownMenu_Initialize(t, function()
-            local info = UIDropDownMenu_CreateInfo()
-            info.text = L["Before Last Import"]
-            info.customCheckIconTexture = "Interface\\Icons\\inv_scroll_04"
-            info.func = function()
-                local b = backups[1] -- only 1 backup now, will support more later
-                if b then
-                    exportEditbox:SetText(b)
-                    infolabel:SetText("")
-                    UIDropDownMenu_SetText(t, "")
+        -- Localized, class-colored label for a class group header. token may be
+        -- false/nil for the legacy/unknown group.
+        local function classHeaderText(token)
+            if not token then
+                return OTHER
+            end
+            local name = (LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[token]) or token
+            local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[token]
+            if color then
+                if color.WrapTextInColorCode then
+                    return color:WrapTextInColorCode(name)
+                elseif color.colorStr then
+                    return "|c" .. color.colorStr .. name .. "|r"
                 end
             end
-            UIDropDownMenu_AddButton(info)
+            return name
+        end
 
-            for i, txt in pairs(exports) do
-                -- print(txt.name)
-                local itemInfo = UIDropDownMenu_CreateInfo()
-                itemInfo.text = txt.name
-                itemInfo.value = i
-                itemInfo.func = onclick
-                itemInfo.customCheckIconTexture = "Interface\\Icons\\inv_scroll_03"
-                UIDropDownMenu_AddButton(itemInfo)
+        local SORT_MODES = {
+            { value = "date", text = L["By date"] },
+            { value = "name", text = L["By name"] },
+            { value = "class", text = L["By class"] },
+        }
+
+        -- Inline icon prefix so menu items carry the scroll icons the original
+        -- UIDropDownMenu put in the check slot (inv_scroll_03 for loadouts,
+        -- inv_scroll_04 for the pre-import backup).
+        local function withIcon(texture, text)
+            return ("|T%s:16:16|t %s"):format(texture, text)
+        end
+
+        -- Rebuilt every time the dropdown opens. Checkboxes/radios default to
+        -- MenuResponse.Refresh, so flipping the filter or a sort mode regenerates
+        -- the list in place -- no manual reopen needed.
+        local function generator(_, root)
+            root:CreateCheckbox(L["Only my class"], function()
+                return MyslotSettings and MyslotSettings.loadoutFilterClass and true or false
+            end, function()
+                MyslotSettings.loadoutFilterClass = not (MyslotSettings.loadoutFilterClass and true or false)
+            end)
+
+            local sortSub = root:CreateButton(L["Sort by"])
+            for _, mode in ipairs(SORT_MODES) do
+                local value = mode.value
+                sortSub:CreateRadio(mode.text, function()
+                    return ((MyslotSettings and MyslotSettings.loadoutSort) or "date") == value
+                end, function()
+                    MyslotSettings.loadoutSort = value
+                end)
             end
+
+            root:CreateDivider()
+
+            local backupIcon = "Interface\\Icons\\inv_scroll_04"
+            local function restoreBackup(val)
+                if val then
+                    exportEditbox:SetText(val)
+                    infolabel:SetText("")
+                    setSelected(nil)
+                    setButtonText(L["Before Last Import"])
+                end
+            end
+
+            if #backups == 0 then
+                -- Nothing backed up yet: show the entry greyed/disabled.
+                local none = root:CreateButton(withIcon(backupIcon, L["Before Last Import"]))
+                none:SetEnabled(false)
+            else
+                -- Clicking "Before Last Import" restores the newest backup by
+                -- default; the submenu arrow lists all recent backups (newest
+                -- first) so an older snapshot can be picked instead.
+                local newest = backups[#backups]
+                local newestVal = type(newest) == "table" and newest.value or newest
+                local backupSub = root:CreateButton(
+                    withIcon(backupIcon, L["Before Last Import"]),
+                    function()
+                        restoreBackup(newestVal)
+                    end)
+                backupSub:SetShouldRespondIfSubmenu(true)
+                for i = #backups, 1, -1 do
+                    local b = backups[i]
+                    local val = type(b) == "table" and b.value or b
+                    local when = type(b) == "table" and b.time
+                    local lbl = when and date("%Y-%m-%d %H:%M", when)
+                        or (L["Backup"] .. " " .. tostring(#backups - i + 1))
+                    backupSub:CreateButton(lbl, function()
+                        restoreBackup(val)
+                    end)
+                end
+            end
+
+            local sort = (MyslotSettings and MyslotSettings.loadoutSort) or "date"
+            local filterClass = MyslotSettings and MyslotSettings.loadoutFilterClass or false
+            local myClass = select(2, UnitClass("player"))
+            local rows = MySlot:OrderLoadouts(exports, sort, filterClass, myClass)
+
+            for _, dispRow in ipairs(rows) do
+                if dispRow.header ~= nil then
+                    root:CreateTitle(classHeaderText(dispRow.header))
+                else
+                    local idx = dispRow.index
+                    root:CreateButton(withIcon("Interface\\Icons\\inv_scroll_03", exports[idx].name), function()
+                        selectLoadout(idx)
+                    end)
+                end
+            end
+        end
+
+        t:SetScript("OnClick", function(self)
+            -- Pin the menu directly below the button (left-aligned), like the
+            -- keybinding dropdown, instead of cursor-anchoring it.
+            local description = MenuUtil.CreateRootMenuDescription(MenuVariants.GetDefaultMenuMixin())
+            description:SetMinimumWidth(self:GetWidth())
+            Menu.PopulateDescription(generator, self, description)
+            -- Match Blizzard's DropdownButton default anchor (TOPLEFT -> BOTTOMLEFT,
+            -- flush, left-aligned), as used by the system/settings menu dropdowns.
+            local anchor = AnchorUtil.CreateAnchor("TOPLEFT", self, "BOTTOMLEFT", 0, 0)
+            Menu.GetManager():OpenMenu(self, description, anchor)
         end)
 
         local popctx = {}
@@ -949,13 +1098,15 @@ RegEvent("ADDON_LOADED", function()
                 local n = editBox:GetText()
                 if n ~= "" then
                     exports[c].name = n
-                    UIDropDownMenu_SetText(t, n)
+                    if selectedIdx == c then
+                        setButtonText(n)
+                    end
                 end
                 return
             end
 
             if create(editBox:GetText()) then
-                onclick({value = #exports})
+                selectLoadout(#exports)
             end
         end
 
@@ -963,7 +1114,7 @@ RegEvent("ADDON_LOADED", function()
             local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
             b:SetWidth(70)
             b:SetHeight(25)
-            b:SetPoint("TOPLEFT", t, 240, 0)
+            b:SetPoint("TOPLEFT", t, 280, 0)
             b:SetText(NEW)
             b:SetScript("OnClick", function()
                 popctx.current = nil
@@ -975,7 +1126,7 @@ RegEvent("ADDON_LOADED", function()
             local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
             b:SetWidth(70)
             b:SetHeight(25)
-            b:SetPoint("TOPLEFT", t, 315, 0)
+            b:SetPoint("TOPLEFT", t, 355, 0)
             b:SetText(SAVE)
             b:SetScript("OnClick", function() save(true) end)
         end
@@ -984,10 +1135,10 @@ RegEvent("ADDON_LOADED", function()
             local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
             b:SetWidth(70)
             b:SetHeight(25)
-            b:SetPoint("TOPLEFT", t, 390, 0)
+            b:SetPoint("TOPLEFT", t, 430, 0)
             b:SetText(DELETE)
             b:SetScript("OnClick", function()
-                local c = UIDropDownMenu_GetSelectedValue(t)
+                local c = selectedIdx
 
                 if c then
                     StaticPopupDialogs["MYSLOT_CONFIRM_DELETE"].OnAccept = function()
@@ -995,11 +1146,10 @@ RegEvent("ADDON_LOADED", function()
                         table.remove(exports, c)
 
                         if #exports == 0 then
-                            UIDropDownMenu_SetSelectedValue(t, nil)
-                            UIDropDownMenu_SetText(t, "")
+                            setSelected(nil)
                             exportEditbox:SetText("")
                         else
-                            onclick({value = #exports})
+                            selectLoadout(#exports)
                         end
                     end
                     StaticPopup_Show("MYSLOT_CONFIRM_DELETE", exports[c].name)
@@ -1011,10 +1161,10 @@ RegEvent("ADDON_LOADED", function()
             local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
             b:SetWidth(70)
             b:SetHeight(25)
-            b:SetPoint("TOPLEFT", t, 465, 0)
+            b:SetPoint("TOPLEFT", t, 505, 0)
             b:SetText(L["Rename"])
             b:SetScript("OnClick", function()
-                local c = UIDropDownMenu_GetSelectedValue(t)
+                local c = selectedIdx
 
                 if c and exports[c] then
                     popctx.current = c

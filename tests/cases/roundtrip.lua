@@ -231,3 +231,53 @@ T.describe("Export/Import round-trip", function()
         T.assert.equal(0, #_G.WowStub.click_bindings)
     end)
 end)
+
+T.describe("Loadout ordering (issue #102)", function()
+
+    -- 4 saved loadouts; "gamma" is a legacy entry saved before class tagging.
+    local function sample()
+        return {
+            { name = "Zeta",  class = "DRUID" },
+            { name = "alpha", class = "HUNTER" },
+            { name = "Beta",  class = "DRUID" },
+            { name = "gamma" },
+        }
+    end
+
+    local function indices(rows)
+        local out = {}
+        for _, r in ipairs(rows) do
+            if r.index then out[#out + 1] = r.index end
+        end
+        return out
+    end
+
+    T.it("date sort keeps storage (insertion) order", function()
+        local rows = MySlot:OrderLoadouts(sample(), "date", false, "DRUID")
+        T.assert.same({ 1, 2, 3, 4 }, indices(rows))
+    end)
+
+    T.it("name sort orders case-insensitively A-Z", function()
+        local rows = MySlot:OrderLoadouts(sample(), "name", false, "DRUID")
+        -- alpha(2), Beta(3), gamma(4), Zeta(1)
+        T.assert.same({ 2, 3, 4, 1 }, indices(rows))
+    end)
+
+    T.it("class sort groups by class with headers, unknown last", function()
+        local rows = MySlot:OrderLoadouts(sample(), "class", false, "DRUID")
+        -- DRUID: Beta(3), Zeta(1); HUNTER: alpha(2); unknown: gamma(4)
+        T.assert.same({ 3, 1, 2, 4 }, indices(rows))
+
+        local headers = {}
+        for _, r in ipairs(rows) do
+            if r.index == nil then headers[#headers + 1] = r.header end
+        end
+        T.assert.same({ "DRUID", "HUNTER", false }, headers)
+    end)
+
+    T.it("only-my-class filter hides other classes but keeps legacy entries", function()
+        local rows = MySlot:OrderLoadouts(sample(), "date", true, "DRUID")
+        -- DRUID 1,3 kept; HUNTER 2 hidden; legacy gamma(4) always shown
+        T.assert.same({ 1, 3, 4 }, indices(rows))
+    end)
+end)
