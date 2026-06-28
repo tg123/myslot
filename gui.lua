@@ -927,7 +927,7 @@ RegEvent("ADDON_LOADED", function()
         setSelected(nil)
 
         local create = function(name)
-            if #exports > MAX_PROFILES_COUNT then
+            if #exports >= MAX_PROFILES_COUNT then
                 MySlot:Print(L["Too many profiles, please delete before create new one."])
                 return
             end
@@ -991,15 +991,17 @@ RegEvent("ADDON_LOADED", function()
             return ("|T%s:16:16|t %s"):format(texture, text)
         end
 
-        -- Rebuilt every time the dropdown opens. CreateCheckbox defaults to a
-        -- MenuResponse.Refresh response, but CreateRadio does not (a nil response
-        -- is treated as CloseAll), so the sort radios must explicitly return
-        -- MenuResponse.Refresh to reorder the list in place instead of closing.
+        -- Rebuilt every time the dropdown opens. A nil menu response is treated
+        -- as CloseAll, so both the filter checkbox and the sort radios explicitly
+        -- return MenuResponse.Refresh to reorder the list in place rather than
+        -- closing the menu (CreateRadio has no default Refresh; CreateCheckbox's
+        -- default varies, so we are explicit for cross-version safety).
         local function generator(_, root)
             root:CreateCheckbox(L["Only my class"], function()
                 return MyslotSettings and MyslotSettings.loadoutFilterClass and true or false
             end, function()
                 MyslotSettings.loadoutFilterClass = not (MyslotSettings.loadoutFilterClass and true or false)
+                return MenuResponse.Refresh
             end)
 
             local sortSub = root:CreateButton(L["Sort by"])

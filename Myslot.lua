@@ -979,7 +979,13 @@ function MySlot:OrderLoadouts(exports, sort, filterClass, myClass)
     end
 
     local function byName(a, b)
-        return (exports[a].name or ""):lower() < (exports[b].name or ""):lower()
+        local na, nb = (exports[a].name or ""):lower(), (exports[b].name or ""):lower()
+        if na == nb then
+            -- table.sort is not stable; break ties by storage index so the order
+            -- stays deterministic across openings.
+            return a < b
+        end
+        return na < nb
     end
 
     if sort == "name" then
