@@ -991,9 +991,10 @@ RegEvent("ADDON_LOADED", function()
             return ("|T%s:16:16|t %s"):format(texture, text)
         end
 
-        -- Rebuilt every time the dropdown opens. Checkboxes/radios default to
-        -- MenuResponse.Refresh, so flipping the filter or a sort mode regenerates
-        -- the list in place -- no manual reopen needed.
+        -- Rebuilt every time the dropdown opens. CreateCheckbox defaults to a
+        -- MenuResponse.Refresh response, but CreateRadio does not (a nil response
+        -- is treated as CloseAll), so the sort radios must explicitly return
+        -- MenuResponse.Refresh to reorder the list in place instead of closing.
         local function generator(_, root)
             root:CreateCheckbox(L["Only my class"], function()
                 return MyslotSettings and MyslotSettings.loadoutFilterClass and true or false
@@ -1008,6 +1009,7 @@ RegEvent("ADDON_LOADED", function()
                     return ((MyslotSettings and MyslotSettings.loadoutSort) or "date") == value
                 end, function()
                     MyslotSettings.loadoutSort = value
+                    return MenuResponse.Refresh
                 end)
             end
 
