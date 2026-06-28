@@ -952,6 +952,78 @@ function MySlot:IsPetActionBarSupported()
     return false
 end
 
+-- Builds the display order for the saved-loadout list (issue #102). Pure helper
+-- so it can be unit tested; the GUI feeds it the saved exports plus the user's
+-- sort/filter prefs and renders the returned rows.
+--
+--   exports     array of { name, value, class? } loadout entries (storage order)
+--   sort        "date" (newest first, default), "name" (A-Z), or
+--               "class" (grouped by class token, then name)
+--   filterClass when true, hide entries whose class differs from myClass; entries
+--               with no stored class (legacy) are always shown
+--   myClass     the english class token to filter against (e.g. "DRUID")
+--
+-- Returns an array of rows preserving the ORIGINAL exports index as identity:
+--   { index = i }      a loadout entry (exports[i])
+--   { header = token } a class group header (only in "class" sort); token is the
+--                      class token, or false for the legacy/unknown group
+function MySlot:OrderLoadouts(exports, sort, filterClass, myClass)
+    sort = sort or "date"
+
+    local order = {}
+    for i = 1, #exports do
+        local e = exports[i]
+        if e and not (filterClass and e.class and e.class ~= myClass) then
+            order[#order + 1] = i
+        end
+    end
+
+    local function byName(a, b)
+        local na, nb = (exports[a].name or ""):lower(), (exports[b].name or ""):lower()
+        if na == nb then
+            -- table.sort is not stable; break ties by storage index so the order
+            -- stays deterministic across openings.
+            return a < b
+        end
+        return na < nb
+    end
+
+    if sort == "name" then
+        table.sort(order, byName)
+    elseif sort == "class" then
+        table.sort(order, function(a, b)
+            local ca, cb = exports[a].class, exports[b].class
+            if ca ~= cb then
+                -- Unknown/legacy (no class) sorts last; otherwise alpha by token.
+                if not ca then return false end
+                if not cb then return true end
+                return ca < cb
+            end
+            return byName(a, b)
+        end)
+    else
+        -- "date": newest first. Entries are appended on create, so a higher
+        -- storage index means more recent -- reverse the ascending order.
+        for i = 1, math.floor(#order / 2) do
+            order[i], order[#order - i + 1] = order[#order - i + 1], order[i]
+        end
+    end
+
+    local rows = {}
+    local lastClass, haveLast = nil, false
+    for _, i in ipairs(order) do
+        if sort == "class" then
+            local c = exports[i].class or false
+            if not haveLast or c ~= lastClass then
+                lastClass, haveLast = c, true
+                rows[#rows + 1] = { header = c }
+            end
+        end
+        rows[#rows + 1] = { index = i }
+    end
+    return rows
+end
+
 function MySlot:RecoverData(msg, opt)
     -- {{{ Cache Spells
     --cache spells

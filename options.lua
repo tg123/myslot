@@ -26,7 +26,7 @@ RegEvent("ADDON_LOADED", function()
 
     do
         local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
-        b:SetWidth(200)
+        b:SetWidth(240)
         b:SetHeight(25)
         b:SetPoint("TOPLEFT", 15, -80)
         b:SetText(L["Open Myslot"])
