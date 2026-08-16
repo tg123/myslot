@@ -1225,14 +1225,19 @@ function MySlot:RecoverData(msg, opt)
                         local displayIndex = mounts[index]
                         if displayIndex then
                             C_MountJournal.Pickup(displayIndex)
-                        else
+                        elseif index == 0 or index == 0xFFFFFFF then
+                            C_MountJournal.Pickup(0)
+                        end
+                        if not GetCursorInfo() and index ~= 0 and index ~= 0xFFFFFFF then
                             local _, mountSpellID, _, _, _, _, _, _, _, _, isCollected =
                                 C_MountJournal.GetMountInfoByID(index)
                             if isCollected and mountSpellID then
                                 PickupSpell(mountSpellID)
                             end
-                            if not GetCursorInfo() then
-                                C_MountJournal.Pickup(0)
+                        end
+                        if not GetCursorInfo() then
+                            C_MountJournal.Pickup(0)
+                            if index ~= 0 and index ~= 0xFFFFFFF then
                                 MySlot:Print(L["Use random mount instead of an unattained mount"])
                             end
                         end
