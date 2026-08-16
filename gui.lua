@@ -991,17 +991,34 @@ RegEvent("ADDON_LOADED", function()
             return ("|T%s:16:16|t %s"):format(texture, text)
         end
 
-        -- Rebuilt every time the dropdown opens. A nil menu response is treated
-        -- as CloseAll, so both the filter checkbox and the sort radios explicitly
-        -- return MenuResponse.Refresh to reorder the list in place rather than
-        -- closing the menu (CreateRadio has no default Refresh; CreateCheckbox's
-        -- default varies, so we are explicit for cross-version safety).
+        -- Forward declaration: the generator's responders reopen the menu, but
+        -- opening needs the finished generator.
+        local openMenu
+
+        -- MenuResponse.Refresh only re-runs the initializers of the frames that
+        -- are already built, so it can update a checkbox tick but never adds,
+        -- removes or reorders entries. Changing the sort mode or the class
+        -- filter has to rebuild the description through the generator, i.e.
+        -- close and reopen the dropdown. The reopen is deferred by a frame
+        -- because the menu is still being torn down while the responder runs.
+        local function rebuildMenu()
+            if C_Timer and C_Timer.After then
+                C_Timer.After(0, function()
+                    openMenu()
+                end)
+            else
+                openMenu()
+            end
+            return MenuResponse.CloseAll
+        end
+
+        -- Rebuilt every time the dropdown opens.
         local function generator(_, root)
             root:CreateCheckbox(L["Only my class"], function()
                 return MyslotSettings and MyslotSettings.loadoutFilterClass and true or false
             end, function()
                 MyslotSettings.loadoutFilterClass = not (MyslotSettings.loadoutFilterClass and true or false)
-                return MenuResponse.Refresh
+                return rebuildMenu()
             end)
 
             local sortSub = root:CreateButton(L["Sort by"])
@@ -1011,7 +1028,7 @@ RegEvent("ADDON_LOADED", function()
                     return ((MyslotSettings and MyslotSettings.loadoutSort) or "date") == value
                 end, function()
                     MyslotSettings.loadoutSort = value
-                    return MenuResponse.Refresh
+                    return rebuildMenu()
                 end)
             end
 
@@ -1072,16 +1089,25 @@ RegEvent("ADDON_LOADED", function()
             end
         end
 
-        t:SetScript("OnClick", function(self)
+        openMenu = function()
+            -- Don't resurrect the dropdown for a window that was closed between
+            -- the responder running and the deferred reopen.
+            if not t:IsVisible() then
+                return
+            end
             -- Pin the menu directly below the button (left-aligned), like the
             -- keybinding dropdown, instead of cursor-anchoring it.
             local description = MenuUtil.CreateRootMenuDescription(MenuVariants.GetDefaultMenuMixin())
-            description:SetMinimumWidth(self:GetWidth())
-            Menu.PopulateDescription(generator, self, description)
+            description:SetMinimumWidth(t:GetWidth())
+            Menu.PopulateDescription(generator, t, description)
             -- Match Blizzard's DropdownButton default anchor (TOPLEFT -> BOTTOMLEFT,
             -- flush, left-aligned), as used by the system/settings menu dropdowns.
-            local anchor = AnchorUtil.CreateAnchor("TOPLEFT", self, "BOTTOMLEFT", 0, 0)
-            Menu.GetManager():OpenMenu(self, description, anchor)
+            local anchor = AnchorUtil.CreateAnchor("TOPLEFT", t, "BOTTOMLEFT", 0, 0)
+            Menu.GetManager():OpenMenu(t, description, anchor)
+        end
+
+        t:SetScript("OnClick", function()
+            openMenu()
         end)
 
         local popctx = {}
