@@ -189,6 +189,7 @@ T.describe("Export/Import round-trip", function()
         -- aura categories (TrackedBuff/TrackedBar) move to HiddenAura.
         T.assert.equal(Cat.HiddenSpell, _G.WowStub.cooldown_moves[101])
         T.assert.equal(Cat.HiddenSpell, _G.WowStub.cooldown_moves[102])
+        T.assert.equal(Cat.HiddenSpell, _G.WowStub.cooldown_moves[999])
         T.assert.equal(Cat.HiddenSpell, _G.WowStub.cooldown_moves[201])
         T.assert.equal(Cat.HiddenAura, _G.WowStub.cooldown_moves[301])
         T.assert.equal(Cat.HiddenAura, _G.WowStub.cooldown_moves[401])
