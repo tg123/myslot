@@ -307,15 +307,39 @@ T.describe("in-game: slot type round-trip (per type)", function()
         T.assert.equal(before_i, after_i)
     end
 
-    -- Find the first action slot already holding `wantType` ("spell", "flyout",
-    -- "summonmount", ...). The classic GetSpellBookItemInfo/BOOKTYPE_SPELL scan was
-    -- removed in 12.0, and journal "pick the first collected entry" placement is
-    -- flaky (some entries can't be placed), so for these types we reuse whatever the
-    -- player already has on their bars.
+    -- Find the first action slot already holding `wantType`. The classic
+    -- GetSpellBookItemInfo/BOOKTYPE_SPELL scan was removed in 12.0, so types such
+    -- as spells and flyouts reuse whatever the player already has on their bars.
     local function find_action_of_type(wantType)
         for i = 1, 180 do
             local t, id = GetActionInfo(i)
             if t == wantType then return i, id end
+        end
+        return nil
+    end
+
+    local function place_collected_mount(slot)
+        if not (C_MountJournal and C_MountJournal.GetNumDisplayedMounts
+            and C_MountJournal.GetDisplayedMountInfo and C_MountJournal.Pickup) then
+            return nil
+        end
+
+        for i = 1, C_MountJournal.GetNumDisplayedMounts() do
+            local _, _, _, _, _, sourceType, _, _, _, _, isCollected, mountID =
+                C_MountJournal.GetDisplayedMountInfo(i)
+            if isCollected and mountID then
+                ClearCursor()
+                C_MountJournal.Pickup(i)
+                if GetCursorInfo() then
+                    PlaceAction(slot)
+                    ClearCursor()
+                    local actionType, actionID = GetActionInfo(slot)
+                    if actionType == "summonmount" and actionID == mountID then
+                        return mountID, sourceType
+                    end
+                end
+                ClearCursor()
+            end
         end
         return nil
     end
@@ -359,7 +383,65 @@ T.describe("in-game: slot type round-trip (per type)", function()
     end))
 
     T.it("type=mount", in_game(function()
-        roundtrip_existing("summonmount", "mount")
+        roundtrip(function(slot)
+            if not place_collected_mount(slot) then
+                T.skip("no placeable collected mounts")
+            end
+        end)
+    end))
+
+    T.it("restores a filtered collected mount", in_game(function()
+        if not (C_MountJournal and C_MountJournal.SetSearch) then
+            T.skip("no Mount Journal search API")
+        end
+
+        local slot = SLOT
+        Host.clear_action(slot)
+        local mountID = place_collected_mount(slot)
+        if not mountID then T.skip("no placeable collected mounts") end
+        local _, before_i = GetActionInfo(slot)
+
+        local text = MySlot:Export(full_opt())
+        T.assert.not_nil(text)
+        Host.clear_action(slot)
+
+        local msg = MySlot:Import(text, { force = true })
+        T.assert.not_nil(msg)
+
+        local searchBox = MountJournal and MountJournal.searchBox
+        local savedSearch = searchBox and searchBox:GetText() or ""
+        local ok, err = T.safe_run(function()
+            C_MountJournal.SetSearch("MyslotNoMatchingMount" .. math.random(1, 1e9))
+            T.yield()
+
+            local mountIsDisplayed = false
+            for i = 1, C_MountJournal.GetNumDisplayedMounts() do
+                local _, _, _, _, _, _, _, _, _, _, _, mountID =
+                    C_MountJournal.GetDisplayedMountInfo(i)
+                if mountID == before_i then
+                    mountIsDisplayed = true
+                    break
+                end
+            end
+            T.assert.is_false(mountIsDisplayed,
+                "test mount should be hidden by the active journal search")
+
+            MySlot:RecoverData(msg, recover_opt())
+
+            local after_t, after_i = GetActionInfo(slot)
+            if after_t == "summonmount" then
+                T.assert.equal(before_i, after_i,
+                    "filtered collected mount was replaced by random favorite")
+            else
+                T.assert.equal("companion", after_t)
+                T.assert.equal(before_i, C_MountJournal.GetMountFromSpell(after_i),
+                    "companion action does not reference the filtered collected mount")
+            end
+        end)
+        C_MountJournal.SetSearch(savedSearch)
+        if searchBox then searchBox:SetText(savedSearch) end
+        T.yield()
+        if not ok then error(err, 0) end
     end))
 
     T.it("type=battle pet", in_game(function()

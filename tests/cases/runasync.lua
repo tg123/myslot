@@ -74,3 +74,50 @@ T.describe("RunAsync (async runner)", function()
     end)
 
 end)
+
+T.describe("test name filtering", function()
+
+    local function with_test_suites(fn)
+        local savedSuites = T._suites
+        T._suites = {
+            {
+                name = "Mount suite",
+                tests = {
+                    { name = "restores mount", fn = function() end },
+                    { name = "unrelated case", fn = function() end },
+                },
+            },
+            {
+                name = "Other suite",
+                tests = {
+                    { name = "ignored case", fn = function() error("must not run") end },
+                },
+            },
+        }
+        local ok, err = pcall(fn)
+        T._suites = savedSuites
+        if not ok then error(err) end
+    end
+
+    T.it("filters synchronous runs by suite and test name", function()
+        with_test_suites(function()
+            local passed, failed, _, selected = T.run(function() end, nil, "RESTORES MOUNT")
+            T.assert.equal(1, passed)
+            T.assert.equal(0, failed)
+            T.assert.equal(1, selected)
+        end)
+    end)
+
+    T.it("filters asynchronous runs by suite and test name", function()
+        with_test_suites(function()
+            with_immediate_timer(function()
+                local result
+                T.run(function() end, function(passed, failed, _, selected)
+                    result = { passed, failed, selected }
+                end, "mount suite")
+                T.assert.same({ 2, 0, 2 }, result)
+            end)
+        end)
+    end)
+
+end)
