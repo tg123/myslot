@@ -98,10 +98,10 @@ end
 -- T.run(printer, on_done, filter):
 --   * If on_done is provided, runs async: each test runs in a coroutine and
 --     can call T.yield() to break across frames, letting WoW's per-script
---     watchdog reset between heavy phases. on_done(passed, failed, failures)
---     fires when all tests finish.
+--     watchdog reset between heavy phases.
+--     on_done(passed, failed, failures, selected) fires when all tests finish.
 --   * If on_done is omitted, runs fully synchronously (CI path) and returns
---     (passed, failed, failures) directly.
+--     (passed, failed, failures, selected) directly.
 --   * If filter is non-empty, only suite/test names containing it run.
 --
 -- T.yield() is a no-op when called outside a coroutine, so tests can use it

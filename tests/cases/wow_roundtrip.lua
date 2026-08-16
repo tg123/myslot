@@ -408,7 +408,8 @@ T.describe("in-game: slot type round-trip (per type)", function()
         local msg = MySlot:Import(text, { force = true })
         T.assert.not_nil(msg)
 
-        local searchBox = MountJournal and MountJournal.searchBox
+        local mountJournal = _G.MountJournal
+        local searchBox = mountJournal and mountJournal.searchBox
         local savedSearch = searchBox and searchBox:GetText() or ""
         local ok, err = T.safe_run(function()
             C_MountJournal.SetSearch("MyslotNoMatchingMount" .. math.random(1, 1e9))
@@ -416,9 +417,9 @@ T.describe("in-game: slot type round-trip (per type)", function()
 
             local mountIsDisplayed = false
             for i = 1, C_MountJournal.GetNumDisplayedMounts() do
-                local _, _, _, _, _, _, _, _, _, _, _, mountID =
+                local _, _, _, _, _, _, _, _, _, _, _, displayedMountID =
                     C_MountJournal.GetDisplayedMountInfo(i)
-                if mountID == before_i then
+                if displayedMountID == before_i then
                     mountIsDisplayed = true
                     break
                 end
