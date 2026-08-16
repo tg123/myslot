@@ -623,11 +623,11 @@ T.describe("in-game: cooldown manager round-trip (via WoW API)", function()
         end
         local Cat = Enum.CooldownViewerCategory
 
-        -- Sanity: there is something to hide. If the player has nothing in the
-        -- visible categories there's nothing meaningful to assert.
+        -- Match the live viewer, which only requests known cooldowns. Unknown
+        -- entries can remain assigned to a visible category but are not displayed.
         local before = 0
         for _, c in ipairs({ Cat.Essential, Cat.Utility, Cat.TrackedBuff, Cat.TrackedBar }) do
-            before = before + #dataProvider:GetOrderedCooldownIDsForCategory(c, true)
+            before = before + #dataProvider:GetOrderedCooldownIDsForCategory(c)
         end
         if before == 0 then T.skip("no visible cooldowns to move") end
 
@@ -636,7 +636,7 @@ T.describe("in-game: cooldown manager round-trip (via WoW API)", function()
 
         -- Every visible category must now be empty (everything is "Not Displayed").
         for _, c in ipairs({ Cat.Essential, Cat.Utility, Cat.TrackedBuff, Cat.TrackedBar }) do
-            T.assert.equal(0, #dataProvider:GetOrderedCooldownIDsForCategory(c, true))
+            T.assert.equal(0, #dataProvider:GetOrderedCooldownIDsForCategory(c))
         end
     end))
 end)
