@@ -41,6 +41,14 @@ function Stub.reset()
         [2] = { 301 },
         [3] = { 401 },
     }
+    Stub.cooldown_categories = {
+        [101] = 0,
+        [102] = 0,
+        [201] = 1,
+        [301] = 2,
+        [401] = 3,
+        [999] = 0, -- Custom active-layout entry absent from the default category set.
+    }
     Stub.cooldown_moves = {}     -- [cooldownID] = category the cooldown was moved to
     Stub.cooldown_saved = false  -- set when SaveCurrentLayout runs
     Stub.cooldown_addon_loaded = true  -- Blizzard_CooldownViewer loaded? (retail=true)
@@ -142,6 +150,16 @@ Enum.CooldownViewerCategory = {
 local cooldownDataProvider = {
     SetCooldownToCategory = function(_self, cooldownID, category)
         Stub.cooldown_moves[cooldownID] = category
+        Stub.cooldown_categories[cooldownID] = category
+    end,
+    GetOrderedCooldownIDsForCategory = function(_self, category, _allowUnknown)
+        local cooldownIDs = {}
+        for cooldownID, currentCategory in pairs(Stub.cooldown_categories) do
+            if currentCategory == category then
+                cooldownIDs[#cooldownIDs + 1] = cooldownID
+            end
+        end
+        return cooldownIDs
     end,
 }
 CooldownViewerSettings = {
