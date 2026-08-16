@@ -25,9 +25,16 @@ local GetAddOnMetadata = (C_AddOns and C_AddOns.GetAddOnMetadata) and C_AddOns.G
 -- instead of throwing the generic "unknown error" inside RecoverData.
 local GetFlyoutInfo = _G.GetFlyoutInfo or function() return nil end
 -- TWW Beta Compat End
--- Polyfill for deprecated Blizzard Macro Globals in Midnight 12.1
-local MAX_ACCOUNT_MACROS = MAX_ACCOUNT_MACROS or 120
-local MAX_CHARACTER_MACROS = MAX_CHARACTER_MACROS or 18
+-- Polyfill for deprecated Blizzard Macro Globals in Midnight 12.1.
+-- Midnight moved them to Constants.MacroConsts and raised the per-character
+-- limit from 18 to 30, so prefer the live table over a hardcoded value that
+-- can go stale when Blizzard changes the limits again.
+local MAX_ACCOUNT_MACROS = MAX_ACCOUNT_MACROS
+    or (Constants and Constants.MacroConsts and Constants.MacroConsts.MAX_ACCOUNT_MACROS)
+    or 120
+local MAX_CHARACTER_MACROS = MAX_CHARACTER_MACROS
+    or (Constants and Constants.MacroConsts and Constants.MacroConsts.MAX_CHARACTER_MACROS)
+    or 30
 -- Polyfill for deprecated Blizzard Macro Globals in Midnight 12.1 END
 -- local MYSLOT_IS_DEBUG = true
 local MYSLOT_LINE_SEP = IsWindowsClient() and "\r\n" or "\n"
@@ -645,18 +652,18 @@ local function UnifyCRLF(text)
     return strtrim(text)
 end
 
--- Build a lookup of the character's current macros keyed by both "name_body"
--- and "body". Scanning all 138 macro slots is expensive, so callers that do
--- many lookups (RecoverData) should build this once and reuse it instead of
--- rebuilding per lookup.
+-- Build a lookup of the character's current macros keyed by "name_body",
+-- split per tab (account vs character) so an imported macro only ever
+-- matches a macro on its own tab. Scanning all macro slots is expensive, so
+-- callers that do many lookups (RecoverData) should build this once and
+-- reuse it instead of rebuilding per lookup.
 function MySlot:BuildMacroIndex()
-    local localMacro = {}
+    local localMacro = { ["ACCOUNT"] = {}, ["CHARACTOR"] = {} }
     for i = 1, MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS do
         local name, _, body = GetMacroInfo(i)
         if name then
             body = UnifyCRLF(body)
-            localMacro[name .. "_" .. body] = i
-            localMacro[body] = i
+            localMacro[i > MAX_ACCOUNT_MACROS and "CHARACTOR" or "ACCOUNT"][name .. "_" .. body] = i
         end
         if i % 30 == 0 then
             MaybeYield()
@@ -665,8 +672,9 @@ function MySlot:BuildMacroIndex()
     return localMacro
 end
 
--- Find macro by index/name/body. Pass a prebuilt localMacro index (see
--- BuildMacroIndex) to avoid rescanning every macro slot on each call.
+-- Find macro by name AND body on the macro's own tab. Pass a prebuilt
+-- localMacro index (see BuildMacroIndex) to avoid rescanning every macro
+-- slot on each call.
 function MySlot:FindMacro(macroInfo, localMacro)
     if not macroInfo then
         return
@@ -678,8 +686,14 @@ function MySlot:FindMacro(macroInfo, localMacro)
     local body = macroInfo["body"]
     body = UnifyCRLF(body)
 
-    -- Return index if found or nil
-    return localMacro[name .. "_" .. body] or localMacro[body]
+    local key = name .. "_" .. body
+    -- Prefer the tab the macro was exported from; also allow the other tab so
+    -- a char macro that fell back to the account tab (char tab full) is still
+    -- found instead of duplicated on the next pass.
+    if macroInfo["oldid"] and macroInfo["oldid"] > MAX_ACCOUNT_MACROS then
+        return localMacro["CHARACTOR"][key] or localMacro["ACCOUNT"][key]
+    end
+    return localMacro["ACCOUNT"][key] or localMacro["CHARACTOR"][key]
 end
 
 -- {{{ FindOrCreateMacro
@@ -723,8 +737,7 @@ function MySlot:FindOrCreateMacro(macroInfo, localMacro)
             if newid then
                 -- Keep the shared index in sync so later lookups in the same
                 -- recovery pass find this macro instead of creating a duplicate.
-                localMacro[name .. "_" .. body] = newid
-                localMacro[body] = newid
+                localMacro[newid > MAX_ACCOUNT_MACROS and "CHARACTOR" or "ACCOUNT"][name .. "_" .. body] = newid
                 return newid
             end
         end
