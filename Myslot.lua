@@ -855,10 +855,6 @@ end
 -- the hidden pseudo-categories (HiddenSpell / HiddenAura) via the settings data
 -- provider and persist the result.
 local function MoveAllCooldownsToNotDisplayed()
-    if not (C_CooldownViewer and C_CooldownViewer.GetCooldownViewerCategorySet) then
-        return false
-    end
-
     if not (CooldownViewerSettings and CooldownViewerSettings.GetDataProvider) then
         return false
     end
@@ -868,27 +864,44 @@ local function MoveAllCooldownsToNotDisplayed()
         return false
     end
 
+    local hiddenSpell = category.HiddenSpell or -1
+    local hiddenAura = category.HiddenAura or -2
     local hiddenByCategory = {
-        [category.Essential] = category.HiddenSpell,
-        [category.Utility] = category.HiddenSpell,
-        [category.TrackedBuff] = category.HiddenAura,
-        [category.TrackedBar] = category.HiddenAura,
+        [category.Essential] = hiddenSpell,
+        [category.Utility] = hiddenSpell,
+        [category.TrackedBuff] = hiddenAura,
+        [category.TrackedBar] = hiddenAura,
     }
 
     local dataProvider = CooldownViewerSettings:GetDataProvider()
     if not (dataProvider and dataProvider.SetCooldownToCategory) then
         return false
     end
+    local getActiveCooldownIDs = dataProvider.GetOrderedCooldownIDsForCategory
+    local getDefaultCooldownIDs = C_CooldownViewer
+        and C_CooldownViewer.GetCooldownViewerCategorySet
+    if not getActiveCooldownIDs and not getDefaultCooldownIDs then
+        return false
+    end
 
     for cooldownCategory, hiddenCategory in pairs(hiddenByCategory) do
         if hiddenCategory ~= nil then
-            local cooldownIDs = C_CooldownViewer.GetCooldownViewerCategorySet(cooldownCategory, true)
+            local cooldownIDs
+            if getActiveCooldownIDs then
+                cooldownIDs = dataProvider:GetOrderedCooldownIDsForCategory(cooldownCategory)
+            else
+                cooldownIDs = getDefaultCooldownIDs(cooldownCategory, false)
+            end
             if cooldownIDs then
                 for _, cooldownID in ipairs(cooldownIDs) do
                     dataProvider:SetCooldownToCategory(cooldownID, hiddenCategory)
                 end
             end
         end
+    end
+
+    if dataProvider.MarkDirty then
+        dataProvider:MarkDirty()
     end
 
     if CooldownViewerSettings.SaveCurrentLayout then
