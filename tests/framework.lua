@@ -95,13 +95,14 @@ function T.log(...)
 end
 
 -- printer(line) defaults to print outside WoW, DEFAULT_CHAT_FRAME inside.
--- T.run(printer, on_done):
+-- T.run(printer, on_done, filter):
 --   * If on_done is provided, runs async: each test runs in a coroutine and
 --     can call T.yield() to break across frames, letting WoW's per-script
---     watchdog reset between heavy phases. on_done(passed, failed, failures)
---     fires when all tests finish.
+--     watchdog reset between heavy phases.
+--     on_done(passed, failed, failures, selected) fires when all tests finish.
 --   * If on_done is omitted, runs fully synchronously (CI path) and returns
---     (passed, failed, failures) directly.
+--     (passed, failed, failures, selected) directly.
+--   * If filter is non-empty, only suite/test names containing it run.
 --
 -- T.yield() is a no-op when called outside a coroutine, so tests can use it
 -- freely without breaking the CI sync path.
@@ -168,27 +169,47 @@ local function record(state, suite, test, ok, err)
     end
 end
 
-function T.run(printer, on_done)
+function T.run(printer, on_done, filter)
     printer = printer or default_printer
     T._printer = printer
+    filter = filter and filter:lower() or ""
 
     local state = {
-        printer = printer, passed = 0, failed = 0, skipped = 0, failures = {},
+        printer = printer, passed = 0, failed = 0, skipped = 0, selected = 0,
+        failures = {},
     }
+
+    local function matches(suite, test)
+        if filter == "" then return true end
+        local name = suite.name .. " " .. test.name
+        return name:lower():find(filter, 1, true) ~= nil
+    end
+
+    local function suite_matches(suite)
+        for _, test in ipairs(suite.tests) do
+            if matches(suite, test) then return true end
+        end
+        return false
+    end
 
     -- Sync mode: run inline, return counts. Used by CI; safe because the
     -- watchdog is a WoW-only constraint.
     if not on_done then
         for _, suite in ipairs(T._suites) do
-            printer("# " .. suite.name)
-            for _, test in ipairs(suite.tests) do
-                local ok, err = xpcall(test.fn, err_handler)
-                record(state, suite, test, ok, err)
+            if suite_matches(suite) then
+                printer("# " .. suite.name)
+                for _, test in ipairs(suite.tests) do
+                    if matches(suite, test) then
+                        state.selected = state.selected + 1
+                        local ok, err = xpcall(test.fn, err_handler)
+                        record(state, suite, test, ok, err)
+                    end
+                end
             end
         end
         printer(string.format("# %d passed, %d failed, %d skipped",
             state.passed, state.failed, state.skipped))
-        return state.passed, state.failed, state.failures
+        return state.passed, state.failed, state.failures, state.selected
     end
 
     -- Async mode: walk the suite/test indices via C_Timer ticks so each
@@ -199,16 +220,24 @@ function T.run(printer, on_done)
         if not suite then
             printer(string.format("# %d passed, %d failed, %d skipped",
                 state.passed, state.failed, state.skipped))
-            on_done(state.passed, state.failed, state.failures)
+            on_done(state.passed, state.failed, state.failures, state.selected)
             return
         end
-        if ti == 0 then printer("# " .. suite.name) end
+        if ti == 0 then
+            if not suite_matches(suite) then
+                si = si + 1
+                return schedule(step)
+            end
+            printer("# " .. suite.name)
+        end
         ti = ti + 1
         local test = suite.tests[ti]
         if not test then
             si, ti = si + 1, 0
             return schedule(step)
         end
+        if not matches(suite, test) then return schedule(step) end
+        state.selected = state.selected + 1
 
         local co = coroutine.create(test.fn)
         local function pump()
