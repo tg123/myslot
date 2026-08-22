@@ -26,8 +26,11 @@ local GetAddOnMetadata = (C_AddOns and C_AddOns.GetAddOnMetadata) and C_AddOns.G
 local GetFlyoutInfo = _G.GetFlyoutInfo or function() return nil end
 -- TWW Beta Compat End
 -- Polyfill for deprecated Blizzard Macro Globals in Midnight 12.1
-local MAX_ACCOUNT_MACROS = MAX_ACCOUNT_MACROS or 120
-local MAX_CHARACTER_MACROS = MAX_CHARACTER_MACROS or 18
+local MacroConsts = _G.Constants and _G.Constants.MacroConsts
+local MAX_ACCOUNT_MACROS = _G.MAX_ACCOUNT_MACROS
+    or (MacroConsts and MacroConsts.MAX_ACCOUNT_MACROS) or 120
+local MAX_CHARACTER_MACROS = _G.MAX_CHARACTER_MACROS
+    or (MacroConsts and MacroConsts.MAX_CHARACTER_MACROS) or 30
 -- Polyfill for deprecated Blizzard Macro Globals in Midnight 12.1 END
 -- local MYSLOT_IS_DEBUG = true
 local MYSLOT_LINE_SEP = IsWindowsClient() and "\r\n" or "\n"

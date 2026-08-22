@@ -79,8 +79,12 @@ SPECIALIZATION = "Specialization"
 NONE_CAPS = "NONE"
 CLASS = "Class"
 PLAYER = "Player"
-MAX_ACCOUNT_MACROS = 120
-MAX_CHARACTER_MACROS = 18
+Constants = {
+    MacroConsts = {
+        MAX_ACCOUNT_MACROS = 120,
+        MAX_CHARACTER_MACROS = 30,
+    },
+}
 NUM_PET_ACTION_SLOTS = 10
 
 -- --- Player info -----------------------------------------------------------
