@@ -445,6 +445,35 @@ T.describe("in-game: slot type round-trip (per type)", function()
         if not ok then error(err, 0) end
     end))
 
+    T.it("restores the random favorite mount action", in_game(function()
+        if not (C_MountJournal and C_MountJournal.Pickup) then
+            T.skip("no Mount Journal pickup API")
+        end
+
+        local slot = SLOT
+        Host.clear_action(slot)
+        ClearCursor()
+        C_MountJournal.Pickup(0)
+        if not GetCursorInfo() then T.skip("random favorite mount is unavailable") end
+        PlaceAction(slot)
+        ClearCursor()
+
+        local before_t, before_i = GetActionInfo(slot)
+        T.assert.equal("summonmount", before_t)
+
+        local text = MySlot:Export(full_opt())
+        T.assert.not_nil(text)
+        Host.clear_action(slot)
+
+        local msg = MySlot:Import(text, { force = true })
+        T.assert.not_nil(msg)
+        MySlot:RecoverData(msg, recover_opt())
+
+        local after_t, after_i = GetActionInfo(slot)
+        T.assert.equal(before_t, after_t)
+        T.assert.equal(before_i, after_i)
+    end))
+
     T.it("type=battle pet", in_game(function()
         if not (C_PetJournal and C_PetJournal.GetNumPets) then
             T.skip("no pet journal API")

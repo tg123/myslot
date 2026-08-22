@@ -1222,22 +1222,21 @@ function MySlot:RecoverData(msg, opt)
                             MySlot:Print(L["Ignore unattained pet [id=%s]"]:format(strindex))
                         end
                     elseif slotType == MYSLOT_SUMMONMOUNT then
-                        local displayIndex = mounts[index]
-                        if displayIndex then
-                            C_MountJournal.Pickup(displayIndex)
-                        elseif index == 0 or index == 0xFFFFFFF then
+                        if index == 0x0FFFFFFF then
                             C_MountJournal.Pickup(0)
-                        end
-                        if not GetCursorInfo() and index ~= 0 and index ~= 0xFFFFFFF then
-                            local _, mountSpellID, _, _, _, _, _, _, _, _, isCollected =
-                                C_MountJournal.GetMountInfoByID(index)
-                            if isCollected and mountSpellID then
-                                PickupSpell(mountSpellID)
+                        else
+                            local displayIndex = mounts[index]
+                            if displayIndex then
+                                C_MountJournal.Pickup(displayIndex)
                             end
-                        end
-                        if not GetCursorInfo() then
-                            C_MountJournal.Pickup(0)
-                            if index ~= 0 and index ~= 0xFFFFFFF then
+                            if not GetCursorInfo() then
+                                local _, mountSpellID = C_MountJournal.GetMountInfoByID(index)
+                                if mountSpellID then
+                                    PickupSpell(mountSpellID)
+                                end
+                            end
+                            if not GetCursorInfo() then
+                                C_MountJournal.Pickup(0)
                                 MySlot:Print(L["Use random mount instead of an unattained mount"])
                             end
                         end
