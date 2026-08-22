@@ -1044,18 +1044,16 @@ function MySlot:RecoverData(msg, opt)
     local flyouts = CreateFlyoutSpellbookMap()
     -- }}}
 
-
-    -- {{{ cache mounts
     local mounts = {}
     if C_MountJournal then
-        for i = 1, C_MountJournal.GetNumMounts() do
-            local _, _, _, _, _, _, _, _, _, _, isCollected, mountId = C_MountJournal.GetDisplayedMountInfo(i)
-            if isCollected then
-                mounts[mountId] = i
-            end
+        local numMounts = C_MountJournal.GetNumDisplayedMounts
+            and C_MountJournal.GetNumDisplayedMounts() or C_MountJournal.GetNumMounts()
+        for i = 1, numMounts do
+            local _, _, _, _, _, _, _, _, _, _, isCollected, mountID =
+                C_MountJournal.GetDisplayedMountInfo(i)
+            if isCollected and mountID then mounts[mountID] = i end
         end
     end
-    -- }}}
 
     local slotBucket = {}
 
@@ -1224,12 +1222,23 @@ function MySlot:RecoverData(msg, opt)
                             MySlot:Print(L["Ignore unattained pet [id=%s]"]:format(strindex))
                         end
                     elseif slotType == MYSLOT_SUMMONMOUNT then
-                        index = mounts[index]
-                        if index then
-                            C_MountJournal.Pickup(index)
-                        else
+                        if index == 0x0FFFFFFF then
                             C_MountJournal.Pickup(0)
-                            MySlot:Print(L["Use random mount instead of an unattained mount"])
+                        else
+                            local displayIndex = mounts[index]
+                            if displayIndex then
+                                C_MountJournal.Pickup(displayIndex)
+                            end
+                            if not GetCursorInfo() then
+                                local _, mountSpellID = C_MountJournal.GetMountInfoByID(index)
+                                if mountSpellID then
+                                    PickupSpell(mountSpellID)
+                                end
+                            end
+                            if not GetCursorInfo() then
+                                C_MountJournal.Pickup(0)
+                                MySlot:Print(L["Use random mount instead of an unattained mount"])
+                            end
                         end
                     elseif slotType == MYSLOT_EMPTY then
                         PickupAction(slotId)

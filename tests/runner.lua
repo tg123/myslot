@@ -60,12 +60,13 @@ local function show_log(text)
 end
 
 SLASH_MYSLOTTEST1 = "/myslottest"
-SlashCmdList["MYSLOTTEST"] = function()
+SlashCmdList["MYSLOTTEST"] = function(msg)
     if InCombatLockdown() then
         MySlot:Print("|cFFFF6060Myslot tests cannot run in combat|r")
         return
     end
 
+    local filter = (msg or ""):match("^%s*(.-)%s*$")
     local lines = {}
     local function append(line)
         DEFAULT_CHAT_FRAME:AddMessage(line)
@@ -74,19 +75,28 @@ SlashCmdList["MYSLOTTEST"] = function()
     end
 
     MySlot:Print("|cFFFFD100Running Myslot tests...|r")
-    append("Running Myslot tests...")
+    if filter ~= "" then
+        append(("Running Myslot tests matching %q..."):format(filter))
+    else
+        append("Running Myslot tests...")
+    end
     -- Async run: tests can T.yield() to keep WoW's per-script watchdog
     -- happy. The dialog opens after all tests have finished.
-    MySlot.test.run(append, function(_, failed)
-        local summary = failed == 0
-            and "All tests passed"
-            or ("%d test(s) failed"):format(failed)
-        if failed == 0 then
+    MySlot.test.run(append, function(_, failed, _, selected)
+        local summary
+        if selected == 0 then
+            summary = ("No tests matched %q"):format(filter)
+        elseif failed == 0 then
+            summary = "All selected tests passed"
+        else
+            summary = ("%d test(s) failed"):format(failed)
+        end
+        if failed == 0 and selected > 0 then
             MySlot:Print("|cFF60FF60" .. summary .. "|r")
         else
             MySlot:Print("|cFFFF6060" .. summary .. "|r")
         end
         append(summary)
         show_log(table.concat(lines, "\n"))
-    end)
+    end, filter)
 end
