@@ -110,6 +110,26 @@ T.describe("Export/Import round-trip", function()
         T.assert.equal(nil, msg)
     end)
 
+    T.it("exports all five rows of character macros with Midnight constants", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+
+        T.assert.equal(nil, _G.MAX_ACCOUNT_MACROS)
+        T.assert.equal(nil, _G.MAX_CHARACTER_MACROS)
+        for id = 121, 150 do
+            _G.WowStub.macros[id] = {
+                name = "Macro " .. id,
+                icon = "INV_MISC_QUESTIONMARK",
+                body = "/say " .. id,
+            }
+        end
+
+        local msg = MySlot:Import(MySlot:Export(full_opt()), { force = true })
+        T.assert.equal(30, len(msg.macro))
+        T.assert.equal(121, msg.macro[1].id)
+        T.assert.equal(150, msg.macro[30].id)
+    end)
+
     T.it("reports cooldown manager support based on the loaded addon", function()
         if Host.in_wow then T.skip("CI-only (stub-backed)") end
 
