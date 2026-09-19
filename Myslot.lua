@@ -792,13 +792,46 @@ local function CreateFlyoutSpellbookMap()
     return flyouts
 end
 
+-- Blizzard's CooldownViewerLayoutManagerMixin:NotifyListeners() is just a broadcast
+-- of "CooldownViewerSettings.OnDataChanged" to every registered listener. One of
+-- those listeners lives in Blizzard_CooldownViewer/GroupBuffFilter.lua and calls the
+-- protected C_UnitAuras.SetHiddenGroupBuffs(); with MySlot anywhere on the call stack
+-- that one call is refused and the client prints [ADDON_ACTION_BLOCKED]. No addon can
+-- make it succeed -- taint follows the call stack, including through C_Timer and event
+-- callbacks -- so instead of broadcasting we poke the listeners we actually need:
+-- the live viewer frames and, if it is loaded, the settings panel.
+--
+-- Nothing is lost by skipping the broadcast: the hidden group-buff list never reached
+-- the C layer on this pass anyway (the call was blocked either way), and Blizzard
+-- re-syncs it on the next untainted OnDataChanged -- a reload, spec change, or any
+-- edit made in the Cooldown Manager settings panel.
+local COOLDOWN_VIEWER_FRAMES = {
+    "EssentialCooldownViewer",
+    "UtilityCooldownViewer",
+    "BuffIconCooldownViewer",
+    "BuffBarCooldownViewer",
+}
+
+local function RefreshCooldownViewers()
+    for _, name in ipairs(COOLDOWN_VIEWER_FRAMES) do
+        local viewer = _G[name]
+        if viewer and viewer.OnCooldownDataChanged then
+            viewer:OnCooldownDataChanged()
+        end
+    end
+
+    if CooldownViewerSettings and CooldownViewerSettings.RefreshLayout then
+        CooldownViewerSettings:RefreshLayout()
+    end
+end
+
 -- The live Cooldown Manager keeps an in-memory copy of the layouts in
 -- CooldownViewerSettings. Writing the datastore with C_CooldownViewer.SetLayoutData
 -- alone does NOT update that copy, so the visible bars never refresh and the stale
 -- copy overwrites our blob on the next save. To actually apply an imported layout we
 -- push it through the settings serializer, reload the in-memory layouts from the
--- datastore, activate the layout for the current spec, and notify listeners (the
--- live viewer and settings panel both refresh on "CooldownViewerSettings.OnDataChanged").
+-- datastore, activate the layout for the current spec, and refresh the live viewers
+-- (see RefreshCooldownViewers above for why we do not use NotifyListeners).
 local function ApplyCooldownLayout(blob)
     if not (C_CooldownViewer and C_CooldownViewer.SetLayoutData) then
         return false
@@ -827,9 +860,7 @@ local function ApplyCooldownLayout(blob)
             layoutManager:SetHasPendingChanges(false)
         end
 
-        if layoutManager.NotifyListeners then
-            layoutManager:NotifyListeners()       -- refresh the live bars + settings panel
-        end
+        RefreshCooldownViewers()                  -- refresh the live bars + settings panel
     else
         -- Settings UI unavailable; fall back to a plain datastore write.
         C_CooldownViewer.SetLayoutData(blob)
@@ -898,14 +929,7 @@ local function MoveAllCooldownsToNotDisplayed()
         CooldownViewerSettings:SaveCurrentLayout()
     end
 
-    if CooldownViewerSettings.RefreshLayout then
-        CooldownViewerSettings:RefreshLayout()
-    end
-
-    local layoutManager = CooldownViewerSettings.GetLayoutManager and CooldownViewerSettings:GetLayoutManager()
-    if layoutManager and layoutManager.NotifyListeners then
-        layoutManager:NotifyListeners()
-    end
+    RefreshCooldownViewers()
 
     return true
 end

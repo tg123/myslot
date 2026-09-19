@@ -216,6 +216,24 @@ T.describe("Export/Import round-trip", function()
         T.assert.equal(true, _G.WowStub.cooldown_saved)
     end)
 
+    T.it("Clear COOLDOWNMANAGER refreshes the live bars without NotifyListeners", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+
+        MySlot:Clear("COOLDOWNMANAGER")
+
+        -- Each live viewer frame and the settings panel must be poked directly.
+        -- Going through layoutManager:NotifyListeners() instead would broadcast
+        -- "CooldownViewerSettings.OnDataChanged", whose GroupBuffFilter listener
+        -- calls the protected C_UnitAuras.SetHiddenGroupBuffs() and gets blocked.
+        local refreshed = _G.WowStub.cooldown_refreshed
+        T.assert.equal(1, refreshed.EssentialCooldownViewer)
+        T.assert.equal(1, refreshed.UtilityCooldownViewer)
+        T.assert.equal(1, refreshed.BuffIconCooldownViewer)
+        T.assert.equal(1, refreshed.BuffBarCooldownViewer)
+        T.assert.equal(1, refreshed.settings)
+    end)
+
     T.it("export captures the click cast binding profile", function()
         -- Drives the C_ClickBindings stub: Export should pull GetProfileInfo()
         -- into msg.clickBinding. The SetProfileByInfo import wiring is covered by
