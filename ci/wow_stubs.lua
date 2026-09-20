@@ -51,6 +51,7 @@ function Stub.reset()
     }
     Stub.cooldown_moves = {}     -- [cooldownID] = category the cooldown was moved to
     Stub.cooldown_saved = false  -- set when SaveCurrentLayout runs
+    Stub.cooldown_refreshed = {} -- [frameName|"settings"] = times refreshed after a write
     Stub.cooldown_addon_loaded = true  -- Blizzard_CooldownViewer loaded? (retail=true)
     Stub.click_bindings = {}     -- vector of ClickBindingInfo {type, actionID, button, modifiers}
     Stub.interface_version = 110000  -- 4th GetBuildInfo() return (retail Mainline)
@@ -169,8 +170,26 @@ local cooldownDataProvider = {
 CooldownViewerSettings = {
     GetDataProvider = function() return cooldownDataProvider end,
     SaveCurrentLayout = function() Stub.cooldown_saved = true end,
-    RefreshLayout = function() end,
+    RefreshLayout = function()
+        Stub.cooldown_refreshed.settings = (Stub.cooldown_refreshed.settings or 0) + 1
+    end,
 }
+
+-- The live Cooldown Manager bars. MySlot refreshes these directly instead of
+-- calling layoutManager:NotifyListeners(), whose broadcast reaches Blizzard's
+-- GroupBuffFilter listener and trips the protected C_UnitAuras.SetHiddenGroupBuffs().
+for _, frameName in ipairs({
+    "EssentialCooldownViewer",
+    "UtilityCooldownViewer",
+    "BuffIconCooldownViewer",
+    "BuffBarCooldownViewer",
+}) do
+    _G[frameName] = {
+        OnCooldownDataChanged = function()
+            Stub.cooldown_refreshed[frameName] = (Stub.cooldown_refreshed[frameName] or 0) + 1
+        end,
+    }
+end
 
 -- --- Click Cast Bindings ---------------------------------------------------
 -- Profile passthrough: Export reads the vector, Import writes it back.
