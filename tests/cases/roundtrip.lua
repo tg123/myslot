@@ -130,6 +130,32 @@ T.describe("Export/Import round-trip", function()
         T.assert.equal(150, msg.macro[30].id)
     end)
 
+    T.it("exports on WoW Forever, which has the 11.0 spellbook but no talent grid", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+        Host.set_action(1, "spell", 2098)
+
+        -- The 12.1-engine spellbook/spec APIs exist, but MAX_TALENT_TIERS,
+        -- NUM_TALENT_COLUMNS and C_SpecializationInfo stay nil.
+        T.assert.equal(nil, _G.MAX_TALENT_TIERS)
+        T.assert.equal(nil, _G.NUM_TALENT_COLUMNS)
+        T.assert.equal(nil, _G.C_SpecializationInfo)
+        local savedSpellBook, savedSpecGroups, savedTalentInfo =
+            _G.C_SpellBook, _G.GetNumSpecGroups, _G.GetTalentInfo
+        _G.C_SpellBook = { GetNumSpellBookSkillLines = function() return 0 end }
+        _G.GetNumSpecGroups = function() return 1 end
+        _G.GetTalentInfo = function() end
+
+        local ok, text = pcall(MySlot.Export, MySlot, full_opt())
+        _G.C_SpellBook, _G.GetNumSpecGroups, _G.GetTalentInfo =
+            savedSpellBook, savedSpecGroups, savedTalentInfo
+        T.assert.is_true(ok, tostring(text))
+
+        local msg = MySlot:Import(text, { force = true })
+        T.assert.equal(1, len(msg.slot))
+        T.assert.equal(2098, msg.slot[1].index)
+    end)
+
     T.it("reports cooldown manager support based on the loaded addon", function()
         if Host.in_wow then T.skip("CI-only (stub-backed)") end
 

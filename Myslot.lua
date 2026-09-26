@@ -205,30 +205,37 @@ local function CreateSpellOverrideMap()
             end
         end
 
-        local isInspect = false
-        for specIndex = 1, GetNumSpecGroups(isInspect) do
-            for tier = 1, MAX_TALENT_TIERS do
-                for column = 1, NUM_TALENT_COLUMNS do
-                    local spellId = select(6, GetTalentInfo(tier, column, specIndex))
-                    if spellId then
-                        local newid = C_Spell.GetOverrideSpell(spellId)
-                        if newid ~= spellId then
-                            spellOverride[newid] = spellId
+        -- WoW Forever (toc 16001) runs the 12.1 engine, so it reaches this
+        -- branch, but with vanilla content: it defines no MAX_TALENT_TIERS /
+        -- NUM_TALENT_COLUMNS, and the PvP talent API can't be assumed either.
+        if GetNumSpecGroups and GetTalentInfo and MAX_TALENT_TIERS and NUM_TALENT_COLUMNS then
+            local isInspect = false
+            for specIndex = 1, GetNumSpecGroups(isInspect) do
+                for tier = 1, MAX_TALENT_TIERS do
+                    for column = 1, NUM_TALENT_COLUMNS do
+                        local spellId = select(6, GetTalentInfo(tier, column, specIndex))
+                        if spellId then
+                            local newid = C_Spell.GetOverrideSpell(spellId)
+                            if newid ~= spellId then
+                                spellOverride[newid] = spellId
+                            end
                         end
                     end
                 end
             end
         end
 
-        for pvpTalentSlot = 1, 3 do
-            local slotInfo = C_SpecializationInfo.GetPvpTalentSlotInfo(pvpTalentSlot)
-            if slotInfo ~= nil then
-                for i, pvpTalentID in ipairs(slotInfo.availableTalentIDs) do
-                    local spellId = select(6, GetPvpTalentInfoByID(pvpTalentID))
-                    if spellId then
-                        local newid = C_Spell.GetOverrideSpell(spellId)
-                        if newid ~= spellId then
-                            spellOverride[newid] = spellId
+        if C_SpecializationInfo and C_SpecializationInfo.GetPvpTalentSlotInfo and GetPvpTalentInfoByID then
+            for pvpTalentSlot = 1, 3 do
+                local slotInfo = C_SpecializationInfo.GetPvpTalentSlotInfo(pvpTalentSlot)
+                if slotInfo ~= nil then
+                    for i, pvpTalentID in ipairs(slotInfo.availableTalentIDs) do
+                        local spellId = select(6, GetPvpTalentInfoByID(pvpTalentID))
+                        if spellId then
+                            local newid = C_Spell.GetOverrideSpell(spellId)
+                            if newid ~= spellId then
+                                spellOverride[newid] = spellId
+                            end
                         end
                     end
                 end
