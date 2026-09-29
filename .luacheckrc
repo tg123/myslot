@@ -17,7 +17,6 @@ globals = {
     "SLASH_MYSLOTTEST1",
     "SlashCmdList",
     "StaticPopupDialogs",
-    "opt",
 }
 
 read_globals = {
