@@ -1162,10 +1162,14 @@ RegEvent("ADDON_LOADED", function()
         -- `exports`. The modern dropdown has no built-in selection model for our
         -- index-as-identity scheme, so we track it ourselves and drive the text.
         local selectedIdx
+        local updateShareButton -- defined with the share button below
 
         local function setSelected(idx)
             selectedIdx = idx
             setButtonText(idx and exports[idx] and exports[idx].name or "")
+            if updateShareButton then
+                updateShareButton()
+            end
         end
 
         local function selectLoadout(idx)
@@ -1209,6 +1213,9 @@ RegEvent("ADDON_LOADED", function()
 
             exports[c].value = v
             infolabel:SetText("")
+            if updateShareButton then
+                updateShareButton()
+            end
         end
 
         -- Localized, class-colored label for a class group header. token may be
@@ -1456,6 +1463,138 @@ RegEvent("ADDON_LOADED", function()
             end)
         end
 
+        -- Link the selected saved profile in chat (see share.lua). Only the saved
+        -- version can be shared, so the button is greyed out while nothing
+        -- saved is selected or the text box has unsaved changes.
+        do
+            local chatIcon = "Interface\\ChatFrame\\UI-ChatIcon-Chat-Up"
+            local b = CreateFrame("Button", nil, f)
+            b:SetSize(24, 24)
+            b:SetPoint("LEFT", t, "RIGHT", 8, 0)
+            b:SetNormalTexture(chatIcon)
+            b:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-Chat-Down")
+            b:SetDisabledTexture(chatIcon)
+            b:GetDisabledTexture():SetDesaturated(true)
+            b:GetDisabledTexture():SetAlpha(0.5)
+            b:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+            if b.SetMotionScriptsWhileDisabled then
+                b:SetMotionScriptsWhileDisabled(true)
+            end
+
+            -- Why the selected profile can't be shared right now, or nil.
+            local function blockedReason()
+                local c = selectedIdx
+                if not (c and exports[c]) then
+                    return L["Select a saved profile to share it."]
+                end
+                local v = exports[c].value
+                if not v or v == "" then
+                    return L["Save the profile before sharing it."]
+                end
+                if exportEditbox:GetText() ~= v then
+                    return L["Save your changes before sharing, only saved profiles can be shared."]
+                end
+            end
+
+            updateShareButton = function()
+                b:SetEnabled(blockedReason() == nil)
+            end
+            exportEditbox:HookScript("OnTextChanged", updateShareButton)
+            updateShareButton()
+
+            b:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                GameTooltip:SetText(L["Link in chat"])
+                GameTooltip:AddLine(L["Post a link to the selected profile in chat. Other Myslot users can click it to get a copy."], 1, 1, 1, true)
+                local reason = blockedReason()
+                if reason then
+                    GameTooltip:AddLine(reason, 1, 0.2, 0.2, true)
+                end
+                GameTooltip:Show()
+            end)
+            b:SetScript("OnLeave", function()
+                GameTooltip:Hide()
+            end)
+            b:SetScript("OnClick", function()
+                if blockedReason() then
+                    return
+                end
+                MySlot.share.LinkProfile(exports[selectedIdx].name, exports[selectedIdx].value)
+            end)
+        end
+
+        -- Used by share.lua to hand a received profile to the user. Only fills
+        -- the text box; importing still requires clicking Import. Unsaved text
+        -- is never replaced without asking, and profiles that arrive while the
+        -- user is deciding wait in line instead of overwriting each other.
+        local incoming = {}
+        local prompting = false
+
+        local function hasUnsavedText()
+            local text = exportEditbox:GetText()
+            if text == "" then
+                return false
+            end
+            local c = selectedIdx
+            return not (c and exports[c] and exports[c].value == text)
+        end
+
+        local function showIncoming(item)
+            exportEditbox:SetText(item.text)
+            setSelected(nil)
+            setButtonText(item.title)
+            infolabel.ShowUnsaved()
+        end
+
+        local processIncoming
+        processIncoming = function()
+            if prompting then
+                return
+            end
+            local item = table.remove(incoming, 1)
+            if not item then
+                return
+            end
+            f:Show()
+            if not hasUnsavedText() then
+                showIncoming(item)
+                return processIncoming()
+            end
+
+            local dialog = StaticPopupDialogs["MYSLOT_REPLACE_TEXT"]
+            local function done()
+                prompting = false
+                C_Timer.After(0, processIncoming)
+            end
+            dialog.OnAccept = function()
+                showIncoming(item)
+                done()
+            end
+            dialog.OnCancel = function()
+                MySlot:Print((L["Kept your text, discarded the received profile '%s'."]):format(item.title))
+                done()
+            end
+            -- Hidden some other way (e.g. by another popup): treat as cancel.
+            dialog.OnHide = function()
+                if prompting then
+                    dialog.OnCancel()
+                end
+            end
+
+            prompting = true
+            if not StaticPopup_Show("MYSLOT_REPLACE_TEXT", item.title) then
+                -- No popup slot free right now; try again shortly.
+                prompting = false
+                table.insert(incoming, 1, item)
+                C_Timer.After(1, processIncoming)
+            end
+        end
+
+        function MySlot:ShowImportText(text, title)
+            table.insert(incoming, { text = text, title = title })
+            processIncoming()
+        end
+
     end
 
 end)
@@ -1606,6 +1745,16 @@ StaticPopupDialogs["MYSLOT_EXPORT_TITLE"] = {
 
 StaticPopupDialogs["MYSLOT_CONFIRM_DELETE"] = {
     text = L["Are you SURE to delete '%s'?"],
+    button1 = ACCEPT,
+    button2 = CANCEL,
+    timeout = 0,
+    whileDead = 1,
+    hideOnEscape = 1,
+    multiple = 0,
+}
+
+StaticPopupDialogs["MYSLOT_REPLACE_TEXT"] = {
+    text = L["Replace the unsaved text with the received profile '%s'? Your unsaved changes will be lost."],
     button1 = ACCEPT,
     button2 = CANCEL,
     timeout = 0,
