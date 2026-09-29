@@ -1162,10 +1162,14 @@ RegEvent("ADDON_LOADED", function()
         -- `exports`. The modern dropdown has no built-in selection model for our
         -- index-as-identity scheme, so we track it ourselves and drive the text.
         local selectedIdx
+        local updateShareButton -- defined with the share button below
 
         local function setSelected(idx)
             selectedIdx = idx
             setButtonText(idx and exports[idx] and exports[idx].name or "")
+            if updateShareButton then
+                updateShareButton()
+            end
         end
 
         local function selectLoadout(idx)
@@ -1209,6 +1213,9 @@ RegEvent("ADDON_LOADED", function()
 
             exports[c].value = v
             infolabel:SetText("")
+            if updateShareButton then
+                updateShareButton()
+            end
         end
 
         -- Localized, class-colored label for a class group header. token may be
@@ -1456,30 +1463,63 @@ RegEvent("ADDON_LOADED", function()
             end)
         end
 
-        -- Link the selected saved profile in chat (see share.lua).
+        -- Link the selected saved profile in chat (see share.lua). Only the saved
+        -- version can be shared, so the button is greyed out while nothing
+        -- saved is selected or the text box has unsaved changes.
         do
+            local chatIcon = "Interface\\ChatFrame\\UI-ChatIcon-Chat-Up"
             local b = CreateFrame("Button", nil, f)
             b:SetSize(24, 24)
             b:SetPoint("LEFT", t, "RIGHT", 8, 0)
-            b:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIcon-Chat-Up")
+            b:SetNormalTexture(chatIcon)
             b:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-Chat-Down")
+            b:SetDisabledTexture(chatIcon)
+            b:GetDisabledTexture():SetDesaturated(true)
+            b:GetDisabledTexture():SetAlpha(0.5)
             b:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+            if b.SetMotionScriptsWhileDisabled then
+                b:SetMotionScriptsWhileDisabled(true)
+            end
+
+            -- Why the selected profile can't be shared right now, or nil.
+            local function blockedReason()
+                local c = selectedIdx
+                if not (c and exports[c]) then
+                    return L["Select a saved profile to share it."]
+                end
+                local v = exports[c].value
+                if not v or v == "" then
+                    return L["Save the profile before sharing it."]
+                end
+                if exportEditbox:GetText() ~= v then
+                    return L["Save your changes before sharing, only saved profiles can be shared."]
+                end
+            end
+
+            updateShareButton = function()
+                b:SetEnabled(blockedReason() == nil)
+            end
+            exportEditbox:HookScript("OnTextChanged", updateShareButton)
+            updateShareButton()
+
             b:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_TOP")
                 GameTooltip:SetText(L["Link in chat"])
                 GameTooltip:AddLine(L["Post a link to the selected profile in chat. Other Myslot users can click it to get a copy."], 1, 1, 1, true)
+                local reason = blockedReason()
+                if reason then
+                    GameTooltip:AddLine(reason, 1, 0.2, 0.2, true)
+                end
                 GameTooltip:Show()
             end)
             b:SetScript("OnLeave", function()
                 GameTooltip:Hide()
             end)
             b:SetScript("OnClick", function()
-                local c = selectedIdx
-                if not (c and exports[c]) then
-                    MySlot:Print(L["Select a profile first"])
+                if blockedReason() then
                     return
                 end
-                MySlot.share.LinkProfile(exports[c].name, exports[c].value)
+                MySlot.share.LinkProfile(exports[selectedIdx].name, exports[selectedIdx].value)
             end)
         end
 

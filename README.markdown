@@ -67,7 +67,7 @@ Talent loadout strings only exist since Dragonflight, so none of this is shown o
 
 ### Share in chat
 
-1. Select a saved profile and click the chat bubble next to the profile list
+1. Select a saved profile and click the chat bubble next to the profile list (save any changes first — only saved profiles can be shared)
 1. Send the `[Myslot: Name - Profile]` tag in guild, party, raid, whisper, etc.
 1. Other Myslot users click the link to receive the profile in their import box — they still have to click **Import**
 
