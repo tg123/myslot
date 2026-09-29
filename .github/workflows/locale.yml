@@ -1,0 +1,36 @@
+name: Upload Locale
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '*.lua'
+      - 'extract_locale.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    if: github.repository == 'tg123/myslot'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract enUS phrases
+        run: |
+          bash extract_locale.sh > phrases.lua
+          wc -l phrases.lua
+
+      - name: Import enUS phrases to WowAce
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+        run: |
+          project_id=$(sed -n 's/^## X-Curse-Project-ID: *\([0-9]*\).*/\1/p' Myslot.toc)
+          # DoNothing keeps phrases removed from code (and their translations) on WowAce.
+          curl --fail-with-body -sS -X POST \
+            -H "X-Api-Token: $CF_API_KEY" \
+            -F 'metadata={"language":"enUS","formatType":"TableAdditions","missing-phrase-handling":"DoNothing"}' \
+            -F "localizations=<phrases.lua" \
+            "https://www.wowace.com/api/projects/${project_id}/localization/import"
