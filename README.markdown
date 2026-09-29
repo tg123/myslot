@@ -1,78 +1,98 @@
 # Myslot
 
-## Introduction
-Myslot is a [World of Warcraft](http://www.battle.net/wow) Addon for transferring settings between accounts.
+**Copy your whole UI setup to any character — action bars, macros and keybinds — with one text string.**
 
-Myslot can export your ActionBar Layout, Marcos and Key Bindings as a transfer-friendly text, 
-which can be copy/paste into notepad, sent via email, etc.
-Any character, even different class, can use Myslot to import those settings from the 'Exported text'
+[![CurseForge](https://img.shields.io/badge/CurseForge-Myslot-F16436?logo=curseforge&logoColor=white)](https://www.curseforge.com/wow/addons/myslot)
+[![Wago](https://img.shields.io/badge/Wago-Myslot-7B3FE4)](https://addons.wago.io/addons/myslot)
+[![Test](https://github.com/tg123/myslot/actions/workflows/test.yml/badge.svg)](https://github.com/tg123/myslot/actions/workflows/test.yml)
+
+Setting up a new alt, moving to a new account, or rebuilding after a UI reset?
+Myslot exports your setup as a short, copy‑paste friendly text.
+Paste it on any character — even a different class — and click **Import**.
+
+Browse and share profiles at **<https://myslot.net>**.
+
+## Features
+
+- **Action bars** — every bar, including the main action bar pages, stance bars and the Skyriding bar
+- **Macros** — both account‑wide and character‑specific
+- **Key bindings**
+- **Click Cast Bindings** *(Retail)*
+- **Cooldown Manager layouts** *(Retail)*
+- **Cross‑class & cross‑account** — spells, items, mounts and pets you don't have are skipped with a clear message; unowned mounts can fall back to a random mount
+- **Saved profiles** — keep up to 100 exports in game, sort by name / date / class and filter to your class
+- **Automatic backup** — your current setup is saved before every import, so you can always roll back
+- **Choose what to import or clear** — pick exactly which bars, macros and bindings to apply
+- **Fast & safe** — asynchronous import with a progress bar, blocked during combat, CRC‑checked text
+- **Minimap button** and `/myslot` slash command
+
+### Supported game versions
+
+Retail (The War Within / Midnight), Classic Era & Anniversary, Burning Crusade, Wrath, Cataclysm, Mists of Pandaria, Titan and WoW Forever.
+Options that a game version doesn't support are hidden automatically.
 
 ## Usage
 
-
 ### Export
 
-  1. Use command /myslot to toggle Myslot main UI
-  1. Click the 'Export' button
-  1. Save the `exported text` anywhere you want (e.g. nodepad as a txt)
+1. Type `/myslot` (or click the minimap button) to open Myslot
+1. Click **Export**
+1. Copy the text and save it anywhere — a text file, Discord, email, or [myslot.net](https://myslot.net)
 
 ### Import
-  
-  1. Use command /myslot to toggle Myslot main UI
-  1. Paste `exported text` into textbox
-  1. Click the 'Import' button
- 
-### Clean up tools
-  
 
-  1. Clear all action slot on your action bar
-     
-    /myslot clear action
+1. Type `/myslot` to open Myslot
+1. Paste the exported text into the text box (or pick a saved profile)
+1. Choose what to import, then click **Import**
 
-  1. Clear all key bindings (blizzard default included)
-     
-    /myslot clear binding
- 
-### Import profile from command
-  
+### Slash commands
 
-You can use the command 'load' to import a profile by name
-     
-    /myslot load ProfileName
-
-You can add this line in a macro and safe it in your profile and swap from one profile to another by using the macro.
-
+| Command | Description |
+|---------|-------------|
+| `/myslot` | Toggle the Myslot window |
+| `/myslot load <ProfileName>` | Import a saved profile by name — put it in a macro to swap setups with one click |
+| `/myslot clear action` | Clear every action bar slot |
+| `/myslot clear macro` | Delete all macros |
+| `/myslot clear binding` | Clear all key bindings (Blizzard defaults included) |
+| `/myslot trim [N]` | Keep only the newest `N` saved profiles (default 100) and reload the UI |
 
 ## Get Myslot
 
- * Curse https://www.curseforge.com/wow/addons/myslot
- * Wowace http://www.wowace.com/addons/myslot
+- CurseForge — <https://www.curseforge.com/wow/addons/myslot>
+- Wago — <https://addons.wago.io/addons/myslot>
 
-## Contrubuting
+## Contributing
 
- Source on Github <https://github.com/tg123/myslot>
+Source code lives on GitHub: <https://github.com/tg123/myslot>. Bug reports and pull requests are welcome.
 
 ### Localization
 
-Localization is welcomed, Please visit 
-<http://www.wowace.com/addons/myslot/localization/>
-and submit your localization
-
+Translations are welcome! Please submit them at
+<https://www.wowace.com/projects/myslot/localization>.
 
 ### Build your own Myslot
 
- * clone the source code into `Interface\Addons\Myslot`
+- Clone the source code into `Interface\AddOns\Myslot`
 
 ```
 $ git clone https://github.com/tg123/myslot.git Myslot
 ```
- 
- * pull the localizations from wowace (optional)
+
+- Run the tests (Lua 5.1 + luabitop)
 
 ```
-./update_locale.sh
+$ lua5.1 ci/run.lua
 ```
- 
+
+- Run the tests in game — a git checkout loads the test suite (it is stripped from CurseForge/Wago packages), then type:
+
+```
+/myslottest            -- run all tests
+/myslottest <filter>   -- run only tests whose name matches <filter>
+```
+
+  The results are shown in a pop-up you can copy with Ctrl+A / Ctrl+C. Tests cannot run in combat.
+
 #### Changing Protobuf
 
 Myslot use a modified version of [lua-pb](https://github.com/tg123/lua-pb) to serialize/deserialize the data. 
@@ -80,9 +100,8 @@ You may want to change the data structure sometimes if you want add some new thi
 
 Please check [lua-pb](https://github.com/tg123/lua-pb) about how to generate protobuf stub files.
 
-
 ## Copyright and License
-1. Copyright (C) 2009-2019 by Boshi Lian <farmer1992@gmail.com>
+1. Copyright (C) 2009-2026 by Boshi Lian <farmer1992@gmail.com>
 1. Use of this software for profit purposes are NOT allowed except by prior arrangement and written consent of the author.
 1. This software is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html)
 1. All rights of **Exported text** are owned by end-users.
