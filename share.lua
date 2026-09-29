@@ -212,6 +212,57 @@ function Share.NormalizeName(name, realm)
     return name:lower()
 end
 
+-- Pick the name to link a profile under. Reuses the sanitized name when it is
+-- free or already linked to the same export; otherwise appends " (2)", " (3)",
+-- ... so a link that is already in chat keeps returning what it pointed to.
+function Share.UniqueLinkName(linked, name, value)
+    local base = Share.SanitizeName(name)
+    local candidate = base
+    local n = 1
+    while linked[candidate] ~= nil and linked[candidate] ~= value do
+        n = n + 1
+        local suffix = " (" .. n .. ")"
+        candidate = trim(Share.TruncateUTF8(base, Share.MAX_NAME_BYTES - #suffix)) .. suffix
+    end
+    return candidate
+end
+
+-- Battle.net senders are encoded in links as "#<bnetAccountID>" or
+-- "#<bnetAccountID>@<character GUID>" so the right game account can be
+-- chosen when the friend is logged in on several clients.
+function Share.FormatBNSender(bnetAccountID, guid)
+    if type(guid) == "string" and guid ~= "" and not guid:find("[:|]") then
+        return "#" .. bnetAccountID .. "@" .. guid
+    end
+    return "#" .. bnetAccountID
+end
+
+function Share.ParseBNSender(sender)
+    local id, guid = sender:match("^#(%d+)@(.+)$")
+    if not id then
+        id = sender:match("^#(%d+)$")
+    end
+    return tonumber(id), guid
+end
+
+-- Choose the game account to send a Battle.net request to: the online WoW
+-- account playing the character that sent the link, or the only online WoW
+-- account when that character can't be identified.
+function Share.PickGameAccount(accounts, guid)
+    local online = {}
+    for _, game in ipairs(accounts) do
+        if game and game.isOnline and game.gameAccountID and game.clientProgram == "WoW" then
+            if guid and game.playerGuid == guid then
+                return game
+            end
+            online[#online + 1] = game
+        end
+    end
+    if #online == 1 then
+        return online[1]
+    end
+end
+
 -- }}}
 
 -- {{{ In-game wiring
@@ -375,7 +426,7 @@ function Share.LinkProfile(name, value)
         return
     end
 
-    local profile = Share.SanitizeName(name)
+    local profile = Share.UniqueLinkName(linked, name, value)
     linked[profile] = value
 
     local tag = Share.FormatTag(Share.SanitizePlayer(UnitName("player")), profile)
@@ -412,16 +463,33 @@ local function CheckTimeout(id)
     end
 end
 
-local function ResolveBNTarget(bnAccountID)
-    if not (C_BattleNet and C_BattleNet.GetAccountInfoByID) then
+local function ResolveBNTarget(bnetAccountID, guid)
+    local accounts = {}
+    local api = C_BattleNet
+    if api and api.GetFriendAccountInfo and api.GetFriendNumGameAccounts and api.GetFriendGameAccountInfo
+        and BNGetNumFriends then
+        for i = 1, (BNGetNumFriends() or 0) do
+            local info = api.GetFriendAccountInfo(i)
+            if info and info.bnetAccountID == bnetAccountID then
+                for j = 1, (api.GetFriendNumGameAccounts(i) or 0) do
+                    accounts[#accounts + 1] = api.GetFriendGameAccountInfo(i, j)
+                end
+                break
+            end
+        end
+    end
+    if #accounts == 0 and api and api.GetAccountInfoByID then
+        local info = api.GetAccountInfoByID(bnetAccountID)
+        if info and info.gameAccountInfo then
+            accounts[1] = info.gameAccountInfo
+        end
+    end
+
+    local game = Share.PickGameAccount(accounts, guid)
+    if not game then
         return
     end
-    local info = C_BattleNet.GetAccountInfoByID(bnAccountID)
-    local game = info and info.gameAccountInfo
-    if not (game and game.isOnline and game.gameAccountID) then
-        return
-    end
-    return { bnID = game.gameAccountID }, game.characterName or info.accountName or L["Battle.net friend"]
+    return { bnID = game.gameAccountID }, game.characterName or L["Battle.net friend"]
 end
 
 function Share.RequestProfile(sender, profile)
@@ -441,9 +509,11 @@ function Share.RequestProfile(sender, profile)
     end
 
     local target, label
-    local bnAccountID = sender:match("^#(%d+)$")
-    if bnAccountID then
-        target, label = ResolveBNTarget(tonumber(bnAccountID))
+    if sender:sub(1, 1) == "#" then
+        local bnetAccountID, guid = Share.ParseBNSender(sender)
+        if bnetAccountID then
+            target, label = ResolveBNTarget(bnetAccountID, guid)
+        end
         if not target then
             MySlot:Print(L["That Battle.net friend is not online in World of Warcraft."])
             return
@@ -570,11 +640,14 @@ local function ChatFilter(_, event, msg, author, ...)
     if SELF_AUTHORED[event] then
         sender = UnitName("player")
     elseif event == "CHAT_MSG_BN_WHISPER" then
-        local bnSenderID = select(11, ...)
+        local guid, bnSenderID = select(10, ...)
         if IsSecret(bnSenderID) or type(bnSenderID) ~= "number" then
             return false
         end
-        sender = "#" .. bnSenderID
+        if IsSecret(guid) then
+            guid = nil
+        end
+        sender = Share.FormatBNSender(bnSenderID, guid)
     elseif type(author) == "string" and author ~= "" then
         sender = author
     else

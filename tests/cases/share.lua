@@ -76,6 +76,68 @@ T.describe("share: chat tags and links", function()
         T.assert.equal("tester-other", Share.NormalizeName("Tester-Other", "Area52"))
         T.assert.equal(nil, Share.NormalizeName("", "Area52"))
     end)
+
+    T.it("gives colliding profiles distinct link names", function()
+        local linked = {}
+        local a = Share.UniqueLinkName(linked, "A[ B", "one")
+        linked[a] = "one"
+        T.assert.equal("A B", a)
+        -- Same export again reuses the name.
+        T.assert.equal("A B", Share.UniqueLinkName(linked, "A B", "one"))
+        -- A different export that sanitizes to the same name gets a suffix.
+        local b = Share.UniqueLinkName(linked, "A] B", "two")
+        T.assert.equal("A B (2)", b)
+        linked[b] = "two"
+        T.assert.equal("A B (3)", Share.UniqueLinkName(linked, "A B", "three"))
+        T.assert.equal("A B (2)", Share.UniqueLinkName(linked, "A B", "two"))
+
+        -- Suffixed names stay within the length limit.
+        local long = ("x"):rep(200)
+        linked = {}
+        linked[Share.UniqueLinkName(linked, long, "one")] = "one"
+        local c = Share.UniqueLinkName(linked, long, "two")
+        T.assert.is_true(#c <= Share.MAX_NAME_BYTES, "too long: " .. #c)
+        T.assert.equal(" (2)", c:sub(-4))
+        -- The suffixed name still survives a chat round-trip.
+        local _, n = Share.RewriteMessage(Share.FormatTag("Tester", c), "Tester")
+        T.assert.equal(1, n)
+    end)
+
+    T.it("encodes Battle.net senders with the character GUID", function()
+        local sender = Share.FormatBNSender(42, "Player-1234-0ABCDEF0")
+        T.assert.equal("#42@Player-1234-0ABCDEF0", sender)
+        local id, guid = Share.ParseBNSender(sender)
+        T.assert.equal(42, id)
+        T.assert.equal("Player-1234-0ABCDEF0", guid)
+
+        T.assert.equal("#42", Share.FormatBNSender(42, nil))
+        T.assert.equal("#42", Share.FormatBNSender(42, ""))
+        id, guid = Share.ParseBNSender("#42")
+        T.assert.equal(42, id)
+        T.assert.equal(nil, guid)
+
+        -- The encoded sender must survive the link round-trip.
+        local out = Share.RewriteMessage("[Myslot: A - Main]", sender)
+        local s, profile = Share.ParseLink(out:match("|H(.-)|h"))
+        T.assert.equal(sender, s)
+        T.assert.equal("Main", profile)
+    end)
+
+    T.it("picks the game account playing the linking character", function()
+        local accounts = {
+            { gameAccountID = 1, isOnline = true, clientProgram = "BSAp" },
+            { gameAccountID = 2, isOnline = true, clientProgram = "WoW", playerGuid = "Player-1-AAA" },
+            { gameAccountID = 3, isOnline = true, clientProgram = "WoW", playerGuid = "Player-1-BBB" },
+            { gameAccountID = 4, isOnline = false, clientProgram = "WoW", playerGuid = "Player-1-CCC" },
+        }
+        T.assert.equal(3, Share.PickGameAccount(accounts, "Player-1-BBB").gameAccountID)
+        -- Ambiguous without a GUID match: refuse rather than guess.
+        T.assert.equal(nil, Share.PickGameAccount(accounts, nil))
+        T.assert.equal(nil, Share.PickGameAccount(accounts, "Player-1-CCC"))
+        -- A single online WoW account is used even without a GUID.
+        T.assert.equal(2, Share.PickGameAccount({ accounts[1], accounts[2] }, nil).gameAccountID)
+        T.assert.equal(nil, Share.PickGameAccount({ accounts[1] }, nil))
+    end)
 end)
 
 T.describe("share: transfer protocol", function()

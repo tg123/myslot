@@ -30,6 +30,7 @@ read_globals = {
     "BOTTOMLEFT_ACTIONBAR_PAGE",
     "BOTTOMRIGHT_ACTIONBAR_PAGE",
     "BackdropTemplateMixin",
+    "BNGetNumFriends",
     "BNSendGameData",
     "bit",
     "CANCEL",
