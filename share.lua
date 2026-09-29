@@ -263,14 +263,67 @@ function Share.PickGameAccount(accounts, guid)
     end
 end
 
+-- FIFO of outgoing transfers. Each job's chunks are sent one message per tick,
+-- paced by deps.after; throttled sends are retried after a back-off, anything
+-- else that fails drops the job. Dependencies are injected so the pacing can
+-- be tested deterministically:
+--   deps.send(target, msg) -> "ok" | "throttle" | "lockdown" | "offline" | "error"
+--   deps.after(delay, fn)     schedule fn
+--   deps.inLockdown() -> bool
+--   deps.onDrop(job, result)  optional, called when a job is abandoned
+function Share.NewSendQueue(deps)
+    local q = { jobs = {}, running = false }
+
+    local function pump()
+        local job = q.jobs[1]
+        if not job then
+            q.running = false
+            return
+        end
+
+        local delay = Share.SEND_INTERVAL
+        local result = deps.inLockdown() and "lockdown"
+            or deps.send(job.target, Share.EncodeChunk(job.id, job.next, #job.chunks, job.chunks[job.next]))
+
+        if result == "ok" then
+            job.next = job.next + 1
+            job.retries = 0
+            if job.next > #job.chunks then
+                table.remove(q.jobs, 1)
+            end
+        elseif result == "throttle" and job.retries < Share.MAX_SEND_RETRIES then
+            job.retries = job.retries + 1
+            delay = Share.THROTTLE_BACKOFF
+        else
+            table.remove(q.jobs, 1)
+            if deps.onDrop then
+                deps.onDrop(job, result)
+            end
+        end
+
+        deps.after(delay, pump)
+    end
+
+    -- job: { target, id, chunks, ... } (extra fields are kept for callers)
+    function q:Add(job)
+        job.next = 1
+        job.retries = 0
+        table.insert(self.jobs, job)
+        if not self.running then
+            self.running = true
+            deps.after(0, pump)
+        end
+    end
+
+    return q
+end
+
 -- }}}
 
 -- {{{ In-game wiring
 
 local linked = {}   -- [sanitized profile name] = export text, this session only
 local pending = {}  -- [request id] = incoming transfer we asked for
-local outgoing = {} -- FIFO of transfers we are serving
-local sending = false
 local requestCounter = 0
 
 local function IsSecret(v)
@@ -345,38 +398,19 @@ local function TargetKey(target)
 end
 
 -- {{{ Sharer side
-local function PumpQueue()
-    local job = outgoing[1]
-    if not job then
-        sending = false
-        return
-    end
-
-    local delay = Share.SEND_INTERVAL
-    local result = InLockdown() and "lockdown"
-        or SendRaw(job.target, Share.EncodeChunk(job.id, job.next, #job.chunks, job.chunks[job.next]))
-
-    if result == "ok" then
-        job.next = job.next + 1
-        job.retries = 0
-        if job.next > #job.chunks then
-            table.remove(outgoing, 1)
-        end
-    elseif result == "throttle" and job.retries < Share.MAX_SEND_RETRIES then
-        job.retries = job.retries + 1
-        delay = Share.THROTTLE_BACKOFF
-    else
-        table.remove(outgoing, 1)
+local outgoing = Share.NewSendQueue({
+    send = SendRaw,
+    after = After,
+    inLockdown = InLockdown,
+    onDrop = function(job, result)
         if result == "lockdown" then
             MySlot:Print(L["Stopped sending a shared profile."])
             PrintLockdown()
         else
             MySlot:Print((L["Failed to send profile '%s' to %s."]):format(job.profile, job.label))
         end
-    end
-
-    After(delay, PumpQueue)
-end
+    end,
+})
 
 local function HandleRequest(target, label, id, profile)
     local value = linked[profile]
@@ -386,38 +420,31 @@ local function HandleRequest(target, label, id, profile)
     end
 
     local key = TargetKey(target)
-    for _, job in ipairs(outgoing) do
+    for _, job in ipairs(outgoing.jobs) do
         if job.id == id and job.key == key then
             return
         end
     end
-    for _, job in ipairs(outgoing) do
+    for _, job in ipairs(outgoing.jobs) do
         if job.key == key and job.profile == profile then
             SendRaw(target, Share.EncodeError(id, "busy"))
             return
         end
     end
-    if #outgoing >= Share.MAX_QUEUED then
+    if #outgoing.jobs >= Share.MAX_QUEUED then
         SendRaw(target, Share.EncodeError(id, "busy"))
         return
     end
 
-    table.insert(outgoing, {
+    outgoing:Add({
         target = target,
         key = key,
         label = label,
         id = id,
         profile = profile,
         chunks = Share.SplitChunks(value, Share.CHUNK_SIZE),
-        next = 1,
-        retries = 0,
     })
     MySlot:Print((L["Sending profile '%s' to %s..."]):format(profile, label))
-
-    if not sending then
-        sending = true
-        After(0, PumpQueue)
-    end
 end
 
 function Share.LinkProfile(name, value)

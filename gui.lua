@@ -1524,13 +1524,75 @@ RegEvent("ADDON_LOADED", function()
         end
 
         -- Used by share.lua to hand a received profile to the user. Only fills
-        -- the text box; importing still requires clicking Import.
-        function MySlot:ShowImportText(text, title)
-            exportEditbox:SetText(text)
+        -- the text box; importing still requires clicking Import. Unsaved text
+        -- is never replaced without asking, and profiles that arrive while the
+        -- user is deciding wait in line instead of overwriting each other.
+        local incoming = {}
+        local prompting = false
+
+        local function hasUnsavedText()
+            local text = exportEditbox:GetText()
+            if text == "" then
+                return false
+            end
+            local c = selectedIdx
+            return not (c and exports[c] and exports[c].value == text)
+        end
+
+        local function showIncoming(item)
+            exportEditbox:SetText(item.text)
             setSelected(nil)
-            setButtonText(title)
+            setButtonText(item.title)
             infolabel.ShowUnsaved()
+        end
+
+        local processIncoming
+        processIncoming = function()
+            if prompting then
+                return
+            end
+            local item = table.remove(incoming, 1)
+            if not item then
+                return
+            end
             f:Show()
+            if not hasUnsavedText() then
+                showIncoming(item)
+                return processIncoming()
+            end
+
+            local dialog = StaticPopupDialogs["MYSLOT_REPLACE_TEXT"]
+            local function done()
+                prompting = false
+                C_Timer.After(0, processIncoming)
+            end
+            dialog.OnAccept = function()
+                showIncoming(item)
+                done()
+            end
+            dialog.OnCancel = function()
+                MySlot:Print((L["Kept your text, discarded the received profile '%s'."]):format(item.title))
+                done()
+            end
+            -- Hidden some other way (e.g. by another popup): treat as cancel.
+            dialog.OnHide = function()
+                if prompting then
+                    dialog.OnCancel()
+                end
+            end
+
+            prompting = true
+            if not StaticPopup_Show("MYSLOT_REPLACE_TEXT", item.title) then
+                -- No popup slot free right now; try again shortly.
+                prompting = false
+                table.insert(incoming, 1, item)
+                C_Timer.After(1, processIncoming)
+            end
+        end
+
+        function MySlot:ShowImportText(text, title)
+            table.insert(incoming, { text = text, title = title })
+            processIncoming()
         end
 
     end
@@ -1683,6 +1745,16 @@ StaticPopupDialogs["MYSLOT_EXPORT_TITLE"] = {
 
 StaticPopupDialogs["MYSLOT_CONFIRM_DELETE"] = {
     text = L["Are you SURE to delete '%s'?"],
+    button1 = ACCEPT,
+    button2 = CANCEL,
+    timeout = 0,
+    whileDead = 1,
+    hideOnEscape = 1,
+    multiple = 0,
+}
+
+StaticPopupDialogs["MYSLOT_REPLACE_TEXT"] = {
+    text = L["Replace the unsaved text with the received profile '%s'? Your unsaved changes will be lost."],
     button1 = ACCEPT,
     button2 = CANCEL,
     timeout = 0,

@@ -243,3 +243,124 @@ T.describe("share: transfer protocol", function()
         T.assert.is_false(MySlot:IsValidExportText(""))
     end)
 end)
+
+T.describe("share: send queue", function()
+    -- Deterministic harness: timers run only when step() is called, and
+    -- results[i] decides what the i-th send returns (default "ok").
+    local function harness(results)
+        local h = { sent = {}, delays = {}, dropped = {}, lockdown = false }
+        local timers = {}
+        h.queue = Share.NewSendQueue({
+            send = function(target, msg)
+                local n = #h.sent + 1
+                local _, id, idx, total, data = Share.DecodeMessage(msg)
+                h.sent[n] = { to = target.name, id = id, idx = idx, total = total, data = data }
+                return results and results[n] or "ok"
+            end,
+            after = function(delay, fn)
+                timers[#timers + 1] = fn
+                h.delays[#h.delays + 1] = delay
+            end,
+            inLockdown = function() return h.lockdown end,
+            onDrop = function(job, result)
+                h.dropped[#h.dropped + 1] = { id = job.id, result = result }
+            end,
+        })
+        function h.step()
+            local fn = table.remove(timers, 1)
+            if fn then fn() end
+            return fn ~= nil
+        end
+        function h.drain(limit)
+            local n = 0
+            while h.step() do
+                n = n + 1
+                assert(n < (limit or 1000), "queue did not settle")
+            end
+        end
+        return h
+    end
+
+    local function job(id, name, ...)
+        return { target = { name = name }, id = id, chunks = { ... } }
+    end
+
+    T.it("sends every chunk in order, paced, then goes idle", function()
+        local h = harness()
+        h.queue:Add(job("1", "Bob", "a", "b", "c"))
+        T.assert.is_true(h.queue.running)
+        h.drain()
+        T.assert.equal(3, #h.sent)
+        for i, s in ipairs(h.sent) do
+            T.assert.equal("Bob", s.to)
+            T.assert.equal(i, s.idx)
+            T.assert.equal(3, s.total)
+            T.assert.equal(("abc"):sub(i, i), s.data)
+        end
+        T.assert.same({ 0, Share.SEND_INTERVAL, Share.SEND_INTERVAL, Share.SEND_INTERVAL }, h.delays)
+        T.assert.is_false(h.queue.running)
+        T.assert.equal(0, #h.queue.jobs)
+        T.assert.equal(0, #h.dropped)
+    end)
+
+    T.it("retries a throttled chunk after backing off", function()
+        local h = harness({ "ok", "throttle", "throttle", "ok" })
+        h.queue:Add(job("1", "Bob", "a", "b"))
+        h.drain()
+        T.assert.equal(4, #h.sent)
+        T.assert.same({ 1, 2, 2, 2 }, { h.sent[1].idx, h.sent[2].idx, h.sent[3].idx, h.sent[4].idx })
+        T.assert.same({ 0, Share.SEND_INTERVAL, Share.THROTTLE_BACKOFF, Share.THROTTLE_BACKOFF, Share.SEND_INTERVAL },
+            h.delays)
+        T.assert.equal(0, #h.dropped)
+    end)
+
+    T.it("drops a job that stays throttled", function()
+        local results = {}
+        for i = 1, Share.MAX_SEND_RETRIES + 1 do results[i] = "throttle" end
+        local h = harness(results)
+        h.queue:Add(job("1", "Bob", "a"))
+        h.drain()
+        T.assert.equal(Share.MAX_SEND_RETRIES + 1, #h.sent)
+        T.assert.same({ { id = "1", result = "throttle" } }, h.dropped)
+        T.assert.is_false(h.queue.running)
+    end)
+
+    T.it("drops the current job on lockdown, offline or error and moves on", function()
+        for _, result in ipairs({ "offline", "error" }) do
+            local h = harness({ "ok", result })
+            h.queue:Add(job("1", "Bob", "a", "b", "c"))
+            h.queue:Add(job("2", "Amy", "x"))
+            h.drain()
+            T.assert.same({ { id = "1", result = result } }, h.dropped, result)
+            T.assert.equal("Amy", h.sent[#h.sent].to, result)
+            T.assert.equal(3, #h.sent, result)
+        end
+
+        local h = harness()
+        h.queue:Add(job("1", "Bob", "a", "b"))
+        h.step() -- sends chunk 1
+        h.lockdown = true
+        h.step() -- lockdown: nothing sent, job dropped
+        h.lockdown = false
+        h.drain()
+        T.assert.equal(1, #h.sent)
+        T.assert.same({ { id = "1", result = "lockdown" } }, h.dropped)
+    end)
+
+    T.it("serves jobs first in, first out without interleaving", function()
+        local h = harness()
+        h.queue:Add(job("1", "Bob", "a", "b"))
+        h.step()
+        h.queue:Add(job("2", "Amy", "x", "y"))
+        h.drain()
+        local order = {}
+        for _, s in ipairs(h.sent) do order[#order + 1] = s.id .. ":" .. s.idx end
+        T.assert.same({ "1:1", "1:2", "2:1", "2:2" }, order)
+        -- Adding while running must not start a second pump.
+        local starts = 0
+        for _, d in ipairs(h.delays) do
+            if d == 0 then starts = starts + 1 end
+        end
+        T.assert.equal(1, starts)
+    end)
+end)
