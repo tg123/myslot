@@ -55,6 +55,7 @@ tests\cases\protobuf.lua
 tests\cases\roundtrip.lua
 tests\cases\runasync.lua
 tests\cases\share.lua
+tests\cases\talent.lua
 tests\cases\wow_roundtrip.lua
 tests\runner.lua
 #@end-debug@

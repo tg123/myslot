@@ -414,7 +414,10 @@ end
 
 -- }}}
 
-local function GetTalentTreeString()
+-- Talent string of the current character: the retail loadout export string, or
+-- the "x/y/z" talent tab point spread on classic. nil when the client has no
+-- talents (yet).
+function MySlot:GetTalentString()
     -- maybe classic
     if GetTalentTabInfo then
 
@@ -446,6 +449,496 @@ local function GetTalentTreeString()
 
     return nil
 end
+
+-- Talent loadout strings, which the talent window can import, came with the
+-- Dragonflight talent rework (10.0) and only exist on retail. Classic flavors
+-- export "x/y/z" points per tree, which nothing can import. WoW Forever runs
+-- the modern engine but reports its vanilla content interface (16001), so the
+-- version, not the presence of the retail talent UI, is the reliable signal.
+local TALENT_STRING_MIN_INTERFACE = 100000
+function MySlot:IsTalentStringSupported()
+    return (select(4, GetBuildInfo()) or 0) >= TALENT_STRING_MIN_INTERFACE
+end
+
+-- Shortest value we accept as a loadout string. Every other header value
+-- Myslot writes (name, class, spec, level, versions) stays well below this
+-- once values containing spaces or punctuation are ruled out.
+local MYSLOT_TALENT_STRING_MIN_LEN = 20
+
+local function IsLoadoutString(value)
+    return #value >= MYSLOT_TALENT_STRING_MIN_LEN and value:match("^[%w%+/=]+$") ~= nil
+end
+
+-- Pulls the talent loadout string back out of an exported profile's
+-- "# Talents: ..." header so it can be copied into the talent window or
+-- compared against the player's own build. The header label is localized, so a
+-- profile exported by a client running another language falls back to the
+-- first header value that looks like a loadout string. Returns nil when the
+-- profile carries none, including the "x/y/z" point spread of classic exports.
+function MySlot:ParseTalentString(text)
+    if type(text) ~= "string" then
+        return nil
+    end
+
+    local label = type(TALENTS) == "string" and TALENTS or "Talents"
+    local guess
+
+    for line in text:gmatch("[^\r\n]+") do
+        local first = line:sub(1, 1)
+        if first == "#" then
+            local key, value = line:match("^#%s*(.-)%s*:%s*(.-)%s*$")
+            if value and IsLoadoutString(value) then
+                if key == label or key == "Talents" then
+                    return value
+                end
+
+                guess = guess or value
+            end
+        elseif first ~= "@" and strtrim(line) ~= "" then
+            -- headers all sit above the base64 payload, no need to scan further
+            break
+        end
+    end
+
+    return guess
+end
+
+-- {{{ Apply talent string (issue #129)
+-- Talents are loaded the same way Blizzard's own "Import Loadout" dialog does
+-- it: the string is decoded into loadout entries and saved as a new loadout
+-- with C_ClassTalents.ImportLoadout. Once the server has created (and
+-- populated) that loadout, the talent window is opened with it selected but
+-- not applied, so the player reviews it and clicks "Apply Changes" to commit.
+--
+-- Decoding reuses Blizzard's codec (ClassTalentImportExportMixin) through a
+-- private copy, so none of PlayerSpellsFrame's own state is touched (and
+-- tainted); its decode helpers only ever call each other through self.
+
+-- One stable name, so applying again replaces the previous loadout instead of
+-- filling up the limited list of saved loadouts.
+local MYSLOT_TALENT_LOADOUT_NAME = "Myslot"
+-- Seconds to wait for the server to create the loadout.
+local MYSLOT_TALENT_APPLY_TIMEOUT = 30
+
+local talentCodec
+local function GetTalentCodec()
+    if not talentCodec then
+        if PlayerSpellsFrame_LoadUI then
+            PlayerSpellsFrame_LoadUI()
+        end
+        if ClassTalentImportExportMixin and CreateFromMixins then
+            talentCodec = CreateFromMixins(ClassTalentImportExportMixin)
+        end
+    end
+    return talentCodec
+end
+
+local function CurrentSpecID()
+    local index = GetSpecialization and GetSpecialization()
+    return index and GetSpecializationInfo(index) or nil
+end
+
+-- In-flight apply: { specID, hasRanks, entries, importString, onDone,
+-- configID?, opening? }
+local pendingTalentApply
+-- In-flight delete: { configIDs, index, current, deleted, failed, onDone }
+local pendingTalentDelete
+
+-- One frame for the events of both; each flow only registers what it waits on.
+local talentEventFrame
+local OnTalentEvent
+local function GetTalentEventFrame()
+    if not talentEventFrame then
+        talentEventFrame = CreateFrame("Frame")
+        talentEventFrame:SetScript("OnEvent", function(...)
+            OnTalentEvent(...)
+        end)
+    end
+    return talentEventFrame
+end
+
+local function FinishTalentApply(ok, err)
+    local pending = pendingTalentApply
+    pendingTalentApply = nil
+    if talentEventFrame then
+        talentEventFrame:UnregisterEvent("TRAIT_CONFIG_CREATED")
+        talentEventFrame:UnregisterEvent("TRAIT_CONFIG_UPDATED")
+    end
+    if pending and pending.onDone then
+        pending.onDone(ok, err)
+    end
+end
+
+-- {{{ Deleting loadouts
+-- Deleting in bulk from the game failed for every loadout by DeleteConfig's
+-- reply, although addons that bulk-delete loadouts ignore that reply and go by
+-- TRAIT_CONFIG_DELETED. So assume the request completes later, and don't pile
+-- up requests (more deletes, or ImportLoadout) before it has: delete one
+-- loadout at a time, count it by its TRAIT_CONFIG_DELETED, and count one that
+-- doesn't report back within the timeout as not deleted.
+local MYSLOT_TALENT_DELETE_TIMEOUT = 2
+
+local function FinishTalentDelete()
+    local job = pendingTalentDelete
+    pendingTalentDelete = nil
+    if talentEventFrame then
+        talentEventFrame:UnregisterEvent("TRAIT_CONFIG_DELETED")
+    end
+    if job and job.onDone then
+        job.onDone(job.deleted, job.failed)
+    end
+end
+
+local function DeleteNextTalentLoadout(job)
+    while pendingTalentDelete == job do
+        job.index = job.index + 1
+        local configID = job.configIDs[job.index]
+        if not configID then
+            FinishTalentDelete()
+            return
+        end
+        job.current = configID
+
+        local called, requested = pcall(C_ClassTalents.DeleteConfig, configID)
+        if not called then
+            job.failed = job.failed + 1
+        elseif C_Timer and C_Timer.After then
+            local step = job.index
+            C_Timer.After(MYSLOT_TALENT_DELETE_TIMEOUT, function()
+                if pendingTalentDelete == job and job.index == step then
+                    job.failed = job.failed + 1
+                    DeleteNextTalentLoadout(job)
+                end
+            end)
+            -- Continued by TRAIT_CONFIG_DELETED or the timeout.
+            return
+        elseif requested then
+            -- No timers to wait with: all there is to go by is the reply.
+            job.deleted = job.deleted + 1
+        else
+            job.failed = job.failed + 1
+        end
+    end
+end
+
+local function OnTalentLoadoutDeleted(configID)
+    local job = pendingTalentDelete
+    if not job or configID ~= job.current then
+        return
+    end
+    job.current = nil
+    job.deleted = job.deleted + 1
+    DeleteNextTalentLoadout(job)
+end
+
+-- The "Myslot" loadouts saved for the given specs.
+local function FindMyslotTalentLoadouts(specIDs)
+    local configIDs = {}
+    local active = C_ClassTalents.GetActiveConfigID()
+    for _, specID in ipairs(specIDs) do
+        for _, configID in ipairs(C_ClassTalents.GetConfigIDsBySpecID(specID) or {}) do
+            local info = C_Traits.GetConfigInfo(configID)
+            if configID ~= active and info and info.name == MYSLOT_TALENT_LOADOUT_NAME then
+                configIDs[#configIDs + 1] = configID
+            end
+        end
+    end
+    return configIDs
+end
+
+-- Deletes configIDs one at a time, then calls onDone(deleted, failed).
+local function StartTalentDelete(configIDs, onDone)
+    local job = {
+        configIDs = configIDs,
+        index = 0,
+        deleted = 0,
+        failed = 0,
+        onDone = onDone,
+    }
+    pendingTalentDelete = job
+    GetTalentEventFrame():RegisterEvent("TRAIT_CONFIG_DELETED")
+    DeleteNextTalentLoadout(job)
+end
+-- }}}
+
+local function ShowCreatedTalentLoadout(pending)
+    if pendingTalentApply ~= pending then
+        return
+    end
+
+    C_ClassTalents.UpdateLastSelectedSavedConfigID(pending.specID, pending.configID)
+
+    if PlayerSpellsUtil and PlayerSpellsUtil.OpenToClassTalentsTab then
+        PlayerSpellsUtil.OpenToClassTalentsTab()
+    elseif PlayerSpellsFrame and ShowUIPanel then
+        ShowUIPanel(PlayerSpellsFrame)
+    end
+
+    -- On show, the window only switches to the last selected loadout when it
+    -- has no valid selection yet. Otherwise select it here, the way picking it
+    -- from the loadout dropdown does: loaded without applying, so "Apply
+    -- Changes" commits it into the "Myslot" loadout and not the one that was
+    -- selected before.
+    local talentsFrame = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
+    local loadSystem = talentsFrame and talentsFrame.LoadSystem
+    if loadSystem and talentsFrame.SetSelectedSavedConfigID
+        and loadSystem:GetSelectionID() ~= pending.configID then
+        local autoApply = false
+        talentsFrame:SetSelectedSavedConfigID(pending.configID, autoApply)
+    end
+
+    FinishTalentApply(true)
+end
+
+local function OnTalentLoadoutReady(pending)
+    if pending.opening then
+        return
+    end
+    pending.opening = true
+
+    -- The talent window starts listening for TRAIT_CONFIG_CREATED when it is
+    -- shown, and auto-applies every new loadout it hears of. Open it on the
+    -- next frame, once this event has been dispatched.
+    if C_Timer and C_Timer.After then
+        C_Timer.After(0, function()
+            ShowCreatedTalentLoadout(pending)
+        end)
+    else
+        ShowCreatedTalentLoadout(pending)
+    end
+end
+
+OnTalentEvent = function(_, event, ...)
+    if event == "TRAIT_CONFIG_DELETED" then
+        OnTalentLoadoutDeleted(...)
+        return
+    end
+
+    local pending = pendingTalentApply
+    if not pending then
+        return
+    end
+
+    if event == "TRAIT_CONFIG_CREATED" then
+        local configInfo = ...
+        if pending.configID or not configInfo or configInfo.name ~= MYSLOT_TALENT_LOADOUT_NAME then
+            return
+        end
+        if Enum.TraitConfigType and configInfo.type ~= Enum.TraitConfigType.Combat then
+            return
+        end
+
+        pending.configID = configInfo.ID
+        -- A loadout with purchased ranks may still be empty right after being
+        -- created; TRAIT_CONFIG_UPDATED follows once it is populated.
+        if not pending.hasRanks or C_ClassTalents.IsConfigPopulated(pending.configID) then
+            OnTalentLoadoutReady(pending)
+        end
+    elseif event == "TRAIT_CONFIG_UPDATED" then
+        local configID = ...
+        if pending.configID and configID == pending.configID then
+            OnTalentLoadoutReady(pending)
+        end
+    end
+end
+
+-- Decodes and validates a loadout string for the current spec. Returns the
+-- loadout entries, the spec ID and, when the string was saved from another
+-- version of the talent tree, the warning "outdated" (see below). Returns nil,
+-- nil, a localized error message and a reason when it can't be used: "format"
+-- (saved by another loadout string format), "spec" (for another
+-- specialization) or "invalid".
+--
+-- Blizzard's import refuses strings whose tree hash doesn't match the current
+-- tree, which also refuses every string saved before a patch that merely tuned
+-- talents. Nodes are stored in tree order, so such a string still decodes
+-- fine unless nodes were added or removed; the result only ever gets loaded
+-- into the talent window for the player to review before applying it, so we
+-- accept it with a warning. (Talent calculator sites write an empty hash to
+-- skip the same check.)
+local function DecodeTalentString(str)
+    local codec = GetTalentCodec()
+    if not (codec and ExportUtil and C_Traits and C_ClassTalents) then
+        return nil, nil, LOADOUT_ERROR_IMPORT_FAILED, "invalid"
+    end
+
+    local stream = ExportUtil.MakeImportDataStream(str)
+    local headerValid, serializationVersion, specID, treeHash = codec:ReadLoadoutHeader(stream)
+    if not headerValid then
+        return nil, nil, LOADOUT_ERROR_BAD_STRING, "invalid"
+    end
+    if serializationVersion ~= C_Traits.GetLoadoutSerializationVersion() then
+        return nil, nil, LOADOUT_ERROR_SERIALIZATION_VERSION_MISMATCH, "format"
+    end
+
+    if specID ~= CurrentSpecID() then
+        local specName = GetSpecializationInfoByID and select(2, GetSpecializationInfoByID(specID))
+        if specName then
+            return nil, nil, L["These talents are for %s, switch to that specialization first"]:format(specName), "spec"
+        end
+        return nil, nil, LOADOUT_ERROR_WRONG_SPEC, "spec"
+    end
+
+    local configID = C_ClassTalents.GetActiveConfigID()
+    -- The same tree the talent window (and so every exported string) hashes.
+    local configInfo = configID and C_Traits.GetConfigInfo(configID)
+    local treeID = configInfo and configInfo.treeIDs and configInfo.treeIDs[1]
+        or (configID and C_ClassTalents.GetTraitTreeForSpec(specID))
+    if not treeID then
+        return nil, nil, LOADOUT_ERROR_IMPORT_FAILED, "invalid"
+    end
+
+    -- Third-party sites may leave the hash empty to skip this check.
+    local outdated = not codec:IsHashEmpty(treeHash)
+        and not codec:HashEquals(treeHash, C_Traits.GetTreeHash(treeID))
+
+    -- A string for an older tree may run out of bits or point at entries that
+    -- no longer exist.
+    local ok, entries = pcall(function()
+        local content = codec:ReadLoadoutContent(stream, treeID)
+        return codec:ConvertToImportLoadoutEntryInfo(configID, treeID, content)
+    end)
+    if not ok or type(entries) ~= "table" then
+        return nil, nil, outdated and LOADOUT_ERROR_TREE_CHANGED or LOADOUT_ERROR_BAD_STRING, "invalid"
+    end
+
+    return entries, specID, outdated and "outdated" or nil
+end
+
+-- Whether ApplyTalentString can load this loadout string right now, as far as
+-- the string itself is concerned (spec, format, ...). Returns true, plus a
+-- localized message and the reason "outdated" when it was saved from another
+-- version of the talent tree and may load imperfectly; or false, a localized
+-- message and the reason code of DecodeTalentString when it can't be loaded.
+function MySlot:CheckTalentString(str)
+    if not self:IsTalentStringSupported() or type(str) ~= "string" or str == "" then
+        return false, LOADOUT_ERROR_BAD_STRING, "invalid"
+    end
+
+    local entries, _, warningOrErr, reason = DecodeTalentString(str)
+    if not entries then
+        return false, warningOrErr, reason
+    end
+    if warningOrErr == "outdated" then
+        return true, LOADOUT_ERROR_TREE_CHANGED, "outdated"
+    end
+    return true
+end
+
+-- Deletes the "Myslot" talent loadouts that "Apply talents" created, in every
+-- specialization of the player's class. Talents in use are kept, only the
+-- saved loadouts go. Returns how many it found and calls onDone(deleted,
+-- failed) when done; or returns false and a localized error message.
+function MySlot:DeleteTalentLoadouts(onDone)
+    if not self:IsTalentStringSupported() or not (C_ClassTalents and C_Traits) then
+        return false, L["Talent loadouts are not supported by this game version"]
+    end
+    if InCombatLockdown() then
+        return false, L["Talents cannot be changed in combat"]
+    end
+    if pendingTalentApply or pendingTalentDelete then
+        return false, L["Talents are already being applied"]
+    end
+
+    local specIDs = {}
+    for index = 1, (GetNumSpecializations and GetNumSpecializations()) or 0 do
+        specIDs[#specIDs + 1] = GetSpecializationInfo(index)
+    end
+
+    local configIDs = FindMyslotTalentLoadouts(specIDs)
+    StartTalentDelete(configIDs, onDone)
+    return #configIDs
+end
+
+-- Creates the "Myslot" loadout of a pending apply, once the old ones are gone.
+local function ImportPendingTalentLoadout(pending)
+    if pendingTalentApply ~= pending then
+        return
+    end
+
+    if C_ClassTalents.CanCreateNewConfig and not C_ClassTalents.CanCreateNewConfig() then
+        FinishTalentApply(false, L["Too many saved talent loadouts, delete one first"])
+        return
+    end
+
+    -- While shown, the talent window auto-applies every new loadout itself;
+    -- close it so it doesn't, it is reopened once the loadout exists.
+    if PlayerSpellsFrame and PlayerSpellsFrame:IsShown() and HideUIPanel then
+        HideUIPanel(PlayerSpellsFrame)
+    end
+
+    local frame = GetTalentEventFrame()
+    frame:RegisterEvent("TRAIT_CONFIG_CREATED")
+    frame:RegisterEvent("TRAIT_CONFIG_UPDATED")
+
+    local ok, importError = C_ClassTalents.ImportLoadout(C_ClassTalents.GetActiveConfigID(), pending.entries,
+        MYSLOT_TALENT_LOADOUT_NAME, pending.importString)
+    if not ok then
+        FinishTalentApply(false, importError ~= "" and importError or LOADOUT_ERROR_IMPORT_FAILED)
+        return
+    end
+
+    if C_Timer and C_Timer.After then
+        C_Timer.After(MYSLOT_TALENT_APPLY_TIMEOUT, function()
+            if pendingTalentApply == pending then
+                FinishTalentApply(false, L["Timed out applying talents"])
+            end
+        end)
+    end
+end
+
+-- Saves the talents of a loadout string (retail only) as the "Myslot" loadout,
+-- replacing the previous one, and opens the talent window with it selected so
+-- the player commits it with "Apply Changes". Returns true once started, with
+-- onDone(ok, err) called when the window has been opened or it failed (which
+-- may happen before this returns); returns false and a localized error
+-- message when it cannot be started.
+function MySlot:ApplyTalentString(str, onDone)
+    if not self:IsTalentStringSupported() or type(str) ~= "string" or str == "" then
+        return false, LOADOUT_ERROR_BAD_STRING
+    end
+
+    if InCombatLockdown() then
+        return false, L["Talents cannot be changed in combat"]
+    end
+
+    if pendingTalentApply or pendingTalentDelete then
+        return false, L["Talents are already being applied"]
+    end
+
+    if C_ClassTalents and C_ClassTalents.CanEditTalents then
+        local canEdit, changeError = C_ClassTalents.CanEditTalents()
+        if not canEdit then
+            return false, changeError
+        end
+    end
+
+    local entries, specID, warningOrErr = DecodeTalentString(str)
+    if not entries then
+        return false, warningOrErr
+    end
+
+    local pending = {
+        specID = specID,
+        entries = entries,
+        hasRanks = #entries > 0,
+        -- Blizzard passes the import string along with the entries; leave it
+        -- out for an outdated one, in case its tree hash gets checked.
+        importString = warningOrErr ~= "outdated" and str or nil,
+        onDone = onDone,
+    }
+    pendingTalentApply = pending
+
+    StartTalentDelete(FindMyslotTalentLoadouts({ specID }), function(_, failed)
+        if failed > 0 then
+            self:Print(L["Could not delete %d 'Myslot' talent loadout(s)"]:format(failed))
+        end
+        ImportPendingTalentLoadout(pending)
+    end)
+
+    return true
+end
+-- }}}
 
 function MySlot:Export(opt)
     -- ver nop nop nop crc32 crc32 crc32 crc32
@@ -555,7 +1048,7 @@ function MySlot:Export(opt)
     -- }}}
 
     -- {{{ OUTPUT
-    local talent = GetTalentTreeString()
+    local talent = MySlot:GetTalentString()
 
     local s = ""
     s = "# --------------------" .. MYSLOT_LINE_SEP .. s
@@ -1506,6 +1999,20 @@ function MySlot:Clear(what, opt)
         -- SetProfileByInfo is protected in combat, so skip while in combat lockdown.
         if self:IsClickBindingSupported() and not InCombatLockdown() then
             C_ClickBindings.SetProfileByInfo({})
+        end
+    elseif what == "TALENTLOADOUT" then
+        -- Only the "Myslot" loadouts "Apply talents" created, in every spec.
+        local found, err = self:DeleteTalentLoadouts(function(deleted, failed)
+            self:Print(L["Deleted %d 'Myslot' talent loadout(s)"]:format(deleted))
+            if failed > 0 then
+                self:Print(L["Could not delete %d 'Myslot' talent loadout(s)"]:format(failed))
+            end
+        end)
+        if not found then
+            self:Print(err)
+        elseif found > 0 and pendingTalentDelete then
+            -- Still waiting on the game, one loadout at a time.
+            self:Print(L["Deleting %d 'Myslot' talent loadout(s)..."]:format(found))
         end
     end
 end

@@ -96,6 +96,12 @@ RegEvent("ADDON_LOADED", function()
         AddClearButton(L["Remove all Click Cast Bindings"], "CLICKBINDING")
     end
 
+    -- Talent loadouts are retail-only; this only removes the "Myslot" loadouts
+    -- that "Apply talents" created.
+    if MySlot:IsTalentStringSupported() then
+        AddClearButton(L["Remove 'Myslot' talent loadouts"], "TALENTLOADOUT")
+    end
+
     do
         local b = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
         b:SetPoint("TOPLEFT", f, 15, rowy)

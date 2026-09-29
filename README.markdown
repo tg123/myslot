@@ -19,6 +19,7 @@ Browse and share profiles at **<https://myslot.net>**.
 - **Key bindings**
 - **Click Cast Bindings** *(Retail)*
 - **Cooldown Manager layouts** *(Retail)*
+- **Talents** *(Retail)* — see the profile's talent loadout string, get warned when it differs from yours, and load it into the talent window with one click
 - **Cross‑class & cross‑account** — spells, items, mounts and pets you don't have are skipped with a clear message; unowned mounts can fall back to a random mount
 - **Saved profiles** — keep up to 100 exports in game, sort by name / date / class and filter to your class
 - **Automatic backup** — your current setup is saved before every import, so you can always roll back
@@ -46,6 +47,24 @@ Options that a game version doesn't support are hidden automatically.
 1. Paste the exported text into the text box (or pick a saved profile)
 1. Choose what to import, then click **Import**
 
+Importing a profile exported with talents other than the ones you are using asks for confirmation first —
+a profile's action bars rarely fit another build.
+
+### Talents *(Retail)*
+
+Myslot doesn't import talents with the rest of a profile, but helps you switch to them:
+
+- The profile's talent loadout string is shown in the **Talents** box under the text box —
+  click it to select the string and copy it with Ctrl+C, e.g. for the talent window's **Import**.
+- When the profile's talents differ from yours, click **Apply talents**: they are saved as the talent loadout
+  `Myslot` (replacing the previous one) and the talent window opens with it selected.
+  Review it there and click **Apply Changes** to switch to it.
+- A profile saved before a talent tree change (a patch or hotfix) shows **Talents out of date**;
+  it can still be loaded, but check it carefully since talents may have moved.
+- The profile must be for your current specialization, and talents can't be changed in combat.
+
+Talent loadout strings only exist since Dragonflight, so none of this is shown on Classic versions.
+
 ### Share in chat
 
 1. Select a saved profile and click the chat bubble next to the profile list
@@ -63,6 +82,7 @@ Links are only served for the current session and cannot be fetched during encou
 | `/myslot clear action` | Clear every action bar slot |
 | `/myslot clear macro` | Delete all macros |
 | `/myslot clear binding` | Clear all key bindings (Blizzard defaults included) |
+| `/myslot clear talents` | Delete the `Myslot` talent loadouts made by **Apply talents**, in every specialization *(Retail; your talents in use are kept)* |
 | `/myslot trim [N]` | Keep only the newest `N` saved profiles (default 100) and reload the UI |
 
 ## Get Myslot
