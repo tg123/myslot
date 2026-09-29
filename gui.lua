@@ -1529,7 +1529,7 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
         end
 
     elseif cmd == "clear" then
-        opt = {
+        local opt = {
             [1] = true,
             [2] = true,
             [3] = true,
