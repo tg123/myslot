@@ -258,7 +258,7 @@ function Share.PickGameAccount(accounts, guid)
             online[#online + 1] = game
         end
     end
-    if #online == 1 then
+    if not guid and #online == 1 then
         return online[1]
     end
 end
