@@ -60,7 +60,6 @@ Options that a game version doesn't support are hidden automatically.
 
 - CurseForge — <https://www.curseforge.com/wow/addons/myslot>
 - Wago — <https://addons.wago.io/addons/myslot>
-- GitHub releases — <https://github.com/tg123/myslot/releases>
 
 ## Contributing
 
