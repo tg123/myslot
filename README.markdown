@@ -84,6 +84,15 @@ $ git clone https://github.com/tg123/myslot.git Myslot
 $ lua5.1 ci/run.lua
 ```
 
+- Run the tests in game — a git checkout loads the test suite (it is stripped from CurseForge/Wago packages), then type:
+
+```
+/myslottest            -- run all tests
+/myslottest <filter>   -- run only tests whose name matches <filter>
+```
+
+  The results are shown in a pop-up you can copy with Ctrl+A / Ctrl+C. Tests cannot run in combat.
+
 #### Changing Protobuf
 
 Myslot use a modified version of [lua-pb](https://github.com/tg123/lua-pb) to serialize/deserialize the data. 
