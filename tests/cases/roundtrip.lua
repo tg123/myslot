@@ -239,25 +239,42 @@ T.describe("Export/Import round-trip", function()
         T.assert.equal(Cat.HiddenSpell, _G.WowStub.cooldown_moves[201])
         T.assert.equal(Cat.HiddenAura, _G.WowStub.cooldown_moves[301])
         T.assert.equal(Cat.HiddenAura, _G.WowStub.cooldown_moves[401])
-        T.assert.equal(true, _G.WowStub.cooldown_saved)
+
+        -- The re-serialized layout is written straight to the datastore.
+        T.assert.equal("stub|101=-1,102=-1,201=-1,301=-2,401=-2,999=-1", _G.WowStub.cooldown_layout)
+        MySlot:PromptCooldownManagerReload()
     end)
 
-    T.it("Clear COOLDOWNMANAGER refreshes the live bars without NotifyListeners", function()
+    T.it("Clear COOLDOWNMANAGER never touches the live Cooldown Manager (#133)", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+
+        -- CooldownViewerSettings and the viewer frames are stubbed to error on any
+        -- access: writing Blizzard's live state from addon code taints it until
+        -- /reload, breaking UNIT_AURA handling, Edit Mode and Copy to Clipboard.
+        -- A failed sandbox makes Clear return quietly, so check the write happened.
+        MySlot:Clear("COOLDOWNMANAGER")
+        T.assert.not_nil(_G.WowStub.cooldown_layout)
+        MySlot:PromptCooldownManagerReload()
+    end)
+
+    T.it("prompts for a reload once after the cooldown layout changes", function()
         if Host.in_wow then T.skip("CI-only (stub-backed)") end
         Host.reset()
 
         MySlot:Clear("COOLDOWNMANAGER")
+        MySlot:PromptCooldownManagerReload()
+        T.assert.equal(1, #_G.WowStub.printed)
+        T.assert.is_true(_G.WowStub.printed[1]:find("/reload", 1, true) ~= nil)
 
-        -- Each live viewer frame and the settings panel must be poked directly.
-        -- Going through layoutManager:NotifyListeners() instead would broadcast
-        -- "CooldownViewerSettings.OnDataChanged", whose GroupBuffFilter listener
-        -- calls the protected C_UnitAuras.SetHiddenGroupBuffs() and gets blocked.
-        local refreshed = _G.WowStub.cooldown_refreshed
-        T.assert.equal(1, refreshed.EssentialCooldownViewer)
-        T.assert.equal(1, refreshed.UtilityCooldownViewer)
-        T.assert.equal(1, refreshed.BuffIconCooldownViewer)
-        T.assert.equal(1, refreshed.BuffBarCooldownViewer)
-        T.assert.equal(1, refreshed.settings)
+        -- Nothing pending anymore.
+        MySlot:PromptCooldownManagerReload()
+        T.assert.equal(1, #_G.WowStub.printed)
+
+        -- Clearing an already cleared layout writes nothing, so no reload is needed.
+        MySlot:Clear("COOLDOWNMANAGER")
+        MySlot:PromptCooldownManagerReload()
+        T.assert.equal(1, #_G.WowStub.printed)
     end)
 
     T.it("export captures the click cast binding profile", function()

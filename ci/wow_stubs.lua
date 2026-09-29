@@ -50,8 +50,6 @@ function Stub.reset()
         [999] = 0, -- Custom active-layout entry absent from the default category set.
     }
     Stub.cooldown_moves = {}     -- [cooldownID] = category the cooldown was moved to
-    Stub.cooldown_saved = false  -- set when SaveCurrentLayout runs
-    Stub.cooldown_refreshed = {} -- [frameName|"settings"] = times refreshed after a write
     Stub.cooldown_addon_loaded = true  -- Blizzard_CooldownViewer loaded? (retail=true)
     Stub.click_bindings = {}     -- vector of ClickBindingInfo {type, actionID, button, modifiers}
     Stub.interface_version = 110000  -- 4th GetBuildInfo() return (retail Mainline)
@@ -151,44 +149,112 @@ Enum.CooldownViewerCategory = {
     HiddenAura = -2,
 }
 
--- Minimal settings frame so MySlot can drive drag-to-"Not Displayed" moves.
-local cooldownDataProvider = {
-    SetCooldownToCategory = function(_self, cooldownID, category)
-        Stub.cooldown_moves[cooldownID] = category
-        Stub.cooldown_categories[cooldownID] = category
+CreateFromMixins = CreateFromMixins or function(...)
+    local object = {}
+    for i = 1, select("#", ...) do
+        for k, v in pairs((select(i, ...))) do
+            object[k] = v
+        end
+    end
+    return object
+end
+
+-- Cut-down stand-ins for Blizzard's Cooldown Manager settings mixins. MySlot
+-- instantiates private copies of these to rebuild the layout blob, so the live
+-- CooldownViewerSettings objects are never written (that taints them, #133).
+-- Stub blob format: "stub|<cooldownID>=<category>,..." holding category overrides
+-- on top of Stub.cooldown_categories.
+local function ParseCooldownBlob(blob)
+    local overrides = {}
+    for cooldownID, category in (blob or ""):gmatch("(%-?%d+)=(%-?%d+)") do
+        overrides[tonumber(cooldownID)] = tonumber(category)
+    end
+    return overrides
+end
+
+local function SerializeCooldownOverrides(overrides)
+    local ids = {}
+    for cooldownID in pairs(overrides) do ids[#ids + 1] = cooldownID end
+    table.sort(ids)
+    local parts = {}
+    for _, cooldownID in ipairs(ids) do
+        parts[#parts + 1] = cooldownID .. "=" .. overrides[cooldownID]
+    end
+    return "stub|" .. table.concat(parts, ",")
+end
+
+CooldownViewerLayoutManagerMixin = {
+    Init = function(self, dataProvider, serializer)
+        self.dataProvider = dataProvider
+        self.serializer = serializer
+        self.overrides = {}
     end,
-    GetOrderedCooldownIDsForCategory = function(_self, category, _allowUnknown)
+    SetHasPendingChanges = function(self, hasPendingChanges)
+        self.hasPendingChanges = hasPendingChanges
+    end,
+    SaveLayouts = function(self)
+        local hadSomethingToSave = self.hasPendingChanges
+        if hadSomethingToSave then
+            self.serializer:WriteData()
+        end
+        self:SetHasPendingChanges(false)
+        return hadSomethingToSave
+    end,
+}
+
+CooldownViewerDataStoreSerializationMixin = {
+    Init = function(self, layoutManager, persistenceObject)
+        self.layoutManager = layoutManager
+        self.persistenceObject = persistenceObject
+        layoutManager.overrides = ParseCooldownBlob(persistenceObject:GetSerializedData())
+    end,
+    WriteData = function(self)
+        self.persistenceObject:SetSerializedData(SerializeCooldownOverrides(self.layoutManager.overrides))
+    end,
+}
+
+CooldownViewerSettingsDataProviderMixin = {
+    SetLayoutManager = function(self, layoutManager) self.layoutManager = layoutManager end,
+    GetOrderedCooldownIDs = function() return {} end,
+    SwitchToBestLayoutForSpec = function() end,
+    GetOrderedCooldownIDsForCategory = function(self, category, _allowUnknown)
         local cooldownIDs = {}
-        for cooldownID, currentCategory in pairs(Stub.cooldown_categories) do
+        for cooldownID, defaultCategory in pairs(Stub.cooldown_categories) do
+            local currentCategory = self.layoutManager.overrides[cooldownID] or defaultCategory
             if currentCategory == category then
                 cooldownIDs[#cooldownIDs + 1] = cooldownID
             end
         end
         return cooldownIDs
     end,
-}
-CooldownViewerSettings = {
-    GetDataProvider = function() return cooldownDataProvider end,
-    SaveCurrentLayout = function() Stub.cooldown_saved = true end,
-    RefreshLayout = function()
-        Stub.cooldown_refreshed.settings = (Stub.cooldown_refreshed.settings or 0) + 1
+    SetCooldownToCategory = function(self, cooldownID, category)
+        Stub.cooldown_moves[cooldownID] = category
+        self.layoutManager.overrides[cooldownID] = category
+        self.layoutManager:SetHasPendingChanges(true)
     end,
 }
 
--- The live Cooldown Manager bars. MySlot refreshes these directly instead of
--- calling layoutManager:NotifyListeners(), whose broadcast reaches Blizzard's
--- GroupBuffFilter listener and trips the protected C_UnitAuras.SetHiddenGroupBuffs().
+-- The live Cooldown Manager objects. MySlot must never touch them: any write
+-- from addon code taints Blizzard's state until /reload (#133).
+local function Untouchable(name)
+    return setmetatable({}, {
+        __index = function(_, key)
+            error(("MySlot touched live %s.%s"):format(name, tostring(key)), 2)
+        end,
+        __newindex = function(_, key)
+            error(("MySlot wrote live %s.%s"):format(name, tostring(key)), 2)
+        end,
+    })
+end
+
 for _, frameName in ipairs({
+    "CooldownViewerSettings",
     "EssentialCooldownViewer",
     "UtilityCooldownViewer",
     "BuffIconCooldownViewer",
     "BuffBarCooldownViewer",
 }) do
-    _G[frameName] = {
-        OnCooldownDataChanged = function()
-            Stub.cooldown_refreshed[frameName] = (Stub.cooldown_refreshed[frameName] or 0) + 1
-        end,
-    }
+    _G[frameName] = Untouchable(frameName)
 end
 
 -- --- Click Cast Bindings ---------------------------------------------------

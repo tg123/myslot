@@ -18,7 +18,7 @@ Browse and share profiles at **<https://myslot.net>**.
 - **Macros** — both account‑wide and character‑specific
 - **Key bindings**
 - **Click Cast Bindings** *(Retail)*
-- **Cooldown Manager layouts** *(Retail)*
+- **Cooldown Manager layouts** *(Retail)* — applied after a UI reload, which Myslot offers right after importing or clearing
 - **Talents** *(Retail)* — see the profile's talent loadout string, get warned when it differs from yours, and load it into the talent window with one click
 - **Cross‑class & cross‑account** — spells, items, mounts and pets you don't have are skipped with a clear message; unowned mounts can fall back to a random mount
 - **Saved profiles** — keep up to 100 exports in game, sort by name / date / class and filter to your class

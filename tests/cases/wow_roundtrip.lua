@@ -595,7 +595,7 @@ end)
 
 T.describe("in-game: cooldown manager round-trip (via WoW API)", function()
 
-    T.it("restores the cooldown manager layout and refreshes the live state", in_game(function()
+    T.it("restores the cooldown manager layout to the datastore", in_game(function()
         if not MySlot:IsCooldownManagerSupported() then
             T.skip("no cooldown manager support")
         end
@@ -610,64 +610,29 @@ T.describe("in-game: cooldown manager round-trip (via WoW API)", function()
         T.assert.not_nil(msg)
         T.assert.equal(original, msg.cooldownManager)
 
-        -- Reproduce the real scenario: the live Cooldown Manager keeps an in-memory
-        -- copy of the layouts in CooldownViewerSettings. Wipe THROUGH that system so
-        -- both the datastore and the in-memory layouts/serializer cache become empty.
-        local settings = CooldownViewerSettings
-        local serializer = settings and settings.GetSerializer and settings:GetSerializer()
-        local layoutManager = settings and settings.GetLayoutManager and settings:GetLayoutManager()
-        local canInspectLive = serializer and layoutManager
-            and serializer.SetSerializedData and serializer.GetSerializedData and serializer.ReadData
-            and layoutManager.InitMemberVariables and layoutManager.ClearActiveLayout
-
-        if canInspectLive then
-            serializer:SetSerializedData("")
-            layoutManager:InitMemberVariables()
-            layoutManager:ClearActiveLayout()
-            serializer:ReadData()
-            T.assert.equal("", C_CooldownViewer.GetLayoutData())
-            T.assert.equal("", serializer:GetSerializedData())
-        else
-            C_CooldownViewer.SetLayoutData("")
-        end
-
-        -- RecoverData must restore the datastore AND refresh the live in-memory copy.
+        -- Only the datastore is written; the live Cooldown Manager is left alone
+        -- (touching it taints it until /reload, #133) and picks the blob up on reload.
+        C_CooldownViewer.SetLayoutData("")
         MySlot:RecoverData(msg, { actionOpt = opt })
         T.assert.equal(original, C_CooldownViewer.GetLayoutData())
-
-        if canInspectLive then
-            -- A stale serializer cache here would mean ApplyCooldownLayout didn't
-            -- reload the live state, so the visible bars would never update and the
-            -- next save would clobber the import. The cache must match the datastore.
-            T.assert.equal(original, serializer:GetSerializedData())
-        end
     end))
 
     T.it("moves every cooldown to Not Displayed on clear", in_game(function()
-        if not (CooldownViewerSettings and CooldownViewerSettings.GetDataProvider and Enum and Enum.CooldownViewerCategory) then
-            T.skip("no cooldown viewer settings")
+        if not MySlot:IsCooldownManagerSupported() then
+            T.skip("no cooldown manager support")
         end
-        local dataProvider = CooldownViewerSettings:GetDataProvider()
-        if not (dataProvider and dataProvider.GetOrderedCooldownIDsForCategory) then
-            T.skip("no cooldown data provider")
-        end
-        local Cat = Enum.CooldownViewerCategory
+        local before = C_CooldownViewer.GetLayoutData()
 
-        -- Match the live viewer, which only requests known cooldowns. Unknown
-        -- entries can remain assigned to a visible category but are not displayed.
-        local before = 0
-        for _, c in ipairs({ Cat.Essential, Cat.Utility, Cat.TrackedBuff, Cat.TrackedBar }) do
-            before = before + #dataProvider:GetOrderedCooldownIDsForCategory(c)
-        end
-        if before == 0 then T.skip("no visible cooldowns to move") end
-
-        -- The in_game wrapper's snapshot/restore puts the real layout back afterwards.
         MySlot:Clear("COOLDOWNMANAGER")
 
-        -- Every visible category must now be empty (everything is "Not Displayed").
-        for _, c in ipairs({ Cat.Essential, Cat.Utility, Cat.TrackedBuff, Cat.TrackedBar }) do
-            T.assert.equal(0, #dataProvider:GetOrderedCooldownIDsForCategory(c))
-        end
+        -- The cleared layout is only visible after a reload, so just check that a
+        -- new blob was written to the datastore. Host.snapshot() does not cover the
+        -- Cooldown Manager, so put the real layout back before asserting.
+        local after = C_CooldownViewer.GetLayoutData()
+        C_CooldownViewer.SetLayoutData(before or "")
+
+        T.assert.not_nil(after)
+        T.assert.is_true(after ~= "" and after ~= before, "cleared layout was not written")
     end))
 end)
 

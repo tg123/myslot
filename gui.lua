@@ -1753,6 +1753,19 @@ StaticPopupDialogs["MYSLOT_CONFIRM_DELETE"] = {
     multiple = 0,
 }
 
+StaticPopupDialogs["MYSLOT_RELOAD_COOLDOWN"] = {
+    text = L["Cooldown Manager layout saved. Reload UI now to apply it?"],
+    button1 = RELOADUI,
+    button2 = CANCEL,
+    OnAccept = function()
+        C_UI.Reload()
+    end,
+    timeout = 0,
+    whileDead = 1,
+    hideOnEscape = 1,
+    multiple = 0,
+}
+
 StaticPopupDialogs["MYSLOT_REPLACE_TEXT"] = {
     text = L["Replace the unsaved text with the received profile '%s'? Your unsaved changes will be lost."],
     button1 = ACCEPT,

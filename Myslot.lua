@@ -1314,91 +1314,84 @@ local function CreateFlyoutSpellbookMap()
     return flyouts
 end
 
--- Blizzard's CooldownViewerLayoutManagerMixin:NotifyListeners() is just a broadcast
--- of "CooldownViewerSettings.OnDataChanged" to every registered listener. One of
--- those listeners lives in Blizzard_CooldownViewer/GroupBuffFilter.lua and calls the
--- protected C_UnitAuras.SetHiddenGroupBuffs(); with MySlot anywhere on the call stack
--- that one call is refused and the client prints [ADDON_ACTION_BLOCKED]. No addon can
--- make it succeed -- taint follows the call stack, including through C_Timer and event
--- callbacks -- so instead of broadcasting we poke the listeners we actually need:
--- the live viewer frames and, if it is loaded, the settings panel.
---
--- Nothing is lost by skipping the broadcast: the hidden group-buff list never reached
--- the C layer on this pass anyway (the call was blocked either way), and Blizzard
--- re-syncs it on the next untainted OnDataChanged -- a reload, spec change, or any
--- edit made in the Cooldown Manager settings panel.
-local COOLDOWN_VIEWER_FRAMES = {
-    "EssentialCooldownViewer",
-    "UtilityCooldownViewer",
-    "BuffIconCooldownViewer",
-    "BuffBarCooldownViewer",
-}
+-- Blizzard_CooldownViewer keeps the live Cooldown Manager state (layout manager,
+-- data provider, serializer cache, viewer frames) in plain Lua tables. Any value
+-- MySlot writes into those tables is tainted, and that taint sticks until /reload:
+-- every later secure read -- UNIT_AURA handling, Edit Mode, "Copy to Clipboard" --
+-- then runs tainted and trips over the viewers' DisallowTaintedAccess aura map or a
+-- protected call (see #130, #133). So MySlot never touches that live state. It only
+-- writes the persisted blob through C_CooldownViewer.SetLayoutData and asks the user
+-- to reload, which rebuilds the Cooldown Manager from the datastore untainted.
+local cooldownReloadPending = false
 
-local function RefreshCooldownViewers()
-    for _, name in ipairs(COOLDOWN_VIEWER_FRAMES) do
-        local viewer = _G[name]
-        if viewer and viewer.OnCooldownDataChanged then
-            viewer:OnCooldownDataChanged()
-        end
+local function WriteCooldownLayoutData(blob)
+    if C_CooldownViewer.GetLayoutData() == blob then
+        return false
     end
-
-    if CooldownViewerSettings and CooldownViewerSettings.RefreshLayout then
-        CooldownViewerSettings:RefreshLayout()
-    end
+    C_CooldownViewer.SetLayoutData(blob)
+    cooldownReloadPending = true
+    return true
 end
 
--- The live Cooldown Manager keeps an in-memory copy of the layouts in
--- CooldownViewerSettings. Writing the datastore with C_CooldownViewer.SetLayoutData
--- alone does NOT update that copy, so the visible bars never refresh and the stale
--- copy overwrites our blob on the next save. To actually apply an imported layout we
--- push it through the settings serializer, reload the in-memory layouts from the
--- datastore, activate the layout for the current spec, and refresh the live viewers
--- (see RefreshCooldownViewers above for why we do not use NotifyListeners).
 local function ApplyCooldownLayout(blob)
     if not (C_CooldownViewer and C_CooldownViewer.SetLayoutData) then
         return false
     end
 
-    local settings = CooldownViewerSettings
-    local layoutManager = settings and settings.GetLayoutManager and settings:GetLayoutManager()
-    local serializer = settings and settings.GetSerializer and settings:GetSerializer()
-    local dataProvider = settings and settings.GetDataProvider and settings:GetDataProvider()
+    WriteCooldownLayoutData(blob)
+    return true
+end
 
-    if layoutManager and serializer and dataProvider
-        and serializer.SetSerializedData and serializer.ReadData
-        and layoutManager.InitMemberVariables and layoutManager.ClearActiveLayout
-        and dataProvider.SwitchToBestLayoutForSpec then
-        serializer:SetSerializedData(blob)        -- write datastore + clear serializer cache
-        layoutManager:InitMemberVariables()       -- drop stale in-memory layouts
-        layoutManager:ClearActiveLayout()
-        serializer:ReadData()                     -- re-read layouts from the datastore
-        dataProvider:SwitchToBestLayoutForSpec()  -- activate the layout for the current spec
-
-        if dataProvider.MarkDirty then
-            dataProvider:MarkDirty()
-        end
-
-        if layoutManager.SetHasPendingChanges then
-            layoutManager:SetHasPendingChanges(false)
-        end
-
-        RefreshCooldownViewers()                  -- refresh the live bars + settings panel
-    else
-        -- Settings UI unavailable; fall back to a plain datastore write.
-        C_CooldownViewer.SetLayoutData(blob)
+-- Build a private copy of Blizzard's Cooldown Manager settings objects, loaded from
+-- the datastore. Only tables MySlot owns are written, so nothing Blizzard reads later
+-- becomes tainted. The data provider's Init is skipped (it registers game events),
+-- and the layout manager's notifications are silenced: the stock versions broadcast
+-- CooldownViewerSettings.OnPendingChanges / OnDataChanged, which would run
+-- Blizzard's listeners (tainted) against the live state.
+local function CreateCooldownLayoutSandbox()
+    if not (CreateFromMixins and CooldownViewerLayoutManagerMixin
+        and CooldownViewerSettingsDataProviderMixin
+        and CooldownViewerDataStoreSerializationMixin) then
+        return nil
     end
 
-    return true
+    local store = { data = C_CooldownViewer.GetLayoutData() or "" }
+    local persistence = {
+        GetSerializedData = function() return store.data end,
+        SetSerializedData = function(_, data) store.data = data end,
+        ClearSerializedData = function() store.data = "" end,
+    }
+
+    local layoutManager = CreateFromMixins(CooldownViewerLayoutManagerMixin)
+    local dataProvider = CreateFromMixins(CooldownViewerSettingsDataProviderMixin)
+    local serializer = CreateFromMixins(CooldownViewerDataStoreSerializationMixin)
+
+    layoutManager.NotifyListeners = function() end
+    layoutManager.SetHasPendingChanges = function(self, hasPendingChanges, isVerboseChange)
+        self.isVerboseChange = self.isVerboseChange or isVerboseChange
+        self.hasPendingChanges = hasPendingChanges
+    end
+
+    layoutManager:Init(dataProvider, serializer)
+    serializer:Init(layoutManager, persistence)
+    dataProvider:SetLayoutManager(layoutManager)
+    layoutManager:SetHasPendingChanges(false)
+
+    -- SwitchToBestLayoutForSpec is a no-op until the display data exists.
+    dataProvider:GetOrderedCooldownIDs()
+    dataProvider:SwitchToBestLayoutForSpec()
+
+    return layoutManager, dataProvider, store
 end
 
 -- Simulate dragging every cooldown into the "Not Displayed" section of the
 -- Cooldown Manager, mirroring CooldownViewerSettings drag-to-category behavior.
 -- SetLayoutData("") only resets to the Blizzard default layout (which still shows
 -- the default cooldowns), so to actually empty the bars we move each cooldown into
--- the hidden pseudo-categories (HiddenSpell / HiddenAura) via the settings data
--- provider and persist the result.
+-- the hidden pseudo-categories (HiddenSpell / HiddenAura) on a private copy of the
+-- settings objects and write the re-serialized layouts back to the datastore.
 local function MoveAllCooldownsToNotDisplayed()
-    if not (CooldownViewerSettings and CooldownViewerSettings.GetDataProvider) then
+    if not (C_CooldownViewer and C_CooldownViewer.GetLayoutData and C_CooldownViewer.SetLayoutData) then
         return false
     end
 
@@ -1416,44 +1409,44 @@ local function MoveAllCooldownsToNotDisplayed()
         [category.TrackedBar] = hiddenAura,
     }
 
-    local dataProvider = CooldownViewerSettings:GetDataProvider()
-    if not (dataProvider and dataProvider.SetCooldownToCategory) then
-        return false
-    end
-    local getActiveCooldownIDs = dataProvider.GetOrderedCooldownIDsForCategory
-    local getDefaultCooldownIDs = C_CooldownViewer
-        and C_CooldownViewer.GetCooldownViewerCategorySet
-    if not getActiveCooldownIDs and not getDefaultCooldownIDs then
+    local ok, layoutManager, dataProvider, store = pcall(CreateCooldownLayoutSandbox)
+    if not (ok and layoutManager and dataProvider and store
+        and dataProvider.SetCooldownToCategory and dataProvider.GetOrderedCooldownIDsForCategory) then
         return false
     end
 
-    for cooldownCategory, hiddenCategory in pairs(hiddenByCategory) do
-        if hiddenCategory ~= nil then
-            local cooldownIDs
-            if getActiveCooldownIDs then
-                cooldownIDs = dataProvider:GetOrderedCooldownIDsForCategory(cooldownCategory)
-            else
-                cooldownIDs = getDefaultCooldownIDs(cooldownCategory, false)
-            end
+    ok = pcall(function()
+        for cooldownCategory, hiddenCategory in pairs(hiddenByCategory) do
+            local cooldownIDs = dataProvider:GetOrderedCooldownIDsForCategory(cooldownCategory)
             if cooldownIDs then
                 for _, cooldownID in ipairs(cooldownIDs) do
                     dataProvider:SetCooldownToCategory(cooldownID, hiddenCategory)
                 end
             end
         end
+
+        layoutManager:SaveLayouts()
+    end)
+    if not ok then
+        return false
     end
 
-    if dataProvider.MarkDirty then
-        dataProvider:MarkDirty()
-    end
-
-    if CooldownViewerSettings.SaveCurrentLayout then
-        CooldownViewerSettings:SaveCurrentLayout()
-    end
-
-    RefreshCooldownViewers()
-
+    WriteCooldownLayoutData(store.data)
     return true
+end
+
+-- Ask the user to reload after the Cooldown Manager datastore was rewritten, since
+-- that is the only untainted way to get Blizzard to pick up the new layout.
+function MySlot:PromptCooldownManagerReload()
+    if not cooldownReloadPending then
+        return
+    end
+    cooldownReloadPending = false
+
+    self:Print(L["Cooldown Manager layout saved. Reload your UI (/reload) to apply it."])
+    if StaticPopup_Show and StaticPopupDialogs and StaticPopupDialogs["MYSLOT_RELOAD_COOLDOWN"] then
+        StaticPopup_Show("MYSLOT_RELOAD_COOLDOWN")
+    end
 end
 
 -- Cooldown Manager (Cooldown Viewer) is retail-only in practice. Its
@@ -1462,7 +1455,8 @@ end
 -- SetLayoutData and even IsCooldownViewerAvailable) is ALSO present on Classic
 -- clients where that addon never loads, so neither a namespace check nor
 -- IsCooldownViewerAvailable() can tell the two apart. Detect the addon actually
--- being loaded (which also guarantees CooldownViewerSettings, used by import).
+-- being loaded (which also guarantees the Cooldown Manager settings mixins that
+-- Clear uses).
 local IsAddOnLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or _G.IsAddOnLoaded
 function MySlot:IsCooldownManagerSupported()
     return IsAddOnLoaded
@@ -1950,6 +1944,7 @@ function MySlot:RecoverData(msg, opt)
 
 
     MySlot:Print(L["All slots were restored"])
+    MySlot:PromptCooldownManagerReload()
 end
 
 function MySlot:Clear(what, opt)
@@ -1989,8 +1984,8 @@ function MySlot:Clear(what, opt)
         end
         SaveBindings(GetCurrentBindingSet())
     elseif what == "COOLDOWNMANAGER" then
-        if self:IsCooldownManagerSupported() then
-            MoveAllCooldownsToNotDisplayed()
+        if self:IsCooldownManagerSupported() and not MoveAllCooldownsToNotDisplayed() then
+            self:Print(L["Could not clear the Cooldown Manager layout"])
         end
     elseif what == "CLICKBINDING" then
         -- Remove all click bindings by committing an empty profile.
