@@ -8,7 +8,8 @@ local IMPORT_BACKUP_COUNT = 3
 
 local f = CreateFrame("Frame", nil, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 f:SetWidth(650)
-f:SetHeight(600)
+-- Room for the talent string row below the text area (retail only).
+f:SetHeight(MySlot:IsTalentStringSupported() and 620 or 600)
 f:SetBackdrop({
     bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
     edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
@@ -110,6 +111,32 @@ do
 end
 
 local exportEditbox
+
+-- Talent string row below the text area. It is only built on ADDON_LOADED, so
+-- everything driving it has to tolerate a nil before that.
+local RefreshTalentBar
+
+-- Reading the player's own talent string spins up the talent UI, so cache it
+-- and drop the cache whenever the window is shown or an import is attempted.
+local currentTalent
+
+local function InvalidateCurrentTalent()
+    currentTalent = nil
+end
+
+local function CurrentTalentString()
+    -- Reading it on retail pulls in Blizzard's talent UI, which is not
+    -- something to trigger while the player is locked in combat.
+    if InCombatLockdown() then
+        return nil
+    end
+
+    if currentTalent == nil then
+        currentTalent = MySlot:GetTalentString() or false
+    end
+
+    return currentTalent or nil
+end
 
 -- options
 do
@@ -568,13 +595,39 @@ do
     b:SetPoint("BOTTOMLEFT", 200, 15)
     b:SetText(L["Import"])
     b:SetScript("OnClick", function()
-        local msg = MySlot:Import(exportEditbox:GetText(), {
+        local text = exportEditbox:GetText()
+        local msg = MySlot:Import(text, {
             force = forceImport,
         })
 
         if not msg then
             return
         end
+
+        -- The profile's talents are not restored by the import (that is what the
+        -- "Apply talents" button is for), so warn when the action bars about to
+        -- be restored were built for a different build than the one in use.
+        local warning
+        if MySlot:IsTalentStringSupported() then
+            InvalidateCurrentTalent()
+            local profileTalent = MySlot:ParseTalentString(text)
+            local myTalent = CurrentTalentString()
+            if profileTalent and myTalent and profileTalent ~= myTalent then
+                warning = L["The talents of this profile are different from your current talents."]
+            end
+        end
+
+        if warning then
+            MySlot:Print(warning)
+        end
+
+        if RefreshTalentBar then
+            RefreshTalentBar()
+        end
+
+        StaticPopupDialogs["MYSLOT_MSGBOX"].text = warning
+            and (L["Are you SURE to import ?"] .. "\n\n" .. RED_FONT_COLOR:WrapTextInColorCode(warning))
+            or L["Are you SURE to import ?"]
 
         StaticPopupDialogs["MYSLOT_MSGBOX"].OnAccept = function()
             StaticPopup_Hide("MYSLOT_MSGBOX")
@@ -825,8 +878,206 @@ RegEvent("ADDON_LOADED", function()
             edit:SetFocus()
         end)
 
+        -- Also fires for SetText (export, loadout pick, backup restore) and for
+        -- pasted text, so the talent row always matches the profile on screen.
+        edit:SetScript("OnTextChanged", function()
+            if RefreshTalentBar then
+                RefreshTalentBar()
+            end
+        end)
+
         exportEditbox = edit
     end
+
+    -- {{{ Talent string row (issue #129)
+    -- Exports carry the talent loadout string in a "# Talents: ..." header, so
+    -- surface it in its own single line box that is easy to select and copy,
+    -- flag when it does not describe the build currently in use, and offer to
+    -- switch to it. Loadout strings only exist on retail, so classic flavors
+    -- get no row at all.
+    if MySlot:IsTalentStringSupported() then
+        local label = f:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        label:SetPoint("TOPLEFT", f, 25, -543)
+        label:SetText(TALENTS .. ":")
+
+        -- Only shown while the profile's talents differ from the player's and
+        -- can be applied. When they can't, the status text says why instead.
+        local apply = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
+        apply:SetSize(110, 22)
+        apply:SetPoint("RIGHT", f, "TOPRIGHT", -25, -550)
+        apply:SetText(L["Apply talents"])
+        apply:Hide()
+
+        -- Sized to its text, so the box takes whatever room is left.
+        local status = f:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        status:SetJustifyH("RIGHT")
+        status:SetWordWrap(false)
+
+        -- Font strings take no mouse input; this carries the status tooltip.
+        local statusHover = CreateFrame("Frame", nil, f)
+        statusHover:SetAllPoints(status)
+        statusHover:SetScript("OnEnter", function(self)
+            if not self.reason then
+                return
+            end
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine(status:GetText())
+            GameTooltip:AddLine(self.reason, 1, 1, 1, true)
+            GameTooltip:Show()
+        end)
+        statusHover:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+
+        local box = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
+        box:SetHeight(20)
+        box:SetPoint("LEFT", label, "RIGHT", 14, 0)
+        box:SetPoint("RIGHT", status, "LEFT", -10, 0)
+        box:SetAutoFocus(false)
+        box:SetMaxLetters(0)
+        box:SetScript("OnEscapePressed", box.ClearFocus)
+        box:SetScript("OnEnterPressed", box.ClearFocus)
+        -- Select everything on click so the string is one Ctrl+C away.
+        box:SetScript("OnEditFocusGained", function(self)
+            self:HighlightText()
+        end)
+        box:SetScript("OnMouseUp", function(self)
+            self:HighlightText()
+        end)
+
+        local placeholder = box:CreateFontString(nil, "ARTWORK", "GameFontDisable")
+        placeholder:SetPoint("LEFT", box, "LEFT", 6, 0)
+        placeholder:SetPoint("RIGHT", box, "RIGHT", -6, 0)
+        placeholder:SetJustifyH("LEFT")
+        placeholder:SetWordWrap(false)
+        placeholder:SetText(L["No talent string in this profile"])
+
+        box:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine(TALENTS)
+            GameTooltip:AddLine(L["Copy this string and import it in the talent window"], 1, 1, 1, true)
+            GameTooltip:Show()
+        end)
+        box:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+
+        -- The box only ever mirrors the profile, so undo any typing in it.
+        box:SetScript("OnEditFocusLost", function()
+            RefreshTalentBar()
+        end)
+
+        -- Short status label for why a string can't be applied (see
+        -- MySlot:CheckTalentString); the full reason is in its tooltip.
+        local BLOCKED_STATUS = {
+            format = L["Talents out of date"],
+            spec = L["Talents for another spec"],
+        }
+
+        RefreshTalentBar = function()
+            local profileTalent = exportEditbox and MySlot:ParseTalentString(exportEditbox:GetText())
+
+            box:SetText(profileTalent or "")
+            box:SetCursorPosition(0)
+            placeholder:SetShown(not profileTalent)
+
+            local myTalent = profileTalent and CurrentTalentString()
+            local differ = myTalent and myTalent ~= profileTalent
+
+            local canApply, why, reason = true, nil, nil
+            if differ and not apply.applying then
+                canApply, why, reason = MySlot:CheckTalentString(profileTalent)
+            end
+
+            if not myTalent then
+                status:SetText("")
+            elseif not differ then
+                status:SetText(GREEN_FONT_COLOR:WrapTextInColorCode(L["Talents match"]))
+            elseif canApply and reason == "outdated" then
+                -- Loadable, but saved from an older talent tree.
+                status:SetText(ORANGE_FONT_COLOR:WrapTextInColorCode(L["Talents out of date"]))
+                why = why .. "\n\n" .. L["'Apply talents' can still load it, but talents changed since it was saved: check the loadout in the talent window before clicking 'Apply Changes'."]
+            elseif canApply then
+                status:SetText(RED_FONT_COLOR:WrapTextInColorCode(L["Talents differ"]))
+            else
+                status:SetText(ORANGE_FONT_COLOR:WrapTextInColorCode(BLOCKED_STATUS[reason] or L["Talents differ"]))
+            end
+
+            statusHover.reason = why
+            statusHover:EnableMouse(statusHover.reason ~= nil)
+
+            -- Keep the button up while applying, it shows the progress.
+            apply:SetShown(apply.applying or (differ and canApply) or false)
+
+            -- The status text sits left of the button while that is shown.
+            status:ClearAllPoints()
+            if apply:IsShown() then
+                status:SetPoint("RIGHT", apply, "LEFT", -8, 0)
+            else
+                status:SetPoint("RIGHT", f, "TOPRIGHT", -25, -550)
+            end
+        end
+
+        local function SetApplying(applying)
+            apply.applying = applying
+            apply:SetEnabled(not applying)
+            apply:SetText(applying and L["Applying..."] or L["Apply talents"])
+        end
+
+        apply:SetScript("OnClick", function()
+            local talent = exportEditbox and MySlot:ParseTalentString(exportEditbox:GetText())
+            local _, _, reason = MySlot:CheckTalentString(talent)
+
+            -- Set first: the callback may already run before Apply returns.
+            SetApplying(true)
+            local started, err = MySlot:ApplyTalentString(talent, function(ok, doneErr)
+                SetApplying(false)
+                if ok then
+                    MySlot:Print(L["Talent loadout 'Myslot' is ready, click 'Apply Changes' in the talent window to use it"])
+                    if reason == "outdated" then
+                        MySlot:Print(ORANGE_FONT_COLOR:WrapTextInColorCode(L["These talents were saved from an older talent tree, check them before applying"]))
+                    end
+                else
+                    MySlot:Print(L["Failed to apply talents"] .. (doneErr and doneErr ~= "" and (": " .. doneErr) or ""))
+                end
+                InvalidateCurrentTalent()
+                RefreshTalentBar()
+            end)
+
+            if not started then
+                SetApplying(false)
+                MySlot:Print(L["Failed to apply talents"] .. (err and err ~= "" and (": " .. err) or ""))
+            end
+        end)
+
+        apply:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine(L["Apply talents"])
+            GameTooltip:AddLine(L["Save the talents of this profile as the talent loadout 'Myslot', replacing the previous one, and open it in the talent window. Click 'Apply Changes' there to use it."], 1, 1, 1, true)
+            GameTooltip:Show()
+        end)
+        apply:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+
+        -- Talents can change while the window is closed (respec, loadout swap).
+        f:HookScript("OnShow", function()
+            InvalidateCurrentTalent()
+            RefreshTalentBar()
+        end)
+
+        -- Or while it is open, e.g. by clicking "Apply Changes" in the talent
+        -- window for a loadout opened with the Apply talents button.
+        RegEvent("TRAIT_CONFIG_UPDATED", function()
+            if f:IsShown() then
+                InvalidateCurrentTalent()
+                RefreshTalentBar()
+            end
+        end)
+
+        RefreshTalentBar()
+    end
+    -- }}}
 
 
     do
@@ -1303,6 +1554,8 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
             MySlot:Clear("MACRO", opt)
         elseif what == "binding" then
             MySlot:Clear("BINDING", opt)
+        elseif what == "talents" then
+            MySlot:Clear("TALENTLOADOUT")
         else
             Settings.OpenToCategory(MySlot.settingcategory.ID)
         end
