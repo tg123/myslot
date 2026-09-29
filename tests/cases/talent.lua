@@ -1,6 +1,9 @@
 local _, MySlot = ...
 local T = MySlot.test
 local Host = MySlot.host
+-- The fakes below swap enum tables in and out; Enum is a read-only global to
+-- luacheck, so go through a local alias of the same table.
+local Enum = _G.Enum
 
 local RETAIL_TALENT = "CEUAAAAAAAAAAAAAAAAAAAAAAMzMzMzsZmZmZGmxsNzMzMzsZmZmZGGAAAAAAAAzMzMzMbGmxsNzMzMzsZmZmZGA"
 
