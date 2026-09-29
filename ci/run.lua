@@ -33,6 +33,7 @@ load_test("cases/crc32.lua")
 load_test("cases/protobuf.lua")
 load_test("cases/roundtrip.lua")
 load_test("cases/runasync.lua")
+load_test("cases/talent.lua")
 load_test("cases/wow_roundtrip.lua")
 
 local _, failed = MySlot.test.run(print)

@@ -21,6 +21,24 @@ Any character, even different class, can use Myslot to import those settings fro
   1. Use command /myslot to toggle Myslot main UI
   1. Paste `exported text` into textbox
   1. Click the 'Import' button
+
+### Talents
+
+On retail (Dragonflight and later), the talent loadout string of the profile in the textbox
+is shown in the `Talents` box below it, click the box to select the string and copy it with Ctrl+C,
+then paste it into the import dialog of the talent window.
+
+When those talents differ from yours, click `Apply talents`: they are saved as the talent loadout `Myslot`,
+replacing the previous `Myslot` loadout, and the talent window opens with it selected.
+Review it there and click `Apply Changes` to switch to it.
+A profile saved before a talent tree change (a patch or hotfix) shows `Talents out of date`,
+it can still be loaded, but check it carefully since talents may have moved.
+The profile must be for your current specialization, and talents cannot be changed in combat.
+
+Importing a profile that was exported with talents other than the ones you are using
+asks for confirmation first, the action bars of a profile rarely fit another build.
+
+Classic flavors have no talent loadout strings, so neither the box nor the check are shown there.
  
 ### Clean up tools
   
@@ -32,6 +50,10 @@ Any character, even different class, can use Myslot to import those settings fro
   1. Clear all key bindings (blizzard default included)
      
     /myslot clear binding
+
+  1. Delete the `Myslot` talent loadouts created by `Apply talents`, in every specialization (retail only, your talents in use are kept)
+     
+    /myslot clear talents
  
 ### Import profile from command
   
