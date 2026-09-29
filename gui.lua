@@ -1205,6 +1205,43 @@ RegEvent("ADDON_LOADED", function()
             end)
         end
 
+        -- Link the selected saved profile in chat (see share.lua).
+        do
+            local b = CreateFrame("Button", nil, f)
+            b:SetSize(24, 24)
+            b:SetPoint("LEFT", t, "RIGHT", 8, 0)
+            b:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIcon-Chat-Up")
+            b:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-Chat-Down")
+            b:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+            b:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                GameTooltip:SetText(L["Link in chat"])
+                GameTooltip:AddLine(L["Post a link to the selected profile in chat. Other Myslot users can click it to get a copy."], 1, 1, 1, true)
+                GameTooltip:Show()
+            end)
+            b:SetScript("OnLeave", function()
+                GameTooltip:Hide()
+            end)
+            b:SetScript("OnClick", function()
+                local c = selectedIdx
+                if not (c and exports[c]) then
+                    MySlot:Print(L["Select a profile first"])
+                    return
+                end
+                MySlot.share.LinkProfile(exports[c].name, exports[c].value)
+            end)
+        end
+
+        -- Used by share.lua to hand a received profile to the user. Only fills
+        -- the text box; importing still requires clicking Import.
+        function MySlot:ShowImportText(text, title)
+            exportEditbox:SetText(text)
+            setSelected(nil)
+            setButtonText(title)
+            infolabel.ShowUnsaved()
+            f:Show()
+        end
+
     end
 
 end)

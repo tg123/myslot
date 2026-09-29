@@ -22,6 +22,7 @@ Browse and share profiles at **<https://myslot.net>**.
 - **Cross‑class & cross‑account** — spells, items, mounts and pets you don't have are skipped with a clear message; unowned mounts can fall back to a random mount
 - **Saved profiles** — keep up to 100 exports in game, sort by name / date / class and filter to your class
 - **Automatic backup** — your current setup is saved before every import, so you can always roll back
+- **Share profiles via clickable chat links** — link a saved profile in guild, party, raid or whisper chat; other Myslot users click it to get a copy
 - **Choose what to import or clear** — pick exactly which bars, macros and bindings to apply
 - **Fast & safe** — asynchronous import with a progress bar, blocked during combat, CRC‑checked text
 - **Minimap button** and `/myslot` slash command
@@ -44,6 +45,14 @@ Options that a game version doesn't support are hidden automatically.
 1. Type `/myslot` to open Myslot
 1. Paste the exported text into the text box (or pick a saved profile)
 1. Choose what to import, then click **Import**
+
+### Share in chat
+
+1. Select a saved profile and click the chat bubble next to the profile list
+1. Send the `[Myslot: Name - Profile]` tag in guild, party, raid, whisper, etc.
+1. Other Myslot users click the link to receive the profile in their import box — they still have to click **Import**
+
+Links are only served for the current session and cannot be fetched during encounters, Mythic+ or other chat-restricted content.
 
 ### Slash commands
 

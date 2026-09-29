@@ -600,12 +600,10 @@ local function IsEmptyTable(t)
     return (t == nil) or (next(t) == nil)
 end
 
-function MySlot:Import(text, opt)
-    if InCombatLockdown() then
-        MySlot:Print(L["Import is not allowed when you are in combat"])
-        return
-    end
-
+-- Strip comments, base64-decode and verify the CRC32 of an export string.
+-- Returns the decoded byte table (CRC bytes zeroed) and whether the CRC
+-- matched, or nil when the text is too short to be a Myslot export.
+local function DecodeImportText(text)
     local s = text or ""
     s = string.gsub(s, "(@.[^\n]*\n*)", "")
     s = string.gsub(s, "(#.[^\n]*\n*)", "")
@@ -614,16 +612,40 @@ function MySlot:Import(text, opt)
     s = base64.dec(s)
 
     if #s < 8 then
+        return nil
+    end
+
+    local crc = s[5] * 2 ^ 24 + s[6] * 2 ^ 16 + s[7] * 2 ^ 8 + s[8]
+    s[5], s[6], s[7], s[8] = 0, 0, 0, 0
+
+    -- `% 2 ^ 32` rather than bit.band: some bit libraries (luabitop/LuaJIT)
+    -- return signed results, WoW's returns unsigned; this matches both.
+    return s, crc == crc32.enc(s) % 2 ^ 32
+end
+
+-- True when text is a well-formed Myslot export (decodes and passes CRC32).
+-- Does not parse or apply anything, so it is safe to call on untrusted input.
+function MySlot:IsValidExportText(text)
+    local s, crcOk = DecodeImportText(text)
+    return s ~= nil and crcOk
+end
+
+function MySlot:Import(text, opt)
+    if InCombatLockdown() then
+        MySlot:Print(L["Import is not allowed when you are in combat"])
+        return
+    end
+
+    local s, crcOk = DecodeImportText(text)
+
+    if not s then
         MySlot:Print(L["Bad importing text [TEXT]"])
         return
     end
 
     local force = opt.force
 
-    local crc = s[5] * 2 ^ 24 + s[6] * 2 ^ 16 + s[7] * 2 ^ 8 + s[8]
-    s[5], s[6], s[7], s[8] = 0, 0, 0, 0
-
-    if (crc ~= bit.band(crc32.enc(s), 2 ^ 32 - 1)) then
+    if not crcOk then
         MySlot:Print(L["Bad importing text [CRC32]"])
         if force then
             MySlot:Print(L["Skip bad CRC32"] .. " " .. L["Try force importing"])
