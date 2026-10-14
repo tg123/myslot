@@ -1319,22 +1319,67 @@ end
 -- MySlot writes into those tables is tainted, and that taint sticks until /reload:
 -- every later secure read -- UNIT_AURA handling, Edit Mode, "Copy to Clipboard" --
 -- then runs tainted and trips over the viewers' DisallowTaintedAccess aura map or a
--- protected call (see #130, #133). So MySlot never touches that live state. It only
--- writes the persisted blob through C_CooldownViewer.SetLayoutData and asks the user
--- to reload, which rebuilds the Cooldown Manager from the datastore untainted.
-local cooldownReloadPending = false
+-- protected call (see #130, #133). Blizzard only reads the datastore once, at login,
+-- and offers no event to re-read it (unlike Edit Mode's EDIT_MODE_LAYOUTS_UPDATED).
+--
+-- So MySlot never touches that live state. It writes the persisted blob through
+-- C_CooldownViewer.SetLayoutData, which Blizzard loads untainted on the next login or
+-- /reload. Until then the blob is "pending": Blizzard's automatic saves (e.g. on a
+-- spec change) would serialize its stale in-memory layouts over it, so those get
+-- reverted. To apply the layout right away, the user can paste a single-layout
+-- string into Blizzard's own Import Layout dialog (see GetCooldownLayoutImportString).
+local cooldownPendingBlob     -- blob MySlot wrote that Blizzard has not loaded yet
+local cooldownAnnouncePending = false
+local cooldownWriting = false
+local cooldownHookInstalled = false
+
+local function IsCooldownSettingsShown()
+    local settings = CooldownViewerSettings
+    return settings and settings.IsShown and settings:IsShown() and true or false
+end
+
+-- Runs after every C_CooldownViewer.SetLayoutData call, including Blizzard's own.
+local function OnCooldownLayoutDataSet(data)
+    if cooldownWriting or not cooldownPendingBlob or data == cooldownPendingBlob then
+        return
+    end
+
+    if IsCooldownSettingsShown() then
+        -- The user saved something in the Cooldown Manager panel; that wins.
+        cooldownPendingBlob = nil
+        MySlot:Print(L["You saved changes in the Cooldown Manager, so the layout Myslot saved earlier will not be applied."])
+        return
+    end
+
+    -- An automatic save of Blizzard's stale in-memory layouts; keep the import.
+    cooldownWriting = true
+    C_CooldownViewer.SetLayoutData(cooldownPendingBlob)
+    cooldownWriting = false
+end
 
 local function WriteCooldownLayoutData(blob)
     if C_CooldownViewer.GetLayoutData() == blob then
         return false
     end
+
+    if not cooldownHookInstalled and hooksecurefunc then
+        hooksecurefunc(C_CooldownViewer, "SetLayoutData", OnCooldownLayoutDataSet)
+        cooldownHookInstalled = true
+    end
+
+    cooldownWriting = true
     C_CooldownViewer.SetLayoutData(blob)
-    cooldownReloadPending = true
+    cooldownWriting = false
+    cooldownPendingBlob = blob
+    cooldownAnnouncePending = true
     return true
 end
 
-local function ApplyCooldownLayout(blob)
-    if not (C_CooldownViewer and C_CooldownViewer.SetLayoutData) then
+-- Saves `blob` as-is as the pending Cooldown Manager data (applied on next login or
+-- /reload), replacing every layout. Use this instead of C_CooldownViewer.SetLayoutData,
+-- whose writes are reverted while an import is pending.
+function MySlot:SetCooldownManagerLayout(blob)
+    if not (C_CooldownViewer and C_CooldownViewer.GetLayoutData and C_CooldownViewer.SetLayoutData) then
         return false
     end
 
@@ -1343,19 +1388,19 @@ local function ApplyCooldownLayout(blob)
 end
 
 -- Build a private copy of Blizzard's Cooldown Manager settings objects, loaded from
--- the datastore. Only tables MySlot owns are written, so nothing Blizzard reads later
+-- `blob`. Only tables MySlot owns are written, so nothing Blizzard reads later
 -- becomes tainted. The data provider's Init is skipped (it registers game events),
 -- and the layout manager's notifications are silenced: the stock versions broadcast
 -- CooldownViewerSettings.OnPendingChanges / OnDataChanged, which would run
 -- Blizzard's listeners (tainted) against the live state.
-local function CreateCooldownLayoutSandbox()
+local function CreateCooldownLayoutSandbox(blob)
     if not (CreateFromMixins and CooldownViewerLayoutManagerMixin
         and CooldownViewerSettingsDataProviderMixin
         and CooldownViewerDataStoreSerializationMixin) then
         return nil
     end
 
-    local store = { data = C_CooldownViewer.GetLayoutData() or "" }
+    local store = { data = blob or "" }
     local persistence = {
         GetSerializedData = function() return store.data end,
         SetSerializedData = function(_, data) store.data = data end,
@@ -1381,7 +1426,121 @@ local function CreateCooldownLayoutSandbox()
     dataProvider:GetOrderedCooldownIDs()
     dataProvider:SwitchToBestLayoutForSpec()
 
-    return layoutManager, dataProvider, store
+    return layoutManager, dataProvider, store, serializer
+end
+
+local MYSLOT_COOLDOWN_LAYOUT_NAME = "Myslot"
+
+-- Like the "Myslot" talent loadout, an imported profile does not replace the
+-- player's own Cooldown Manager layouts. For each of the player's class specs the
+-- profile has a layout for, that layout is added as "Myslot" (replacing an earlier
+-- "Myslot" layout of that spec) and made the spec's active layout. A spec the
+-- profile set to Blizzard's default layout is switched to the default. The current
+-- spec goes first, since Blizzard allows only a few layouts per character.
+-- Returns the merged blob plus the number of specs imported and skipped (full).
+local function MergeCooldownLayouts(currentBlob, profileBlob)
+    local source = CreateCooldownLayoutSandbox(profileBlob)
+    local target, _, store, serializer = CreateCooldownLayoutSandbox(currentBlob)
+    if not (source and target) then
+        return nil
+    end
+
+    local _, _, classID = UnitClass("player")
+    local currentTag = target:GetCurrentSpecTag()
+    local function IsPlayerClass(specTag)
+        return classID and math.floor(specTag / 10) == classID
+    end
+
+    -- The profile's layout per spec: the one last active there, else any of them.
+    local chosen, useDefault = {}, {}
+    for specTag, layoutID in source:EnumeratePreviouslyActiveLayoutIDs() do
+        if source:IsDefaultLayoutID(layoutID) then
+            useDefault[specTag] = true
+        else
+            chosen[specTag] = source:GetLayout(layoutID)
+        end
+    end
+    for _, layout in source:EnumerateLayouts() do
+        local specTag = CooldownManagerLayout_GetClassAndSpecTag(layout)
+        if not useDefault[specTag] then
+            chosen[specTag] = chosen[specTag] or layout
+        end
+    end
+
+    local specTags = {}
+    for specTag in pairs(chosen) do
+        if IsPlayerClass(specTag) then
+            specTags[#specTags + 1] = specTag
+        end
+    end
+    table.sort(specTags, function(a, b)
+        if (a == currentTag) ~= (b == currentTag) then
+            return a == currentTag
+        end
+        return a < b
+    end)
+
+    local imported, skipped = 0, 0
+
+    for specTag in pairs(useDefault) do
+        if IsPlayerClass(specTag) then
+            target:SetPreviouslyActiveLayoutForSpecToDefault(specTag)
+            imported = imported + 1
+        end
+    end
+
+    for _, specTag in ipairs(specTags) do
+        local stale = {}
+        for layoutID, layout in target:EnumerateLayouts() do
+            if CooldownManagerLayout_GetClassAndSpecTag(layout) == specTag
+                and CooldownManagerLayout_GetName(layout) == MYSLOT_COOLDOWN_LAYOUT_NAME then
+                stale[#stale + 1] = layoutID
+            end
+        end
+        for _, layoutID in ipairs(stale) do
+            target:RemoveLayout(layoutID)
+        end
+
+        if target:AreLayoutsFullyMaxed() then
+            skipped = skipped + 1
+        else
+            local copy = target:CopyLayout(chosen[specTag])
+            CooldownManagerLayout_SetName(copy, MYSLOT_COOLDOWN_LAYOUT_NAME)
+            local added = target:CheckAddFullLayout(copy, CooldownManagerLayout_GetID(copy))
+            target:SetPreviouslyActiveLayout(added)
+            imported = imported + 1
+        end
+    end
+
+    serializer:WriteData()
+    return store.data, imported, skipped
+end
+
+-- Imports a profile's Cooldown Manager data as "Myslot" layouts (see
+-- MergeCooldownLayouts). Applied on the next login or /reload.
+function MySlot:ImportCooldownManagerLayout(profileBlob)
+    if not (C_CooldownViewer and C_CooldownViewer.GetLayoutData and C_CooldownViewer.SetLayoutData) then
+        return false
+    end
+
+    local ok, merged, imported, skipped = pcall(MergeCooldownLayouts, C_CooldownViewer.GetLayoutData(), profileBlob)
+    if not (ok and merged) then
+        self:Print(L["Could not import the Cooldown Manager layout"])
+        return false
+    end
+
+    if skipped > 0 then
+        self:Print(L["Skipped %d Cooldown Manager layout(s): this character already has the maximum number of layouts."]:format(skipped))
+    end
+    if imported == 0 then
+        if skipped == 0 then
+            self:Print(L["The profile has no Cooldown Manager layout for your class"])
+        end
+        return false
+    end
+
+    WriteCooldownLayoutData(merged)
+    return true
 end
 
 -- Simulate dragging every cooldown into the "Not Displayed" section of the
@@ -1409,7 +1568,7 @@ local function MoveAllCooldownsToNotDisplayed()
         [category.TrackedBar] = hiddenAura,
     }
 
-    local ok, layoutManager, dataProvider, store = pcall(CreateCooldownLayoutSandbox)
+    local ok, layoutManager, dataProvider, store = pcall(CreateCooldownLayoutSandbox, C_CooldownViewer.GetLayoutData())
     if not (ok and layoutManager and dataProvider and store
         and dataProvider.SetCooldownToCategory and dataProvider.GetOrderedCooldownIDsForCategory) then
         return false
@@ -1435,18 +1594,39 @@ local function MoveAllCooldownsToNotDisplayed()
     return true
 end
 
--- Ask the user to reload after the Cooldown Manager datastore was rewritten, since
--- that is the only untainted way to get Blizzard to pick up the new layout.
-function MySlot:PromptCooldownManagerReload()
-    if not cooldownReloadPending then
+-- The current spec's layout from the pending blob, encoded the way Blizzard's
+-- "Copy to Clipboard" does, so it can be pasted into the Cooldown Manager's own
+-- Import Layout dialog. That import runs from the user's click on Blizzard's UI,
+-- so it is untainted and applies immediately. Nil when nothing is pending or the
+-- profile has no layout for the current spec.
+function MySlot:GetCooldownLayoutImportString()
+    if not cooldownPendingBlob then
+        return nil
+    end
+
+    local ok, result = pcall(function()
+        local layoutManager, _, _, serializer = CreateCooldownLayoutSandbox(cooldownPendingBlob)
+        local layoutID = layoutManager and layoutManager:GetActiveLayoutID()
+        if layoutID then
+            return serializer:SerializeLayouts(layoutID)
+        end
+    end)
+    return ok and result or nil
+end
+
+-- Tell the user once that the Cooldown Manager layout was saved and applies on the
+-- next login or /reload, with a chat link to apply the current spec's layout now.
+function MySlot:AnnounceCooldownManagerPending()
+    if not cooldownAnnouncePending then
         return
     end
-    cooldownReloadPending = false
+    cooldownAnnouncePending = false
 
-    self:Print(L["Cooldown Manager layout saved. Reload your UI (/reload) to apply it."])
-    if StaticPopup_Show and StaticPopupDialogs and StaticPopupDialogs["MYSLOT_RELOAD_COOLDOWN"] then
-        StaticPopup_Show("MYSLOT_RELOAD_COOLDOWN")
+    local msg = L["Cooldown Manager layout saved. It takes effect the next time you log in or /reload."]
+    if self.FormatCooldownApplyLink and self:GetCooldownLayoutImportString() then
+        msg = msg .. " " .. self.FormatCooldownApplyLink(L["Apply now"])
     end
+    self:Print(msg)
 end
 
 -- Cooldown Manager (Cooldown Viewer) is retail-only in practice. Its
@@ -1913,7 +2093,7 @@ function MySlot:RecoverData(msg, opt)
 
     if not opt.actionOpt.ignoreCooldownManager and msg.cooldownManager and msg.cooldownManager ~= ""
         and self:IsCooldownManagerSupported() then
-        ApplyCooldownLayout(msg.cooldownManager)
+        self:ImportCooldownManagerLayout(msg.cooldownManager)
     end
 
 
@@ -1944,7 +2124,7 @@ function MySlot:RecoverData(msg, opt)
 
 
     MySlot:Print(L["All slots were restored"])
-    MySlot:PromptCooldownManagerReload()
+    MySlot:AnnounceCooldownManagerPending()
 end
 
 function MySlot:Clear(what, opt)

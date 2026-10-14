@@ -18,7 +18,7 @@ Browse and share profiles at **<https://myslot.net>**.
 - **Macros** — both account‑wide and character‑specific
 - **Key bindings**
 - **Click Cast Bindings** *(Retail)*
-- **Cooldown Manager layouts** *(Retail)* — applied after a UI reload, which Myslot offers right after importing or clearing
+- **Cooldown Manager layouts** *(Retail)* — imported as a "Myslot" layout for each of your specs (your own layouts are kept) and made active on your next login or `/reload`; click **Apply now** in chat to load your current spec's layout right away through Blizzard's Import Layout dialog
 - **Talents** *(Retail)* — see the profile's talent loadout string, get warned when it differs from yours, and load it into the talent window with one click
 - **Cross‑class & cross‑account** — spells, items, mounts and pets you don't have are skipped with a clear message; unowned mounts can fall back to a random mount
 - **Saved profiles** — keep up to 100 exports in game, sort by name / date / class and filter to your class

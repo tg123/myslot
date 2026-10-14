@@ -612,9 +612,15 @@ T.describe("in-game: cooldown manager round-trip (via WoW API)", function()
 
         -- Only the datastore is written; the live Cooldown Manager is left alone
         -- (touching it taints it until /reload, #133) and picks the blob up on reload.
-        C_CooldownViewer.SetLayoutData("")
+        -- The import adds "Myslot" layouts instead of replacing the player's own.
+        MySlot:SetCooldownManagerLayout("")
         MySlot:RecoverData(msg, { actionOpt = opt })
-        T.assert.equal(original, C_CooldownViewer.GetLayoutData())
+        MySlot:AnnounceCooldownManagerPending()
+        local imported = C_CooldownViewer.GetLayoutData()
+        MySlot:SetCooldownManagerLayout(original)
+        MySlot:AnnounceCooldownManagerPending()
+
+        T.assert.is_true(imported ~= nil and imported ~= "", "imported layout was not written")
     end))
 
     T.it("moves every cooldown to Not Displayed on clear", in_game(function()
@@ -629,7 +635,8 @@ T.describe("in-game: cooldown manager round-trip (via WoW API)", function()
         -- new blob was written to the datastore. Host.snapshot() does not cover the
         -- Cooldown Manager, so put the real layout back before asserting.
         local after = C_CooldownViewer.GetLayoutData()
-        C_CooldownViewer.SetLayoutData(before or "")
+        MySlot:SetCooldownManagerLayout(before or "")
+        MySlot:AnnounceCooldownManagerPending()
 
         T.assert.not_nil(after)
         T.assert.is_true(after ~= "" and after ~= before, "cleared layout was not written")

@@ -50,6 +50,8 @@ function Stub.reset()
         [999] = 0, -- Custom active-layout entry absent from the default category set.
     }
     Stub.cooldown_moves = {}     -- [cooldownID] = category the cooldown was moved to
+    Stub.cooldown_settings_shown = false  -- is Blizzard's Cooldown Manager panel open?
+    Stub.cooldown_spec_tag = 11  -- classID * 10 + spec (Arms Warrior)
     Stub.cooldown_addon_loaded = true  -- Blizzard_CooldownViewer loaded? (retail=true)
     Stub.click_bindings = {}     -- vector of ClickBindingInfo {type, actionID, button, modifiers}
     Stub.interface_version = 110000  -- 4th GetBuildInfo() return (retail Mainline)
@@ -90,8 +92,10 @@ NUM_PET_ACTION_SLOTS = 10
 function UnitName(unit)
     if unit == "player" then return Stub.player.name end
 end
+local CLASS_IDS = { WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4, PRIEST = 5, DEATHKNIGHT = 6,
+    SHAMAN = 7, MAGE = 8, WARLOCK = 9, MONK = 10, DRUID = 11, DEMONHUNTER = 12, EVOKER = 13 }
 function UnitClass(unit)
-    if unit == "player" then return Stub.player.class, Stub.player.class end
+    if unit == "player" then return Stub.player.class, Stub.player.class, CLASS_IDS[Stub.player.class] end
 end
 function UnitLevel(unit)
     if unit == "player" then return Stub.player.level end
@@ -115,6 +119,19 @@ end
 -- --- Pet -------------------------------------------------------------------
 function IsPetActive() return Stub.pet_active end
 function GetPetActionInfo() return nil end
+
+-- --- Secure hooks ----------------------------------------------------------
+function hooksecurefunc(target, name, hook)
+    if type(target) == "string" then
+        target, name, hook = _G, target, name
+    end
+    local original = target[name]
+    target[name] = function(...)
+        local results = { original(...) }
+        hook(...)
+        return unpack(results)
+    end
+end
 
 -- --- Cooldown Manager (Cooldown Viewer) ------------------------------------
 -- Opaque layout blob passthrough: Export reads it, Import writes it back.
@@ -160,34 +177,61 @@ CreateFromMixins = CreateFromMixins or function(...)
 end
 
 -- Cut-down stand-ins for Blizzard's Cooldown Manager settings mixins. MySlot
--- instantiates private copies of these to rebuild the layout blob, so the live
--- CooldownViewerSettings objects are never written (that taints them, #133).
--- Stub blob format: "stub|<cooldownID>=<category>,..." holding category overrides
--- on top of Stub.cooldown_categories.
-local function ParseCooldownBlob(blob)
-    local overrides = {}
-    for cooldownID, category in (blob or ""):gmatch("(%-?%d+)=(%-?%d+)") do
-        overrides[tonumber(cooldownID)] = tonumber(category)
+-- instantiates private copies of these to read and rebuild the layout blob, so the
+-- live CooldownViewerSettings objects are never written (that taints them, #133).
+-- Layouts mirror Blizzard's fields (layoutID, layoutName, classAndSpecTag), with
+-- `overrides` = { [cooldownID] = category } standing in for cooldownInfo. Blob
+-- format: "stub|" .. Lua literal of { layouts = {...}, active = { [specTag] = id } },
+-- where id 0 means "Blizzard's default layout". At most 5 layouts per character.
+local COOLDOWN_DEFAULT_LAYOUT_ID = 0
+local COOLDOWN_MAX_LAYOUTS = 5
+
+local function SerializeValue(v)
+    if type(v) == "table" then
+        local keys = {}
+        for k in pairs(v) do keys[#keys + 1] = k end
+        table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+        local parts = {}
+        for _, k in ipairs(keys) do
+            parts[#parts + 1] = "[" .. SerializeValue(k) .. "]=" .. SerializeValue(v[k])
+        end
+        return "{" .. table.concat(parts, ",") .. "}"
     end
-    return overrides
+    return type(v) == "string" and string.format("%q", v) or tostring(v)
 end
 
-local function SerializeCooldownOverrides(overrides)
-    local ids = {}
-    for cooldownID in pairs(overrides) do ids[#ids + 1] = cooldownID end
-    table.sort(ids)
-    local parts = {}
-    for _, cooldownID in ipairs(ids) do
-        parts[#parts + 1] = cooldownID .. "=" .. overrides[cooldownID]
-    end
-    return "stub|" .. table.concat(parts, ",")
+function Stub.encode_cooldown_blob(data)
+    return "stub|" .. SerializeValue(data)
 end
+
+function Stub.decode_cooldown_blob(blob)
+    local payload = (blob or ""):match("^stub|(.*)$")
+    if not payload then
+        return { layouts = {}, active = {} }
+    end
+    local data = loadstring("return " .. payload)()
+    data.layouts = data.layouts or {}
+    data.active = data.active or {}
+    return data
+end
+
+local function CopyDeep(t)
+    local r = {}
+    for k, v in pairs(t) do r[k] = type(v) == "table" and CopyDeep(v) or v end
+    return r
+end
+
+function CooldownManagerLayout_GetID(layout) return layout.layoutID end
+function CooldownManagerLayout_GetName(layout) return layout.layoutName or "" end
+function CooldownManagerLayout_SetName(layout, name) layout.layoutName = name end
+function CooldownManagerLayout_GetClassAndSpecTag(layout) return layout.classAndSpecTag end
 
 CooldownViewerLayoutManagerMixin = {
     Init = function(self, dataProvider, serializer)
         self.dataProvider = dataProvider
         self.serializer = serializer
-        self.overrides = {}
+        self.layouts = {}
+        self.lastActive = {}
     end,
     SetHasPendingChanges = function(self, hasPendingChanges)
         self.hasPendingChanges = hasPendingChanges
@@ -200,45 +244,141 @@ CooldownViewerLayoutManagerMixin = {
         self:SetHasPendingChanges(false)
         return hadSomethingToSave
     end,
+    GetCurrentSpecTag = function() return Stub.cooldown_spec_tag end,
+    GetActiveLayoutID = function(self) return self.activeLayoutID end,
+    GetActiveLayout = function(self) return self.activeLayoutID and self.layouts[self.activeLayoutID] end,
+    GetLayout = function(self, layoutID) return self.layouts[layoutID] end,
+    EnumerateLayouts = function(self) return pairs(self.layouts) end,
+    EnumeratePreviouslyActiveLayoutIDs = function(self) return pairs(self.lastActive) end,
+    IsDefaultLayoutID = function(_, layoutID) return layoutID == COOLDOWN_DEFAULT_LAYOUT_ID end,
+    SetPreviouslyActiveLayout = function(self, layout)
+        self.lastActive[layout.classAndSpecTag] = layout.layoutID
+    end,
+    SetPreviouslyActiveLayoutForSpecToDefault = function(self, specTag)
+        self.lastActive[specTag] = COOLDOWN_DEFAULT_LAYOUT_ID
+    end,
+    RemoveLayout = function(self, layoutID)
+        local layout = self.layouts[layoutID]
+        if not layout then return end
+        if self.activeLayoutID == layoutID then self.activeLayoutID = nil end
+        if self.lastActive[layout.classAndSpecTag] == layoutID then
+            self.lastActive[layout.classAndSpecTag] = nil
+        end
+        self.layouts[layoutID] = nil
+        self:SetHasPendingChanges(true)
+    end,
+    AreLayoutsFullyMaxed = function(self)
+        local count = 0
+        for _ in pairs(self.layouts) do count = count + 1 end
+        return count >= COOLDOWN_MAX_LAYOUTS
+    end,
+    NextLayoutID = function(self)
+        local largest = 0
+        for layoutID in pairs(self.layouts) do largest = math.max(largest, layoutID) end
+        return largest + 1
+    end,
+    CopyLayout = function(self, layout)
+        local copy = CopyDeep(layout)
+        copy.layoutID = self:NextLayoutID()
+        return copy
+    end,
+    CheckAddFullLayout = function(self, layout)
+        self.layouts[layout.layoutID] = layout
+        self:SetHasPendingChanges(true)
+        return layout
+    end,
+    SwitchToBestLayoutForSpec = function(self)
+        local specTag = self:GetCurrentSpecTag()
+        local layoutID = self.lastActive[specTag]
+        if layoutID == COOLDOWN_DEFAULT_LAYOUT_ID then
+            self.activeLayoutID = nil
+            return
+        end
+        if not self.layouts[layoutID] then
+            layoutID = nil
+            for id, layout in pairs(self.layouts) do
+                if layout.classAndSpecTag == specTag and (not layoutID or id < layoutID) then
+                    layoutID = id
+                end
+            end
+        end
+        self.activeLayoutID = layoutID
+        if layoutID then
+            self.lastActive[specTag] = layoutID
+        end
+    end,
 }
 
 CooldownViewerDataStoreSerializationMixin = {
     Init = function(self, layoutManager, persistenceObject)
         self.layoutManager = layoutManager
         self.persistenceObject = persistenceObject
-        layoutManager.overrides = ParseCooldownBlob(persistenceObject:GetSerializedData())
+        local data = Stub.decode_cooldown_blob(persistenceObject:GetSerializedData())
+        layoutManager.layouts = data.layouts
+        layoutManager.lastActive = data.active
     end,
     WriteData = function(self)
-        self.persistenceObject:SetSerializedData(SerializeCooldownOverrides(self.layoutManager.overrides))
+        self.persistenceObject:SetSerializedData(self:SerializeLayouts())
+    end,
+    SerializeLayouts = function(self, singleLayoutID)
+        local layoutManager = self.layoutManager
+        if singleLayoutID then
+            return Stub.encode_cooldown_blob({
+                layouts = { [singleLayoutID] = layoutManager.layouts[singleLayoutID] },
+                active = {},
+            })
+        end
+        return Stub.encode_cooldown_blob({ layouts = layoutManager.layouts, active = layoutManager.lastActive })
     end,
 }
 
 CooldownViewerSettingsDataProviderMixin = {
     SetLayoutManager = function(self, layoutManager) self.layoutManager = layoutManager end,
     GetOrderedCooldownIDs = function() return {} end,
-    SwitchToBestLayoutForSpec = function() end,
+    SwitchToBestLayoutForSpec = function(self)
+        self.layoutManager:SwitchToBestLayoutForSpec()
+    end,
     GetOrderedCooldownIDsForCategory = function(self, category, _allowUnknown)
+        local active = self.layoutManager:GetActiveLayout()
+        local overrides = active and active.overrides or {}
         local cooldownIDs = {}
         for cooldownID, defaultCategory in pairs(Stub.cooldown_categories) do
-            local currentCategory = self.layoutManager.overrides[cooldownID] or defaultCategory
-            if currentCategory == category then
+            if (overrides[cooldownID] or defaultCategory) == category then
                 cooldownIDs[#cooldownIDs + 1] = cooldownID
             end
         end
         return cooldownIDs
     end,
+    -- Like Blizzard, editing while on the default layout creates a layout for it.
     SetCooldownToCategory = function(self, cooldownID, category)
+        local layoutManager = self.layoutManager
+        local active = layoutManager:GetActiveLayout()
+        if not active then
+            active = {
+                layoutID = layoutManager:NextLayoutID(),
+                classAndSpecTag = layoutManager:GetCurrentSpecTag(),
+                overrides = {},
+            }
+            layoutManager:CheckAddFullLayout(active)
+            layoutManager.activeLayoutID = active.layoutID
+            layoutManager:SetPreviouslyActiveLayout(active)
+        end
         Stub.cooldown_moves[cooldownID] = category
-        self.layoutManager.overrides[cooldownID] = category
-        self.layoutManager:SetHasPendingChanges(true)
+        active.overrides = active.overrides or {}
+        active.overrides[cooldownID] = category
+        layoutManager:SetHasPendingChanges(true)
     end,
 }
 
 -- The live Cooldown Manager objects. MySlot must never touch them: any write
--- from addon code taints Blizzard's state until /reload (#133).
-local function Untouchable(name)
+-- from addon code taints Blizzard's state until /reload (#133). Only the listed
+-- read-only methods are allowed.
+local function Untouchable(name, allowed)
     return setmetatable({}, {
         __index = function(_, key)
+            if allowed and allowed[key] then
+                return allowed[key]
+            end
             error(("MySlot touched live %s.%s"):format(name, tostring(key)), 2)
         end,
         __newindex = function(_, key)
@@ -247,8 +387,11 @@ local function Untouchable(name)
     })
 end
 
+CooldownViewerSettings = Untouchable("CooldownViewerSettings", {
+    IsShown = function() return Stub.cooldown_settings_shown end,
+})
+
 for _, frameName in ipairs({
-    "CooldownViewerSettings",
     "EssentialCooldownViewer",
     "UtilityCooldownViewer",
     "BuffIconCooldownViewer",
