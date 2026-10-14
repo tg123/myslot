@@ -284,6 +284,37 @@ T.describe("Export/Import round-trip", function()
         T.assert.equal(1, #_G.WowStub.printed)
     end)
 
+    T.it("offers a reload once after the cooldown layout changes, not after a restore", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+
+        local shown = {}
+        local savedShow, savedDialogs = _G.StaticPopup_Show, _G.StaticPopupDialogs
+        _G.StaticPopupDialogs = { MYSLOT_RELOAD_COOLDOWN = {} }
+        _G.StaticPopup_Show = function(which) shown[#shown + 1] = which end
+
+        local ok, err = pcall(function()
+            local before = _G.WowStub.cooldown_layout
+            MySlot:Clear("COOLDOWNMANAGER")
+            MySlot:AnnounceCooldownManagerPending()
+            T.assert.equal(1, #shown)
+            T.assert.equal("MYSLOT_RELOAD_COOLDOWN", shown[1])
+
+            MySlot:AnnounceCooldownManagerPending()
+            T.assert.equal(1, #shown)
+
+            -- Restoring a snapshot is quiet, even with a change still unannounced.
+            Host.reset()
+            MySlot:Clear("COOLDOWNMANAGER")
+            MySlot:SetCooldownManagerLayout(before or "")
+            MySlot:AnnounceCooldownManagerPending()
+            T.assert.equal(1, #shown)
+        end)
+
+        _G.StaticPopup_Show, _G.StaticPopupDialogs = savedShow, savedDialogs
+        if not ok then error(err, 0) end
+    end)
+
     T.it("builds a single-layout import string for Blizzard's Import Layout dialog", function()
         if Host.in_wow then T.skip("CI-only (stub-backed)") end
         Host.reset()

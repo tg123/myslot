@@ -615,10 +615,9 @@ T.describe("in-game: cooldown manager round-trip (via WoW API)", function()
         -- The import adds "Myslot" layouts instead of replacing the player's own.
         MySlot:SetCooldownManagerLayout("")
         MySlot:RecoverData(msg, { actionOpt = opt })
-        MySlot:AnnounceCooldownManagerPending()
         local imported = C_CooldownViewer.GetLayoutData()
         MySlot:SetCooldownManagerLayout(original)
-        MySlot:AnnounceCooldownManagerPending()
+        StaticPopup_Hide("MYSLOT_RELOAD_COOLDOWN")
 
         T.assert.is_true(imported ~= nil and imported ~= "", "imported layout was not written")
     end))
@@ -636,7 +635,6 @@ T.describe("in-game: cooldown manager round-trip (via WoW API)", function()
         -- Cooldown Manager, so put the real layout back before asserting.
         local after = C_CooldownViewer.GetLayoutData()
         MySlot:SetCooldownManagerLayout(before or "")
-        MySlot:AnnounceCooldownManagerPending()
 
         T.assert.not_nil(after)
         T.assert.is_true(after ~= "" and after ~= before, "cleared layout was not written")

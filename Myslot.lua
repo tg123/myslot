@@ -1357,7 +1357,7 @@ local function OnCooldownLayoutDataSet(data)
     cooldownWriting = false
 end
 
-local function WriteCooldownLayoutData(blob)
+local function WriteCooldownLayoutData(blob, quiet)
     if C_CooldownViewer.GetLayoutData() == blob then
         return false
     end
@@ -1371,19 +1371,23 @@ local function WriteCooldownLayoutData(blob)
     C_CooldownViewer.SetLayoutData(blob)
     cooldownWriting = false
     cooldownPendingBlob = blob
-    cooldownAnnouncePending = true
+    if not quiet then
+        cooldownAnnouncePending = true
+    end
     return true
 end
 
 -- Saves `blob` as-is as the pending Cooldown Manager data (applied on next login or
--- /reload), replacing every layout. Use this instead of C_CooldownViewer.SetLayoutData,
+-- /reload), replacing every layout, without announcing it or prompting for a reload
+-- (used to restore a snapshot). Use this instead of C_CooldownViewer.SetLayoutData,
 -- whose writes are reverted while an import is pending.
 function MySlot:SetCooldownManagerLayout(blob)
     if not (C_CooldownViewer and C_CooldownViewer.GetLayoutData and C_CooldownViewer.SetLayoutData) then
         return false
     end
 
-    WriteCooldownLayoutData(blob)
+    WriteCooldownLayoutData(blob, true)
+    cooldownAnnouncePending = false
     return true
 end
 
@@ -1615,7 +1619,8 @@ function MySlot:GetCooldownLayoutImportString()
 end
 
 -- Tell the user once that the Cooldown Manager layout was saved and applies on the
--- next login or /reload, with a chat link to apply the current spec's layout now.
+-- next login or /reload: a chat line with a link to apply the current spec's layout
+-- now, and a prompt offering to reload right away.
 function MySlot:AnnounceCooldownManagerPending()
     if not cooldownAnnouncePending then
         return
@@ -1627,6 +1632,10 @@ function MySlot:AnnounceCooldownManagerPending()
         msg = msg .. " " .. self.FormatCooldownApplyLink(L["Apply now"])
     end
     self:Print(msg)
+
+    if StaticPopup_Show and StaticPopupDialogs and StaticPopupDialogs["MYSLOT_RELOAD_COOLDOWN"] then
+        StaticPopup_Show("MYSLOT_RELOAD_COOLDOWN")
+    end
 end
 
 -- Cooldown Manager (Cooldown Viewer) is retail-only in practice. Its

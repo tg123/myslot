@@ -163,6 +163,7 @@ read_globals = {
     "PlayerSpellsFrame_LoadUI",
     "PlayerSpellsUtil",
     "RED_FONT_COLOR",
+    "RELOADUI",
     "RIGHT_ACTIONBAR_PAGE",
     "RegisterAddonMessagePrefix",
     "RAID_CLASS_COLORS",

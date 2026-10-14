@@ -1753,6 +1753,19 @@ StaticPopupDialogs["MYSLOT_CONFIRM_DELETE"] = {
     multiple = 0,
 }
 
+StaticPopupDialogs["MYSLOT_RELOAD_COOLDOWN"] = {
+    text = L["Cooldown Manager changes take effect after you reload the UI. Reload now?"],
+    button1 = RELOADUI,
+    button2 = L["Later"],
+    OnAccept = function()
+        C_UI.Reload()
+    end,
+    timeout = 0,
+    whileDead = 1,
+    hideOnEscape = 1,
+    multiple = 0,
+}
+
 -- Shows the current spec's Cooldown Manager layout as text to paste into
 -- Blizzard's own Import Layout dialog, which applies it without a reload.
 -- (CopyToClipboard is protected, so the user copies it with Ctrl+C.)
