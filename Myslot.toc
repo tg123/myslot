@@ -1,8 +1,8 @@
-## Interface: 120100, 120007, 110207, 16001
-## Interface-Classic: 11508
-## Interface-BCC: 20505
+## Interface: 120105, 120100, 120007, 110207, 16001
+## Interface-Classic: 11509
+## Interface-BCC: 20506
 ## Interface-Wrath: 30405
-## Interface-Titan: 38000
+## Interface-Titan: 38002
 ## Interface-Cata: 40402
 ## Interface-Mists: 50504
 ## X-Curse-Project-ID: 48863
