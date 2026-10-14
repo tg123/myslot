@@ -108,6 +108,14 @@ function Share.ParseLink(link)
     return sender, profile
 end
 
+-- Local-only link printed after a Cooldown Manager import (see
+-- MySlot:AnnounceCooldownManagerPending); never sent over chat.
+Share.COOLDOWN_APPLY_LINK = "addon:" .. Share.LINK_TYPE .. ":cdm-apply"
+
+function MySlot.FormatCooldownApplyLink(text)
+    return "|c" .. Share.LINK_COLOR .. "|H" .. Share.COOLDOWN_APPLY_LINK .. "|h[" .. text .. "]|h|r"
+end
+
 -- Wire format (tab separated, single message each):
 --   R <id> <profile>                 request a linked profile
 --   D <id> <index> <total> <data>    one chunk of the profile text
@@ -690,6 +698,12 @@ end
 
 local function OnLinkClicked(link)
     if type(link) ~= "string" or IsSecret(link) then
+        return
+    end
+    if link == Share.COOLDOWN_APPLY_LINK then
+        if MySlot.ShowCooldownApplyNow then
+            MySlot:ShowCooldownApplyNow()
+        end
         return
     end
     local sender, profile = Share.ParseLink(link)

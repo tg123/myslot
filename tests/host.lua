@@ -16,12 +16,15 @@ if in_wow then
     -- MUST pair snapshot()/restore() to leave the character intact.
     -- ============================================================
 
+    -- The Cooldown Manager is left out: importing it adds "Myslot" layouts and
+    -- prompts for a reload. The dedicated tests save and restore it themselves.
     function Host.snapshot()
         return MySlot:Export({
             ignoreActionBars = {},
             ignoreMacros = {},
             ignoreBinding = false,
             ignorePetActionBar = false,
+            ignoreCooldownManager = true,
         })
     end
 
@@ -35,6 +38,7 @@ if in_wow then
                     ignoreMacros = {},
                     ignoreBinding = false,
                     ignorePetActionBar = false,
+                    ignoreCooldownManager = true,
                 },
             })
         end

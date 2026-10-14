@@ -239,25 +239,230 @@ T.describe("Export/Import round-trip", function()
         T.assert.equal(Cat.HiddenSpell, _G.WowStub.cooldown_moves[201])
         T.assert.equal(Cat.HiddenAura, _G.WowStub.cooldown_moves[301])
         T.assert.equal(Cat.HiddenAura, _G.WowStub.cooldown_moves[401])
-        T.assert.equal(true, _G.WowStub.cooldown_saved)
+
+        -- Like Blizzard, editing the default layout creates an active layout for the
+        -- spec; the re-serialized layouts are written straight to the datastore.
+        local data = _G.WowStub.decode_cooldown_blob(_G.WowStub.cooldown_layout)
+        T.assert.equal(1, data.active[11])
+        T.assert.equal(Cat.HiddenSpell, data.layouts[1].overrides[101])
+        T.assert.equal(Cat.HiddenAura, data.layouts[1].overrides[401])
+        MySlot:AnnounceCooldownManagerPending()
     end)
 
-    T.it("Clear COOLDOWNMANAGER refreshes the live bars without NotifyListeners", function()
+    T.it("Clear COOLDOWNMANAGER never touches the live Cooldown Manager (#133)", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+
+        -- CooldownViewerSettings and the viewer frames are stubbed to error on any
+        -- access but IsShown: writing Blizzard's live state from addon code taints
+        -- it until /reload, breaking UNIT_AURA handling, Edit Mode and Copy to
+        -- Clipboard. A failed sandbox makes Clear print an error, so check for that.
+        MySlot:Clear("COOLDOWNMANAGER")
+        T.assert.not_nil(_G.WowStub.cooldown_layout)
+        T.assert.equal(0, #_G.WowStub.printed)
+        MySlot:AnnounceCooldownManagerPending()
+    end)
+
+    T.it("announces a saved cooldown layout once, with an Apply now link", function()
         if Host.in_wow then T.skip("CI-only (stub-backed)") end
         Host.reset()
 
         MySlot:Clear("COOLDOWNMANAGER")
+        MySlot:AnnounceCooldownManagerPending()
+        T.assert.equal(1, #_G.WowStub.printed)
+        local msg = _G.WowStub.printed[1]
+        T.assert.is_true(msg:find("/reload", 1, true) ~= nil)
+        T.assert.is_true(msg:find("|Haddon:myslot:cdm-apply|h[Apply now]|h", 1, true) ~= nil)
 
-        -- Each live viewer frame and the settings panel must be poked directly.
-        -- Going through layoutManager:NotifyListeners() instead would broadcast
-        -- "CooldownViewerSettings.OnDataChanged", whose GroupBuffFilter listener
-        -- calls the protected C_UnitAuras.SetHiddenGroupBuffs() and gets blocked.
-        local refreshed = _G.WowStub.cooldown_refreshed
-        T.assert.equal(1, refreshed.EssentialCooldownViewer)
-        T.assert.equal(1, refreshed.UtilityCooldownViewer)
-        T.assert.equal(1, refreshed.BuffIconCooldownViewer)
-        T.assert.equal(1, refreshed.BuffBarCooldownViewer)
-        T.assert.equal(1, refreshed.settings)
+        -- Nothing new to announce.
+        MySlot:AnnounceCooldownManagerPending()
+        T.assert.equal(1, #_G.WowStub.printed)
+
+        -- Clearing an already cleared layout writes nothing.
+        MySlot:Clear("COOLDOWNMANAGER")
+        MySlot:AnnounceCooldownManagerPending()
+        T.assert.equal(1, #_G.WowStub.printed)
+    end)
+
+    T.it("offers a reload once after the cooldown layout changes, not after a restore", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+
+        local shown = {}
+        local savedShow, savedDialogs = _G.StaticPopup_Show, _G.StaticPopupDialogs
+        _G.StaticPopupDialogs = { MYSLOT_RELOAD_COOLDOWN = {} }
+        _G.StaticPopup_Show = function(which) shown[#shown + 1] = which end
+
+        local ok, err = pcall(function()
+            local before = _G.WowStub.cooldown_layout
+            MySlot:Clear("COOLDOWNMANAGER")
+            MySlot:AnnounceCooldownManagerPending()
+            T.assert.equal(1, #shown)
+            T.assert.equal("MYSLOT_RELOAD_COOLDOWN", shown[1])
+
+            MySlot:AnnounceCooldownManagerPending()
+            T.assert.equal(1, #shown)
+
+            -- Restoring a snapshot is quiet, even with a change still unannounced.
+            Host.reset()
+            MySlot:Clear("COOLDOWNMANAGER")
+            MySlot:SetCooldownManagerLayout(before or "")
+            MySlot:AnnounceCooldownManagerPending()
+            T.assert.equal(1, #shown)
+        end)
+
+        _G.StaticPopup_Show, _G.StaticPopupDialogs = savedShow, savedDialogs
+        if not ok then error(err, 0) end
+    end)
+
+    T.it("builds a single-layout import string for Blizzard's Import Layout dialog", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+
+        MySlot:Clear("COOLDOWNMANAGER")
+        MySlot:AnnounceCooldownManagerPending()
+        local single = _G.WowStub.decode_cooldown_blob(MySlot:GetCooldownLayoutImportString())
+        T.assert.not_nil(single.layouts[1])
+        T.assert.equal(nil, next(single.active))
+    end)
+
+    local function cooldown_layout(layoutID, name, specTag, overrides)
+        return { layoutID = layoutID, layoutName = name, classAndSpecTag = specTag, overrides = overrides or {} }
+    end
+
+    T.it("imports a profile's cooldown layout as an active 'Myslot' layout", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+        local Stub = _G.WowStub
+
+        -- The player's own layout stays; the profile's becomes "Myslot" and active.
+        Stub.cooldown_layout = Stub.encode_cooldown_blob({
+            layouts = { [1] = cooldown_layout(1, "Mine", 11, { [101] = 1 }) },
+            active = { [11] = 1 },
+        })
+        local profile = Stub.encode_cooldown_blob({
+            layouts = {
+                [7] = cooldown_layout(7, "Theirs", 11, { [201] = -1 }),
+                [8] = cooldown_layout(8, "Prot", 13, { [301] = -2 }),
+            },
+            active = { [11] = 7, [13] = 8 },
+        })
+
+        T.assert.is_true(MySlot:ImportCooldownManagerLayout(profile))
+        MySlot:AnnounceCooldownManagerPending()
+        local data = Stub.decode_cooldown_blob(Stub.cooldown_layout)
+        T.assert.equal("Mine", data.layouts[1].layoutName)
+        local arms = data.layouts[data.active[11]]
+        T.assert.equal("Myslot", arms.layoutName)
+        T.assert.equal(-1, arms.overrides[201])
+        local prot = data.layouts[data.active[13]]
+        T.assert.equal("Myslot", prot.layoutName)
+        T.assert.equal(13, prot.classAndSpecTag)
+
+        -- Importing again replaces the earlier "Myslot" layouts instead of piling up.
+        local before = 0
+        for _ in pairs(data.layouts) do before = before + 1 end
+        local profile2 = Stub.encode_cooldown_blob({
+            layouts = { [3] = cooldown_layout(3, "Theirs", 11, { [102] = -1 }) },
+            active = { [11] = 3 },
+        })
+        T.assert.is_true(MySlot:ImportCooldownManagerLayout(profile2))
+        MySlot:AnnounceCooldownManagerPending()
+        data = Stub.decode_cooldown_blob(Stub.cooldown_layout)
+        local after = 0
+        for _ in pairs(data.layouts) do after = after + 1 end
+        T.assert.equal(before, after)
+        T.assert.equal(-1, data.layouts[data.active[11]].overrides[102])
+        T.assert.equal(nil, data.layouts[data.active[11]].overrides[201])
+    end)
+
+    T.it("skips cooldown layouts of other classes", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+        local Stub = _G.WowStub
+
+        local profile = Stub.encode_cooldown_blob({
+            layouts = { [1] = cooldown_layout(1, "Rogue", 41) },
+            active = { [41] = 1 },
+        })
+        T.assert.equal(false, MySlot:ImportCooldownManagerLayout(profile))
+        T.assert.equal(nil, Stub.cooldown_layout)
+        T.assert.equal(1, #Stub.printed)
+    end)
+
+    T.it("imports the current spec's cooldown layout first when layouts are full", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+        local Stub = _G.WowStub
+
+        local own = {}
+        for i = 1, 4 do own[i] = cooldown_layout(i, "Mine" .. i, 12) end
+        Stub.cooldown_layout = Stub.encode_cooldown_blob({ layouts = own, active = {} })
+        local profile = Stub.encode_cooldown_blob({
+            layouts = {
+                [1] = cooldown_layout(1, "Fury", 12),
+                [2] = cooldown_layout(2, "Arms", 11),
+            },
+            active = { [11] = 2, [12] = 1 },
+        })
+
+        T.assert.is_true(MySlot:ImportCooldownManagerLayout(profile))
+        MySlot:AnnounceCooldownManagerPending()
+        local data = Stub.decode_cooldown_blob(Stub.cooldown_layout)
+        T.assert.equal("Myslot", data.layouts[data.active[11]].layoutName)
+        T.assert.equal(nil, data.active[12])
+        T.assert.is_true(Stub.printed[1]:find("Skipped 1", 1, true) ~= nil)
+    end)
+
+    T.it("switches a spec to the default cooldown layout when the profile did", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+        local Stub = _G.WowStub
+
+        Stub.cooldown_layout = Stub.encode_cooldown_blob({
+            layouts = { [1] = cooldown_layout(1, "Mine", 11) },
+            active = { [11] = 1 },
+        })
+        local profile = Stub.encode_cooldown_blob({ layouts = {}, active = { [11] = 0 } })
+
+        T.assert.is_true(MySlot:ImportCooldownManagerLayout(profile))
+        MySlot:AnnounceCooldownManagerPending()
+        local data = Stub.decode_cooldown_blob(Stub.cooldown_layout)
+        T.assert.equal(0, data.active[11])
+        T.assert.equal("Mine", data.layouts[1].layoutName)
+    end)
+
+    T.it("keeps a pending cooldown layout when Blizzard auto-saves its stale copy", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+
+        MySlot:Clear("COOLDOWNMANAGER")
+        MySlot:AnnounceCooldownManagerPending()
+        local pending = _G.WowStub.cooldown_layout
+
+        -- e.g. a spec change makes Blizzard serialize its in-memory layouts.
+        C_CooldownViewer.SetLayoutData("stale")
+        T.assert.equal(pending, _G.WowStub.cooldown_layout)
+    end)
+
+    T.it("drops a pending cooldown layout when the user saves in Blizzard's panel", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+
+        MySlot:Clear("COOLDOWNMANAGER")
+        MySlot:AnnounceCooldownManagerPending()
+        _G.WowStub.printed = {}
+
+        _G.WowStub.cooldown_settings_shown = true
+        C_CooldownViewer.SetLayoutData("edited")
+        T.assert.equal("edited", _G.WowStub.cooldown_layout)
+        T.assert.equal(1, #_G.WowStub.printed)
+
+        -- No longer pending: later Blizzard saves are left alone.
+        _G.WowStub.cooldown_settings_shown = false
+        C_CooldownViewer.SetLayoutData("later")
+        T.assert.equal("later", _G.WowStub.cooldown_layout)
+        T.assert.equal(nil, MySlot:GetCooldownLayoutImportString())
     end)
 
     T.it("export captures the click cast binding profile", function()

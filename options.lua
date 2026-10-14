@@ -149,6 +149,7 @@ StaticPopupDialogs["MYSLOT_CONFIRM_CLEAR"] = {
                 ["ACCOUNT"] = true,
                 ["CHARACTOR"] = true,
             })
+            MySlot:AnnounceCooldownManagerPending()
         else
             MySlot:Print(L["Please type %s to confirm"]:format(data))
         end

@@ -1753,6 +1753,52 @@ StaticPopupDialogs["MYSLOT_CONFIRM_DELETE"] = {
     multiple = 0,
 }
 
+StaticPopupDialogs["MYSLOT_RELOAD_COOLDOWN"] = {
+    text = L["Cooldown Manager changes take effect after you reload the UI. Reload now?"],
+    button1 = RELOADUI,
+    button2 = L["Later"],
+    OnAccept = function()
+        C_UI.Reload()
+    end,
+    timeout = 0,
+    whileDead = 1,
+    hideOnEscape = 1,
+    multiple = 0,
+}
+
+-- Shows the current spec's Cooldown Manager layout as text to paste into
+-- Blizzard's own Import Layout dialog, which applies it without a reload.
+-- (CopyToClipboard is protected, so the user copies it with Ctrl+C.)
+function MySlot:ShowCooldownApplyNow()
+    local importString = self:GetCooldownLayoutImportString()
+    if not importString then
+        self:Print(L["Nothing to apply: the imported profile has no Cooldown Manager layout for your current specialization."])
+        return
+    end
+    StaticPopup_Show("MYSLOT_COOLDOWN_APPLY_NOW", nil, nil, importString)
+end
+
+StaticPopupDialogs["MYSLOT_COOLDOWN_APPLY_NOW"] = {
+    text = L["To apply your current specialization's Cooldown Manager layout now: copy the text below (Ctrl+C), open the Cooldown Manager (/cdm), choose Import Layout from its settings menu, paste it, name it, then select it and click Save. Otherwise the whole imported layout takes effect the next time you log in or /reload."],
+    button1 = CLOSE,
+    hasEditBox = true,
+    editBoxWidth = 350,
+    maxLetters = 0,
+    OnShow = function(self, data)
+        local editBox = self.GetEditBox and self:GetEditBox() or self.editBox
+        editBox:SetText(data or "")
+        editBox:HighlightText()
+        editBox:SetFocus()
+    end,
+    EditBoxOnEscapePressed = function(editBox)
+        editBox:GetParent():Hide()
+    end,
+    timeout = 0,
+    whileDead = 1,
+    hideOnEscape = 1,
+    multiple = 0,
+}
+
 StaticPopupDialogs["MYSLOT_REPLACE_TEXT"] = {
     text = L["Replace the unsaved text with the received profile '%s'? Your unsaved changes will be lost."],
     button1 = ACCEPT,
