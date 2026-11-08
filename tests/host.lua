@@ -28,7 +28,19 @@ if in_wow then
         })
     end
 
+    -- Keys bound by tests. restore() re-imports the snapshot, which only *adds*
+    -- bindings, so test-only keys must be unbound explicitly or they leak.
+    local touchedKeys = {}
+
     function Host.restore(snap)
+        for key in pairs(touchedKeys) do
+            SetBinding(key, nil)
+        end
+        if next(touchedKeys) then
+            SaveBindings(GetCurrentBindingSet())
+        end
+        touchedKeys = {}
+
         if not snap then return end
         local msg = MySlot:Import(snap, { force = true })
         if msg then
@@ -75,6 +87,7 @@ if in_wow then
     function Host.delete_macro(id) DeleteMacro(id) end
 
     function Host.set_binding(key, command)
+        touchedKeys[key] = true
         SetBinding(key, command)
         SaveBindings(GetCurrentBindingSet())
     end

@@ -16,7 +16,7 @@ Browse and share profiles at **<https://myslot.net>**.
 
 - **Action bars** — every bar, including the main action bar pages, stance bars and the Skyriding bar
 - **Macros** — both account‑wide and character‑specific
-- **Key bindings**
+- **Key bindings** — every key bound to an action, including gamepad buttons
 - **Click Cast Bindings** *(Retail)*
 - **Cooldown Manager layouts** *(Retail)* — imported as a "Myslot" layout for each of your specs (your own layouts are kept) and made active once you reload, which Myslot offers to do right away; or click **Apply now** in chat to load your current spec's layout without reloading through Blizzard's Import Layout dialog
 - **Talents** *(Retail)* — see the profile's talent loadout string, get warned when it differs from yours, and load it into the talent window with one click
@@ -24,7 +24,7 @@ Browse and share profiles at **<https://myslot.net>**.
 - **Saved profiles** — keep up to 100 exports in game, sort by name / date / class and filter to your class
 - **Automatic backup** — your current setup is saved before every import, so you can always roll back
 - **Share profiles via clickable chat links** — link a saved profile in guild, party, raid or whisper chat; other Myslot users click it to get a copy
-- **Choose what to import or clear** — pick exactly which bars, macros and bindings to apply
+- **Choose what to import or clear** — pick exactly which bars, macros and bindings to apply; key bindings can be limited to keyboard or gamepad keys
 - **Fast & safe** — asynchronous import with a progress bar, blocked during combat, CRC‑checked text
 - **Minimap button** and `/myslot` slash command
 

@@ -104,10 +104,12 @@ local t = {
    {31},
    {32},
    {33},
+   {45},
    ["command"]={33},
    ["key1"]={31},
    ["id"]={30},
    ["key2"]={32},
+   ["keys"]={45},
 },
 -- Table: {13}
 {
@@ -378,6 +380,14 @@ local t = {
    ["name"]="modifiers",
    [".type"]="field",
    ["rule"]="optional",
+   ["tag"]=4,
+},
+-- Table: {45}
+{
+   ["ftype"]="Key",
+   ["name"]="keys",
+   [".type"]="field",
+   ["rule"]="repeated",
    ["tag"]=4,
 },
 }

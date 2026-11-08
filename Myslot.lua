@@ -383,9 +383,36 @@ local function KeyToByte(key, command)
 end
 -- }}}
 
-function MySlot:GetBindingInfo(index)
-    -- might more than 1
-    local _command, _, key1, key2 = GetBinding(index)
+-- "GAMEPAD" for controller buttons (PAD1, SHIFT-PADDUP, ...), "KEYBOARD" for
+-- everything else, including mouse buttons.
+function MySlot:GetBindingKind(key)
+    local gamepad
+    if IsBindingForGamePad then
+        gamepad = IsBindingForGamePad(key)
+    else
+        gamepad = key:find("^PAD") or key:find("%-PAD")
+    end
+    return gamepad and "GAMEPAD" or "KEYBOARD"
+end
+
+-- opt.ignoreBinding skips every key; opt.ignoreBindings[KEYBOARD|GAMEPAD]
+-- skips one kind.
+function MySlot:IsBindingKeyIgnored(opt, key)
+    if not opt then
+        return false
+    end
+    if opt.ignoreBinding then
+        return true
+    end
+    return opt.ignoreBindings ~= nil and opt.ignoreBindings[self:GetBindingKind(key)] == true
+end
+
+function MySlot:GetBindingInfo(index, opt)
+    -- GetBinding returns every key bound to the command; gamepad users often
+    -- have a PAD* button on top of two keyboard keys. Pass true so PAD* keys
+    -- are returned even when gamepad support is disabled.
+    local _command = GetBinding(index, true)
+    local allKeys = { select(3, GetBinding(index, true)) }
 
     if not _command then
         return
@@ -402,10 +429,25 @@ function MySlot:GetBindingInfo(index)
 
     msg.id = command
 
-    msg.key1 = KeyToByte(key1)
-    msg.key2 = KeyToByte(key2)
+    local kept = {}
+    for i = 1, table.maxn(allKeys) do
+        local key = allKeys[i]
+        if key and not self:IsBindingKeyIgnored(opt, key) then
+            local k = KeyToByte(key)
+            if k then
+                kept[#kept + 1] = k
+            end
+        end
+    end
 
-    if msg.key1 or msg.key2 then
+    msg.key1 = kept[1]
+    msg.key2 = kept[2]
+    for i = 3, #kept do
+        msg.keys = msg.keys or {}
+        table.insert(msg.keys, kept[i])
+    end
+
+    if msg.key1 or msg.key2 or msg.keys then
         return msg
     else
         return nil
@@ -995,7 +1037,7 @@ function MySlot:Export(opt)
     msg.bind = {}
     if not opt.ignoreBinding then
         for i = 1, GetNumBindings() do
-            local m = self:GetBindingInfo(i)
+            local m = self:GetBindingInfo(i, opt)
             if m then
                 msg.bind[#msg.bind + 1] = m
             end
@@ -2035,33 +2077,29 @@ function MySlot:RecoverData(msg, opt)
                 command = MySlot.R_BINDS[b.id]
             end
 
-            if b.key1 then
-                local mod, key = MySlot.R_MOD_KEYS[b.key1.mod], MySlot.R_KEYS[b.key1.key]
-                if key == "KEYCODE" then
-                    key = b.key1.keycode
-                end
-                key = (mod ~= "NONE" and (mod .. "-") or "") .. key
-                local bindingContext = 1
-
-                if C_KeyBindings and C_KeyBindings.GetBindingContextForAction then
-                     bindingContext = C_KeyBindings.GetBindingContextForAction(command)
-                end
-
-                SetBinding(key, command, bindingContext)
+            local bindingContext = 1
+            if C_KeyBindings and C_KeyBindings.GetBindingContextForAction then
+                bindingContext = C_KeyBindings.GetBindingContextForAction(command)
             end
 
-            if b.key2 then
-                local mod, key = MySlot.R_MOD_KEYS[b.key2.mod], MySlot.R_KEYS[b.key2.key]
-                if key == "KEYCODE" then
-                    key = b.key2.keycode
-                end
-                key = (mod ~= "NONE" and (mod .. "-") or "") .. key
-                local bindingContext = 1
+            local keys = { b.key1, b.key2 }
+            for _, k in ipairs(b.keys or {}) do
+                table.insert(keys, k)
+            end
 
-                if C_KeyBindings and C_KeyBindings.GetBindingContextForAction then
-                     bindingContext = C_KeyBindings.GetBindingContextForAction(command)
+            -- key1/key2 may be nil, so iterate by index rather than ipairs
+            for i = 1, table.maxn(keys) do
+                local k = keys[i]
+                if k then
+                    local mod, key = MySlot.R_MOD_KEYS[k.mod], MySlot.R_KEYS[k.key]
+                    if key == "KEYCODE" then
+                        key = k.keycode
+                    end
+                    key = (mod ~= "NONE" and (mod .. "-") or "") .. key
+                    if not self:IsBindingKeyIgnored(opt.actionOpt, key) then
+                        SetBinding(key, command, bindingContext)
+                    end
                 end
-                SetBinding(key, command, bindingContext)
             end
 
             bindProcessed = bindProcessed + 1
@@ -2157,11 +2195,12 @@ function MySlot:Clear(what, opt)
             end
         end
     elseif what == "BINDING" then
+        -- opt.KEYBOARD / opt.GAMEPAD select which kinds of key to remove.
         for i = 1, GetNumBindings() do
-            local action, _, key1, key2 = GetBinding(i)
+            local action = GetBinding(i, true)
 
-            for _, key in pairs({ key1, key2 }) do
-                if key then
+            for _, key in pairs({ select(3, GetBinding(i, true)) }) do
+                if key and opt and opt[self:GetBindingKind(key)] then
                     local bindingContext = 1
 
                     if C_KeyBindings and C_KeyBindings.GetBindingContextForAction then

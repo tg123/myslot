@@ -500,6 +500,140 @@ T.describe("Export/Import round-trip", function()
         MySlot:Clear("CLICKBINDING")
         T.assert.equal(0, #_G.WowStub.click_bindings)
     end)
+
+    T.it("export keeps keys beyond key1/key2 (e.g. gamepad buttons)", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+        table.insert(_G.WowStub.bindings, {
+            action = "JUMP", key1 = "SPACE", key2 = "CTRL-J",
+            extra = { "PAD1", "SHIFT-PADDUP" },
+        })
+
+        local msg = MySlot:Import(MySlot:Export(full_opt()), { force = true })
+        T.assert.equal(1, len(msg.bind))
+        local b = msg.bind[1]
+        T.assert.equal(MySlot.KEYS["SPACE"], b.key1.key)
+        T.assert.equal(MySlot.MOD_KEYS["CTRL"], b.key2.mod)
+        T.assert.equal(2, len(b.keys))
+        T.assert.equal(MySlot.KEYS["KEYCODE"], b.keys[1].key)
+        T.assert.equal("PAD1", b.keys[1].keycode)
+        T.assert.equal(MySlot.MOD_KEYS["NONE"], b.keys[1].mod)
+        T.assert.equal("PADDUP", b.keys[2].keycode)
+        T.assert.equal(MySlot.MOD_KEYS["SHIFT"], b.keys[2].mod)
+
+        -- Two-key bindings still encode without the extra field.
+        Host.reset()
+        Host.set_binding("CTRL-B", "JUMP")
+        local msg2 = MySlot:Import(MySlot:Export(full_opt()), { force = true })
+        T.assert.equal(0, len(msg2.bind[1].keys))
+    end)
+
+    local function seed_mixed_binding()
+        Host.reset()
+        table.insert(_G.WowStub.bindings, {
+            action = "JUMP", key1 = "PAD1", key2 = "SPACE",
+            extra = { "SHIFT-PADDUP", "CTRL-J" },
+        })
+    end
+
+    local function keycodes(b)
+        local out = {}
+        for _, k in ipairs({ b.key1, b.key2, unpack(b.keys or {}) }) do
+            out[#out + 1] = k.keycode or MySlot.R_KEYS[k.key]
+        end
+        return table.concat(out, ",")
+    end
+
+    T.it("classifies keyboard vs gamepad keys", function()
+        T.assert.equal("GAMEPAD", MySlot:GetBindingKind("PAD1"))
+        T.assert.equal("GAMEPAD", MySlot:GetBindingKind("CTRL-SHIFT-PADDUP"))
+        T.assert.equal("KEYBOARD", MySlot:GetBindingKind("NUMPAD1"))
+        T.assert.equal("KEYBOARD", MySlot:GetBindingKind("CTRL-NUMPADPLUS"))
+        T.assert.equal("KEYBOARD", MySlot:GetBindingKind("SHIFT--"))
+        T.assert.equal("KEYBOARD", MySlot:GetBindingKind("BUTTON4"))
+    end)
+
+    T.it("export can skip gamepad or keyboard keys", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+
+        seed_mixed_binding()
+        local opt = full_opt()
+        opt.ignoreBindings = { KEYBOARD = false, GAMEPAD = true }
+        local msg = MySlot:Import(MySlot:Export(opt), { force = true })
+        T.assert.equal("SPACE,J", keycodes(msg.bind[1]))
+
+        opt.ignoreBindings = { KEYBOARD = true, GAMEPAD = false }
+        msg = MySlot:Import(MySlot:Export(opt), { force = true })
+        T.assert.equal("PAD1,PADDUP", keycodes(msg.bind[1]))
+
+        opt.ignoreBindings = { KEYBOARD = true, GAMEPAD = true }
+        msg = MySlot:Import(MySlot:Export(opt), { force = true })
+        T.assert.equal(0, len(msg.bind))
+    end)
+
+    T.it("Clear BINDING removes only the selected kind", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+
+        seed_mixed_binding()
+        MySlot:Clear("BINDING", { GAMEPAD = true })
+        local b = _G.WowStub.bindings[1]
+        T.assert.equal("SPACE", b.key1)
+        T.assert.equal("CTRL-J", b.key2)
+
+        seed_mixed_binding()
+        MySlot:Clear("BINDING", { KEYBOARD = true })
+        b = _G.WowStub.bindings[1]
+        T.assert.equal("PAD1", b.key1)
+        T.assert.equal("SHIFT-PADDUP", b.key2)
+
+        seed_mixed_binding()
+        MySlot:Clear("BINDING", { KEYBOARD = true, GAMEPAD = true })
+        T.assert.equal(nil, _G.WowStub.bindings[1].key1)
+    end)
+
+    T.it("RecoverData restores only the selected binding kind", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+
+        local function bound_to(key)
+            for _, b in ipairs(_G.WowStub.bindings) do
+                if b.key1 == key or b.key2 == key then return b.action end
+                for _, k in ipairs(b.extra or {}) do
+                    if k == key then return b.action end
+                end
+            end
+        end
+
+        local function recover(ignoreBindings)
+            seed_mixed_binding()
+            local msg = MySlot:Import(MySlot:Export(full_opt()), { force = true })
+            T.assert.equal(2, len(msg.bind[1].keys))
+            -- Every key of the saved JUMP binding now belongs to another command.
+            _G.WowStub.bindings = { {
+                action = "MOVEFORWARD", key1 = "PAD1", key2 = "SPACE",
+                extra = { "SHIFT-PADDUP", "CTRL-J" },
+            } }
+            local actionOpt = {
+                ignoreActionBars = {}, ignoreMacros = { ACCOUNT = true, CHARACTOR = true },
+                ignoreBinding = false, ignorePetActionBar = true,
+                ignoreCooldownManager = true, ignoreClickBindings = true,
+                ignoreBindings = ignoreBindings,
+            }
+            for i = 1, 15 do actionOpt.ignoreActionBars[i] = true end
+            MySlot:RecoverData(msg, { actionOpt = actionOpt })
+        end
+
+        recover({ KEYBOARD = false, GAMEPAD = true })
+        T.assert.equal("JUMP", bound_to("SPACE"))
+        T.assert.equal("JUMP", bound_to("CTRL-J"))
+        T.assert.equal("MOVEFORWARD", bound_to("PAD1"))
+        T.assert.equal("MOVEFORWARD", bound_to("SHIFT-PADDUP"))
+
+        recover({ KEYBOARD = true, GAMEPAD = false })
+        T.assert.equal("JUMP", bound_to("PAD1"))
+        T.assert.equal("JUMP", bound_to("SHIFT-PADDUP"))
+        T.assert.equal("MOVEFORWARD", bound_to("SPACE"))
+        T.assert.equal("MOVEFORWARD", bound_to("CTRL-J"))
+    end)
 end)
 
 T.describe("Loadout ordering (issue #102)", function()

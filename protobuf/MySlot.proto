@@ -59,6 +59,9 @@ message Bind {
 
 	optional Key key1 = 2;
 	optional Key key2 = 3;
+
+	// keys beyond key1/key2, e.g. gamepad buttons bound alongside keyboard keys
+	repeated Key keys = 4;
 }
 
 message Key {
