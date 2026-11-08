@@ -138,6 +138,26 @@ local function CurrentTalentString()
     return currentTalent or nil
 end
 
+-- Where the Settings panel supports gamepad focus groups (Forever, 12.1.7+),
+-- OpenToCategory calls the secure-only SmartNavigation:EnterFocusGroup, which
+-- shows "Interface action failed" when an addon triggers it (#144). Open the
+-- panel and select the category ourselves to skip that focus step.
+local function OpenSettings()
+    local id = MySlot.settingcategory.ID
+    local panel = SettingsPanel
+    if panel and panel.FocusContainer and panel.Open and panel.SelectCategory and panel.GetCategoryList then
+        panel:Open()
+        local categoryTbl = panel:GetCategoryList():GetCategory(id)
+        if categoryTbl then
+            categoryTbl:SetExpanded(true)
+            panel:SelectCategory(categoryTbl)
+        end
+        return
+    end
+
+    Settings.OpenToCategory(id)
+end
+
 -- options
 do
     local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
@@ -145,9 +165,7 @@ do
     b:SetHeight(25)
     b:SetPoint("BOTTOMRIGHT", -145, 15)
     b:SetText(OPTIONS)
-    b:SetScript("OnClick", function()
-        Settings.OpenToCategory(MySlot.settingcategory.ID)
-    end)
+    b:SetScript("OnClick", OpenSettings)
 end
 
 -- close
@@ -1721,7 +1739,7 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
         elseif what == "talents" then
             MySlot:Clear("TALENTLOADOUT")
         else
-            Settings.OpenToCategory(MySlot.settingcategory.ID)
+            OpenSettings()
         end
     elseif cmd == "trim" then
         if not MyslotExports then
