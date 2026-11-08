@@ -409,9 +409,10 @@ end
 
 function MySlot:GetBindingInfo(index, opt)
     -- GetBinding returns every key bound to the command; gamepad users often
-    -- have a PAD* button on top of two keyboard keys.
-    local _command = GetBinding(index)
-    local allKeys = { select(3, GetBinding(index)) }
+    -- have a PAD* button on top of two keyboard keys. Pass true so PAD* keys
+    -- are returned even when gamepad support is disabled.
+    local _command = GetBinding(index, true)
+    local allKeys = { select(3, GetBinding(index, true)) }
 
     if not _command then
         return
@@ -2196,9 +2197,9 @@ function MySlot:Clear(what, opt)
     elseif what == "BINDING" then
         -- opt.KEYBOARD / opt.GAMEPAD select which kinds of key to remove.
         for i = 1, GetNumBindings() do
-            local action = GetBinding(i)
+            local action = GetBinding(i, true)
 
-            for _, key in pairs({ select(3, GetBinding(i)) }) do
+            for _, key in pairs({ select(3, GetBinding(i, true)) }) do
                 if key and opt and opt[self:GetBindingKind(key)] then
                     local bindingContext = 1
 
