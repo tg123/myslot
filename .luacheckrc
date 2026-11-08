@@ -121,6 +121,7 @@ read_globals = {
     "hooksecurefunc",
     "issecretvalue",
     "IsPetActive",
+    "IsBindingForGamePad",
     "IsWindowsClient",
     "LEFT_ACTIONBAR_PAGE",
     "LEVEL",

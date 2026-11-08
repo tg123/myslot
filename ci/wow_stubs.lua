@@ -424,6 +424,27 @@ function GetBinding(i)
     return b.action, b.header, b.key1, b.key2, unpack(b.extra or {})
 end
 function GetCurrentBindingSet() return 1 end
+function SaveBindings() end
+function SetBinding(key, command)
+    for _, b in ipairs(Stub.bindings) do
+        local keys = { b.key1, b.key2 }
+        for _, k in ipairs(b.extra or {}) do keys[#keys + 1] = k end
+        local kept = {}
+        for i = 1, table.maxn(keys) do
+            if keys[i] and keys[i] ~= key then kept[#kept + 1] = keys[i] end
+        end
+        if command and b.action == command then
+            kept[#kept + 1] = key
+            command = nil
+        end
+        b.key1, b.key2 = kept[1], kept[2]
+        b.extra = { select(3, unpack(kept)) }
+    end
+    if command then
+        table.insert(Stub.bindings, { action = command, key1 = key })
+    end
+    return true
+end
 
 -- --- Lua-side string helpers WoW exposes globally --------------------------
 strtrim = strtrim or function(s)

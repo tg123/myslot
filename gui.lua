@@ -167,9 +167,9 @@ local function CreateSettingMenu(opt, onChanged)
             return opt.ignoreActionBars
         end
 
-        -- if name == "binding" then
-        --     return opt.ignoreBindings
-        -- end
+        if name == "binding" then
+            return opt.ignoreBindings
+        end
 
         if name == "macro" then
             return opt.ignoreMacros
@@ -234,8 +234,10 @@ local function CreateSettingMenu(opt, onChanged)
         [15] = false,
     }
 
-    opt.ignoreBinding = false
-    -- opt.ignoreBindings = opt.ignoreBindings or {}
+    opt.ignoreBindings = opt.ignoreBindings or {
+        ["KEYBOARD"] = false,
+        ["GAMEPAD"] = false,
+    }
 
     opt.ignoreMacros = opt.ignoreMacros or {
         ["ACCOUNT"] = false,
@@ -388,19 +390,33 @@ local function CreateSettingMenu(opt, onChanged)
         }, -- 1
         {
             text = L["Key Binding"],
+            hasArrow = true,
             notCheckable = false,
             isNotRadio = true,
             keepShownOnClick = true,
-            func = function ()
-                opt.ignoreBinding = not opt.ignoreBinding
-
-                if onChanged then
-                    onChanged()
-                end
-            end,
-            checked = function ()
-                return opt.ignoreBinding
-            end,
+            func = parentclicked,
+            checked = parentchecked,
+            arg1 = "binding",
+            menuList = {
+                {
+                    text = L["Keyboard"],
+                    isNotRadio = true,
+                    keepShownOnClick = true,
+                    arg1 = "binding",
+                    arg2 = "KEYBOARD",
+                    checked = childchecked,
+                    func = childclicked,
+                },
+                {
+                    text = L["Gamepad"],
+                    isNotRadio = true,
+                    keepShownOnClick = true,
+                    arg1 = "binding",
+                    arg2 = "GAMEPAD",
+                    checked = childchecked,
+                    func = childclicked,
+                },
+            }
         }, -- 2
         {
             text = MACRO,
@@ -519,7 +535,14 @@ local function AllSettingMenuIgnored(opt)
     end
 
     if not opt.ignoreBinding then
-        return false
+        if not opt.ignoreBindings then
+            return false
+        end
+        for _, v in pairs(opt.ignoreBindings) do
+            if not v then
+                return false
+            end
+        end
     end
 
     if not opt.ignoreMacros then
@@ -652,8 +675,8 @@ do
 
             MySlot:Clear("MACRO", clearOpt.ignoreMacros)
             MySlot:Clear("ACTION", clearOpt.ignoreActionBars)
-            if clearOpt.ignoreBinding then
-                MySlot:Clear("BINDING")
+            if clearOpt.ignoreBindings.KEYBOARD or clearOpt.ignoreBindings.GAMEPAD then
+                MySlot:Clear("BINDING", clearOpt.ignoreBindings)
             end
             if clearOpt.removeCooldownManager then
                 MySlot:Clear("COOLDOWNMANAGER")
@@ -1686,6 +1709,8 @@ SlashCmdList["MYSLOT"] = function(msg, editbox)
             [15] = true,
             ["ACCOUNT"] = true,
             ["CHARACTOR"] = true,
+            ["KEYBOARD"] = true,
+            ["GAMEPAD"] = true,
         }
         if what == "action" then
             MySlot:Clear("ACTION", opt)

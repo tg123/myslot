@@ -527,6 +527,69 @@ T.describe("Export/Import round-trip", function()
         local msg2 = MySlot:Import(MySlot:Export(full_opt()), { force = true })
         T.assert.equal(0, len(msg2.bind[1].keys))
     end)
+
+    local function seed_mixed_binding()
+        Host.reset()
+        table.insert(_G.WowStub.bindings, {
+            action = "JUMP", key1 = "PAD1", key2 = "SPACE",
+            extra = { "SHIFT-PADDUP", "CTRL-J" },
+        })
+    end
+
+    local function keycodes(b)
+        local out = {}
+        for _, k in ipairs({ b.key1, b.key2, unpack(b.keys or {}) }) do
+            out[#out + 1] = k.keycode or MySlot.R_KEYS[k.key]
+        end
+        return table.concat(out, ",")
+    end
+
+    T.it("classifies keyboard vs gamepad keys", function()
+        T.assert.equal("GAMEPAD", MySlot:GetBindingKind("PAD1"))
+        T.assert.equal("GAMEPAD", MySlot:GetBindingKind("CTRL-SHIFT-PADDUP"))
+        T.assert.equal("KEYBOARD", MySlot:GetBindingKind("NUMPAD1"))
+        T.assert.equal("KEYBOARD", MySlot:GetBindingKind("CTRL-NUMPADPLUS"))
+        T.assert.equal("KEYBOARD", MySlot:GetBindingKind("SHIFT--"))
+        T.assert.equal("KEYBOARD", MySlot:GetBindingKind("BUTTON4"))
+    end)
+
+    T.it("export can skip gamepad or keyboard keys", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+
+        seed_mixed_binding()
+        local opt = full_opt()
+        opt.ignoreBindings = { KEYBOARD = false, GAMEPAD = true }
+        local msg = MySlot:Import(MySlot:Export(opt), { force = true })
+        T.assert.equal("SPACE,J", keycodes(msg.bind[1]))
+
+        opt.ignoreBindings = { KEYBOARD = true, GAMEPAD = false }
+        msg = MySlot:Import(MySlot:Export(opt), { force = true })
+        T.assert.equal("PAD1,PADDUP", keycodes(msg.bind[1]))
+
+        opt.ignoreBindings = { KEYBOARD = true, GAMEPAD = true }
+        msg = MySlot:Import(MySlot:Export(opt), { force = true })
+        T.assert.equal(0, len(msg.bind))
+    end)
+
+    T.it("Clear BINDING removes only the selected kind", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+
+        seed_mixed_binding()
+        MySlot:Clear("BINDING", { GAMEPAD = true })
+        local b = _G.WowStub.bindings[1]
+        T.assert.equal("SPACE", b.key1)
+        T.assert.equal("CTRL-J", b.key2)
+
+        seed_mixed_binding()
+        MySlot:Clear("BINDING", { KEYBOARD = true })
+        b = _G.WowStub.bindings[1]
+        T.assert.equal("PAD1", b.key1)
+        T.assert.equal("SHIFT-PADDUP", b.key2)
+
+        seed_mixed_binding()
+        MySlot:Clear("BINDING", { KEYBOARD = true, GAMEPAD = true })
+        T.assert.equal(nil, _G.WowStub.bindings[1].key1)
+    end)
 end)
 
 T.describe("Loadout ordering (issue #102)", function()

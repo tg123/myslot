@@ -148,6 +148,8 @@ StaticPopupDialogs["MYSLOT_CONFIRM_CLEAR"] = {
                 [15] = true,
                 ["ACCOUNT"] = true,
                 ["CHARACTOR"] = true,
+                ["KEYBOARD"] = true,
+                ["GAMEPAD"] = true,
             })
             MySlot:AnnounceCooldownManagerPending()
         else
