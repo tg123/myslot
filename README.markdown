@@ -16,7 +16,7 @@ Browse and share profiles at **<https://myslot.net>**.
 
 - **Action bars** — every bar, including the main action bar pages, stance bars and the Skyriding bar
 - **Macros** — both account‑wide and character‑specific
-- **Key bindings**
+- **Key bindings** — every key bound to an action, including gamepad buttons
 - **Click Cast Bindings** *(Retail)*
 - **Cooldown Manager layouts** *(Retail)* — imported as a "Myslot" layout for each of your specs (your own layouts are kept) and made active once you reload, which Myslot offers to do right away; or click **Apply now** in chat to load your current spec's layout without reloading through Blizzard's Import Layout dialog
 - **Talents** *(Retail)* — see the profile's talent loadout string, get warned when it differs from yours, and load it into the talent window with one click

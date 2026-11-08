@@ -529,10 +529,8 @@ T.describe("in-game: slot type round-trip (per type)", function()
 end)
 
 -- ---------------------------------------------------------------------------
--- MySlot:GetBindingInfo only captures key1/key2 (Myslot.lua:283), so if we
--- pick a command with existing default keys (e.g. MOVEFORWARD->W) our test
--- key becomes key3 and is silently dropped from Export. Using commands with
--- no defaults ensures our test key lands in key1 and is exercised.
+-- Use commands with no default keys so each test controls exactly which keys
+-- (and in which key1/key2/extra order) are bound.
 local function find_unbound_commands(n)
     local out = {}
     for i = 1, GetNumBindings() do
@@ -590,6 +588,28 @@ T.describe("in-game: key binding round-trip (via WoW API)", function()
         MySlot:RecoverData(msg, recover_opt())
 
         T.assert.equal(CMD, GetBindingAction(KEY))
+    end))
+
+    T.it("restores a third (gamepad) key on the same command", in_game(function()
+        local cmds = find_unbound_commands(1)
+        if #cmds < 1 then T.skip("no unbound commands available") end
+        local CMD = cmds[1]
+        local KEYS = { "CTRL-SHIFT-F10", "CTRL-SHIFT-F9", "PADPADDLE4" }
+
+        for _, k in ipairs(KEYS) do Host.set_binding(k, CMD) end
+        T.assert.equal(CMD, GetBindingAction(KEYS[3]))
+
+        local text = MySlot:Export(full_opt())
+
+        for _, k in ipairs(KEYS) do Host.set_binding(k, nil) end
+        T.assert.is_true((GetBindingAction(KEYS[3]) or "") == "")
+
+        local msg = MySlot:Import(text, { force = true })
+        MySlot:RecoverData(msg, recover_opt())
+
+        for _, k in ipairs(KEYS) do
+            T.assert.equal(CMD, GetBindingAction(k), k)
+        end
     end))
 end)
 

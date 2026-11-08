@@ -500,6 +500,33 @@ T.describe("Export/Import round-trip", function()
         MySlot:Clear("CLICKBINDING")
         T.assert.equal(0, #_G.WowStub.click_bindings)
     end)
+
+    T.it("export keeps keys beyond key1/key2 (e.g. gamepad buttons)", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        Host.reset()
+        table.insert(_G.WowStub.bindings, {
+            action = "JUMP", key1 = "SPACE", key2 = "CTRL-J",
+            extra = { "PAD1", "SHIFT-PADDUP" },
+        })
+
+        local msg = MySlot:Import(MySlot:Export(full_opt()), { force = true })
+        T.assert.equal(1, len(msg.bind))
+        local b = msg.bind[1]
+        T.assert.equal(MySlot.KEYS["SPACE"], b.key1.key)
+        T.assert.equal(MySlot.MOD_KEYS["CTRL"], b.key2.mod)
+        T.assert.equal(2, len(b.keys))
+        T.assert.equal(MySlot.KEYS["KEYCODE"], b.keys[1].key)
+        T.assert.equal("PAD1", b.keys[1].keycode)
+        T.assert.equal(MySlot.MOD_KEYS["NONE"], b.keys[1].mod)
+        T.assert.equal("PADDUP", b.keys[2].keycode)
+        T.assert.equal(MySlot.MOD_KEYS["SHIFT"], b.keys[2].mod)
+
+        -- Two-key bindings still encode without the extra field.
+        Host.reset()
+        Host.set_binding("CTRL-B", "JUMP")
+        local msg2 = MySlot:Import(MySlot:Export(full_opt()), { force = true })
+        T.assert.equal(0, len(msg2.bind[1].keys))
+    end)
 end)
 
 T.describe("Loadout ordering (issue #102)", function()

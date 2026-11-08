@@ -386,6 +386,7 @@ end
 function MySlot:GetBindingInfo(index)
     -- might more than 1
     local _command, _, key1, key2 = GetBinding(index)
+    local extraKeys = { select(5, GetBinding(index)) }
 
     if not _command then
         return
@@ -405,7 +406,17 @@ function MySlot:GetBindingInfo(index)
     msg.key1 = KeyToByte(key1)
     msg.key2 = KeyToByte(key2)
 
-    if msg.key1 or msg.key2 then
+    -- GetBinding returns every key bound to the command; gamepad users often
+    -- have a PAD* button on top of two keyboard keys.
+    for _, key in ipairs(extraKeys) do
+        local k = KeyToByte(key)
+        if k then
+            msg.keys = msg.keys or {}
+            table.insert(msg.keys, k)
+        end
+    end
+
+    if msg.key1 or msg.key2 or msg.keys then
         return msg
     else
         return nil
@@ -2035,33 +2046,27 @@ function MySlot:RecoverData(msg, opt)
                 command = MySlot.R_BINDS[b.id]
             end
 
-            if b.key1 then
-                local mod, key = MySlot.R_MOD_KEYS[b.key1.mod], MySlot.R_KEYS[b.key1.key]
-                if key == "KEYCODE" then
-                    key = b.key1.keycode
-                end
-                key = (mod ~= "NONE" and (mod .. "-") or "") .. key
-                local bindingContext = 1
-
-                if C_KeyBindings and C_KeyBindings.GetBindingContextForAction then
-                     bindingContext = C_KeyBindings.GetBindingContextForAction(command)
-                end
-
-                SetBinding(key, command, bindingContext)
+            local bindingContext = 1
+            if C_KeyBindings and C_KeyBindings.GetBindingContextForAction then
+                bindingContext = C_KeyBindings.GetBindingContextForAction(command)
             end
 
-            if b.key2 then
-                local mod, key = MySlot.R_MOD_KEYS[b.key2.mod], MySlot.R_KEYS[b.key2.key]
-                if key == "KEYCODE" then
-                    key = b.key2.keycode
-                end
-                key = (mod ~= "NONE" and (mod .. "-") or "") .. key
-                local bindingContext = 1
+            local keys = { b.key1, b.key2 }
+            for _, k in ipairs(b.keys or {}) do
+                table.insert(keys, k)
+            end
 
-                if C_KeyBindings and C_KeyBindings.GetBindingContextForAction then
-                     bindingContext = C_KeyBindings.GetBindingContextForAction(command)
+            -- key1/key2 may be nil, so iterate by index rather than ipairs
+            for i = 1, table.maxn(keys) do
+                local k = keys[i]
+                if k then
+                    local mod, key = MySlot.R_MOD_KEYS[k.mod], MySlot.R_KEYS[k.key]
+                    if key == "KEYCODE" then
+                        key = k.keycode
+                    end
+                    key = (mod ~= "NONE" and (mod .. "-") or "") .. key
+                    SetBinding(key, command, bindingContext)
                 end
-                SetBinding(key, command, bindingContext)
             end
 
             bindProcessed = bindProcessed + 1
@@ -2158,9 +2163,9 @@ function MySlot:Clear(what, opt)
         end
     elseif what == "BINDING" then
         for i = 1, GetNumBindings() do
-            local action, _, key1, key2 = GetBinding(i)
+            local action = GetBinding(i)
 
-            for _, key in pairs({ key1, key2 }) do
+            for _, key in pairs({ select(3, GetBinding(i)) }) do
                 if key then
                     local bindingContext = 1
 

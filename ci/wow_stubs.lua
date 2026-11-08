@@ -30,7 +30,7 @@ function Stub.reset()
     }
     Stub.action_bars = {}     -- [slotId] = { type, index, subType }
     Stub.macros = {}          -- [macroId] = { name, icon, body }
-    Stub.bindings = {}        -- [i] = { action, header, key1, key2 }
+    Stub.bindings = {}        -- [i] = { action, header, key1, key2, extra = { key3, ... } }
     Stub.pet_active = false
     Stub.cooldown_layout = nil  -- opaque Cooldown Manager layout blob
     -- Base category membership returned by GetCooldownViewerCategorySet:
@@ -421,7 +421,7 @@ function GetNumBindings() return #Stub.bindings end
 function GetBinding(i)
     local b = Stub.bindings[i]
     if not b then return nil end
-    return b.action, b.header, b.key1, b.key2
+    return b.action, b.header, b.key1, b.key2, unpack(b.extra or {})
 end
 function GetCurrentBindingSet() return 1 end
 
