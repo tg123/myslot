@@ -268,6 +268,8 @@ local function CreateSettingMenu(opt, onChanged)
 
     opt.ignoreClickBindings = false
 
+    opt.ignoreCVars = true
+
     -- https://warcraft.wiki.gg/wiki/Action_slot
     local actionbarlist = {
         {
@@ -514,6 +516,19 @@ local function CreateSettingMenu(opt, onChanged)
                 return opt.ignoreClickBindings
             end,
         }, -- 6
+        {
+            text = L["CVars"],
+            notCheckable = false,
+            isNotRadio = true,
+            keepShownOnClick = true,
+            func = function()
+                opt.ignoreCVars = not opt.ignoreCVars
+                if onChanged then onChanged() end
+            end,
+            checked = function()
+                return opt.ignoreCVars
+            end,
+        },
     }
 
     -- Some categories are retail-only; drop their entries where the client
@@ -525,6 +540,9 @@ local function CreateSettingMenu(opt, onChanged)
     end
     if not MySlot:IsClickBindingSupported() then
         unsupported[L["Click Cast Bindings"]] = true
+    end
+    if not MySlot:IsCVarSupported() then
+        unsupported[L["CVars"]] = true
     end
     if not MySlot:IsPetActionBarSupported() then
         unsupported[PET .. " " .. ACTIONBARS_LABEL] = true
@@ -581,6 +599,10 @@ local function AllSettingMenuIgnored(opt)
     end
 
     if MySlot:IsClickBindingSupported() and not opt.ignoreClickBindings then
+        return false
+    end
+
+    if MySlot:IsCVarSupported() and opt.ignoreCVars == false then
         return false
     end
 
@@ -679,7 +701,7 @@ do
             if not backup then
                 MySlot:Print(L["Backup failed"])
 
-                if not forceImport then
+                if not forceImport or actionOpt.ignoreCVars == false then
                     return
                 end
             end
@@ -752,6 +774,7 @@ do
     local clearExcludedText = {
         [PET .. " " .. ACTIONBARS_LABEL] = true,
         [L["Cooldown Manager"]] = true,
+        [L["CVars"]] = true,
     }
     for i = #clearMenu, 1, -1 do
         if clearMenu[i].text and clearExcludedText[clearMenu[i].text] then
@@ -834,6 +857,7 @@ do
 
     b:SetScript("OnClick", function()
         local s = MySlot:Export(actionOpt)
+        if not s then return end
         exportEditbox:SetText(s)
         infolabel.ShowUnsaved()
     end)

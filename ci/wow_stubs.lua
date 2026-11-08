@@ -55,6 +55,8 @@ function Stub.reset()
     Stub.cooldown_addon_loaded = true  -- Blizzard_CooldownViewer loaded? (retail=true)
     Stub.click_bindings = {}     -- vector of ClickBindingInfo {type, actionID, button, modifiers}
     Stub.interface_version = 110000  -- 4th GetBuildInfo() return (retail Mainline)
+    Stub.cvars = {}
+    Stub.cvar_writes = {}
 end
 
 Stub.reset()
@@ -65,6 +67,28 @@ function IsWindowsServer() return Stub.is_windows end
 function GetLocale() return Stub.locale end
 function GetBuildInfo() return "11.0.0", "00000", "2024-01-01", Stub.interface_version end
 function InCombatLockdown() return Stub.in_combat end
+
+-- --- CVars ----------------------------------------------------------------
+C_CVar = {
+    GetCVarInfo = function(name)
+        local cvar = Stub.cvars[name]
+        if not cvar then return nil end
+        if cvar.read_error then error(cvar.read_error) end
+        return cvar.value, cvar.default or cvar.value, cvar.account or false,
+            cvar.character or false, cvar.locked or false, cvar.secure or false,
+            cvar.readOnly or false
+    end,
+    SetCVar = function(name, value)
+        local cvar = Stub.cvars[name]
+        assert(cvar, "unknown CVar")
+        assert(not cvar.locked and not cvar.secure and not cvar.readOnly, "protected CVar")
+        Stub.cvar_writes[#Stub.cvar_writes + 1] = { name = name, value = value }
+        if cvar.write_error then error(cvar.write_error) end
+        if cvar.reject then return false end
+        if not cvar.ignore_write then cvar.value = value end
+        return true
+    end,
+}
 
 -- --- Chat / UI -------------------------------------------------------------
 DEFAULT_CHAT_FRAME = {

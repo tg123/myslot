@@ -11,8 +11,15 @@ message Charactor {
 
 	repeated ClickBinding clickBinding = 6;
 
+	repeated CVar cvar = 7;
+
 	optional uint32 ver = 14;
 	optional string name = 15;
+}
+
+message CVar {
+	optional string name = 1;
+	optional string value = 2;
 }
 
 message ClickBinding {

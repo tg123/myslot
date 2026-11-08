@@ -17,6 +17,7 @@ Browse and share profiles at **<https://myslot.net>**.
 - **Action bars** — every bar, including the main action bar pages, stance bars and the Skyriding bar
 - **Macros** — both account‑wide and character‑specific
 - **Key bindings** — every key bound to an action, including gamepad buttons
+- **Gameplay/UI CVars** *(opt-in)* — transfer curated preferences such as auto-loot, casting, action-bar locking, cooldown text, nameplates, and status text
 - **Click Cast Bindings** *(Retail)*
 - **Cooldown Manager layouts** *(Retail)* — imported as a "Myslot" layout for each of your specs (your own layouts are kept) and made active once you reload, which Myslot offers to do right away; or click **Apply now** in chat to load your current spec's layout without reloading through Blizzard's Import Layout dialog
 - **Talents** *(Retail)* — see the profile's talent loadout string, get warned when it differs from yours, and load it into the talent window with one click
@@ -64,6 +65,29 @@ Myslot doesn't import talents with the rest of a profile, but helps you switch t
 - The profile must be for your current specialization, and talents can't be changed in combat.
 
 Talent loadout strings only exist since Dragonflight, so none of this is shown on Classic versions.
+
+### Gameplay/UI CVars *(opt-in)*
+
+CVars are ignored by default, independently for export and import. Open the arrow menu beside
+**Export** or **Import** and uncheck **CVars** under **IGNORE** to include them.
+For a CVar-only profile, ignore the other categories when exporting and importing.
+The automatic pre-import backup includes your current CVars when CVar import is selected;
+to restore them, load the backup and uncheck **CVars** in the import menu again.
+A failed CVar backup stops import even when **Force Import** is enabled.
+`/myslot load <ProfileName>` does not apply CVars.
+
+Only an explicit list of gameplay and UI preferences is transferred. Graphics, audio, hardware,
+network, account identity, tutorial progress, arbitrary addon variables, chat-window positions,
+and Edit Mode layouts are not included. This is not a backup of every Blizzard setting:
+for example, modified-click casting keys are not CVars and are not transferred by this category.
+Values equal to Blizzard defaults are included so they can replace different destination preferences.
+
+Unavailable, locked, secure, or read-only CVars are skipped. Settings are also skipped when the
+client does not report whether a CVar is locked or secure; if the read-only flag is not reported, a
+write to a read-only CVar is reported as failed. The category is hidden when the required APIs
+are absent. Each skipped or failed imported setting is reported, and other supported settings
+continue to apply. Some preferences are account-wide and can affect other characters on that account.
+Myslot uses Blizzard's CVar setter rather than resetting settings or running console commands.
 
 ### Share in chat
 
