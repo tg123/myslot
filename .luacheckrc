@@ -76,6 +76,7 @@ read_globals = {
     "CreateFrame",
     "CreateFromMixins",
     "CreateMacro",
+    "DEFAULT",
     "DEFAULT_CHAT_FRAME",
     "DELETE",
     "DeleteMacro",

@@ -120,6 +120,7 @@ local function gui()
         return CreateSettingMenu, AllSettingMenuIgnored
     ]], "@gui.lua"))
     setfenv(chunk, env)
+    env.addon = addon
     env.createMenu, env.allIgnored = chunk("Myslot", addon)
     for _, widget in ipairs(frames) do
         if widget.text == MySlot.L["Export"] then env.exportButton = widget end
@@ -513,6 +514,22 @@ T.describe("CVars", function()
         for _, item in ipairs(ui.createMenu(options(nil))) do
             T.assert.is_false(item.text == MySlot.L["CVars"])
         end
+    end))
+
+    T.it("seeds the import and export menus from saved default IGNORE options", ci(function()
+        local ui = gui()
+        ui.MyslotSettings.defaultIgnore = {
+            import = { ignoreCVars = false, ignoreMacros = { ACCOUNT = true } },
+            export = { ignoreCVars = true },
+        }
+        ui.addon:ApplyIgnoreDefaults("import")
+        ui.addon:ApplyIgnoreDefaults("export")
+
+        ui.importArrow.scripts.OnClick(ui.importArrow)
+        T.assert.is_false(ui.menu:Find(MySlot.L["CVars"]).checked())
+        T.assert.is_true(ui.menu:Find(_G.MACRO or "MACRO").checked())
+        ui.exportArrow.scripts.OnClick(ui.exportArrow)
+        T.assert.is_true(ui.menu:Find(MySlot.L["CVars"]).checked())
     end))
 
     T.it("enables CVar-only export through the real export menu and button", ci(function(stub)

@@ -26,6 +26,7 @@ Browse and share profiles at **<https://myslot.net>**.
 - **Automatic backup** — your current setup is saved before every import, so you can always roll back
 - **Share profiles via clickable chat links** — link a saved profile in guild, party, raid or whisper chat; other Myslot users click it to get a copy
 - **Choose what to import or clear** — pick exactly which bars, macros and bindings to apply; key bindings can be limited to keyboard or gamepad keys
+- **Default ignore options** — set what is ignored by default during import and export in the Myslot options panel
 - **Fast & safe** — asynchronous import with a progress bar, blocked during combat, CRC‑checked text
 - **Minimap button** and `/myslot` slash command
 
@@ -70,6 +71,7 @@ Talent loadout strings only exist since Dragonflight, so none of this is shown o
 
 CVars are ignored by default, independently for export and import. Open the arrow menu beside
 **Export** or **Import** and uncheck **CVars** under **IGNORE** to include them.
+To include them every time, uncheck **CVars** in the default IGNORE menus in the Myslot options panel.
 For a CVar-only profile, ignore the other categories when exporting and importing.
 The automatic pre-import backup includes your current CVars when CVar import is selected;
 to restore them, load the backup and uncheck **CVars** in the import menu again.
