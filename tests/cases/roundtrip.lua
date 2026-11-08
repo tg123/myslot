@@ -590,6 +590,50 @@ T.describe("Export/Import round-trip", function()
         MySlot:Clear("BINDING", { KEYBOARD = true, GAMEPAD = true })
         T.assert.equal(nil, _G.WowStub.bindings[1].key1)
     end)
+
+    T.it("RecoverData restores only the selected binding kind", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+
+        local function bound_to(key)
+            for _, b in ipairs(_G.WowStub.bindings) do
+                if b.key1 == key or b.key2 == key then return b.action end
+                for _, k in ipairs(b.extra or {}) do
+                    if k == key then return b.action end
+                end
+            end
+        end
+
+        local function recover(ignoreBindings)
+            seed_mixed_binding()
+            local msg = MySlot:Import(MySlot:Export(full_opt()), { force = true })
+            T.assert.equal(2, len(msg.bind[1].keys))
+            -- Every key of the saved JUMP binding now belongs to another command.
+            _G.WowStub.bindings = { {
+                action = "MOVEFORWARD", key1 = "PAD1", key2 = "SPACE",
+                extra = { "SHIFT-PADDUP", "CTRL-J" },
+            } }
+            local actionOpt = {
+                ignoreActionBars = {}, ignoreMacros = { ACCOUNT = true, CHARACTOR = true },
+                ignoreBinding = false, ignorePetActionBar = true,
+                ignoreCooldownManager = true, ignoreClickBindings = true,
+                ignoreBindings = ignoreBindings,
+            }
+            for i = 1, 15 do actionOpt.ignoreActionBars[i] = true end
+            MySlot:RecoverData(msg, { actionOpt = actionOpt })
+        end
+
+        recover({ KEYBOARD = false, GAMEPAD = true })
+        T.assert.equal("JUMP", bound_to("SPACE"))
+        T.assert.equal("JUMP", bound_to("CTRL-J"))
+        T.assert.equal("MOVEFORWARD", bound_to("PAD1"))
+        T.assert.equal("MOVEFORWARD", bound_to("SHIFT-PADDUP"))
+
+        recover({ KEYBOARD = true, GAMEPAD = false })
+        T.assert.equal("JUMP", bound_to("PAD1"))
+        T.assert.equal("JUMP", bound_to("SHIFT-PADDUP"))
+        T.assert.equal("MOVEFORWARD", bound_to("SPACE"))
+        T.assert.equal("MOVEFORWARD", bound_to("CTRL-J"))
+    end)
 end)
 
 T.describe("Loadout ordering (issue #102)", function()
