@@ -262,13 +262,16 @@ local function CreateSettingMenu(opt, onChanged)
         ["CHARACTOR"] = false,
     }
 
-    opt.ignorePetActionBar = false
+    opt.ignorePetActionBar = opt.ignorePetActionBar or false
 
-    opt.ignoreCooldownManager = false
+    opt.ignoreCooldownManager = opt.ignoreCooldownManager or false
 
-    opt.ignoreClickBindings = false
+    opt.ignoreClickBindings = opt.ignoreClickBindings or false
 
-    opt.ignoreCVars = true
+    -- CVars are opt-in: ignored unless a saved default or the user unticks it.
+    if opt.ignoreCVars == nil then
+        opt.ignoreCVars = true
+    end
 
     -- https://warcraft.wiki.gg/wiki/Action_slot
     local actionbarlist = {
@@ -645,6 +648,55 @@ local EasyMenu = function (settings, owner)
     end)
 end
 
+-- Default IGNORE options (set in the options panel) seed the import/export
+-- dropdowns. kind is "import" or "export".
+local ignoreDefaultTargets = {}
+
+function MySlot:GetIgnoreDefaults(kind)
+    MyslotSettings = MyslotSettings or {}
+    MyslotSettings.defaultIgnore = MyslotSettings.defaultIgnore or {}
+    MyslotSettings.defaultIgnore[kind] = MyslotSettings.defaultIgnore[kind] or {}
+    return MyslotSettings.defaultIgnore[kind]
+end
+
+function MySlot:ApplyIgnoreDefaults(kind)
+    local target = ignoreDefaultTargets[kind]
+    if not target then
+        return
+    end
+
+    local dst = target.opt
+    for k, v in pairs(self:GetIgnoreDefaults(kind)) do
+        if type(v) == "table" then
+            dst[k] = dst[k] or {}
+            for kk, vv in pairs(v) do
+                dst[k][kk] = vv
+            end
+        else
+            dst[k] = v
+        end
+    end
+
+    if target.onChanged then
+        target.onChanged()
+    end
+end
+
+function MySlot:ShowIgnoreDefaultsMenu(kind, owner)
+    local title = kind == "import" and L[" during Import"] or L[" during Export"]
+    local settings = {
+        {
+            isTitle = true,
+            text = (DEFAULT or "Default") .. ": |cffff0000" .. L["IGNORE"] .. "|r" .. title,
+            notCheckable = true,
+        }
+    }
+    tAppendAll(settings, CreateSettingMenu(self:GetIgnoreDefaults(kind), function()
+        self:ApplyIgnoreDefaults(kind)
+    end))
+    EasyMenu(settings, owner)
+end
+
 -- import
 do
 
@@ -757,6 +809,7 @@ do
     }
 
     tAppendAll(settings, CreateSettingMenu(actionOpt))
+    ignoreDefaultTargets.import = { opt = actionOpt }
 
     local clearbegin = #settings + 1
     tAppendAll(settings, {
@@ -883,6 +936,7 @@ do
     }
 
     tAppendAll(settings, CreateSettingMenu(actionOpt, UpdateExportButtonState))
+    ignoreDefaultTargets.export = { opt = actionOpt, onChanged = UpdateExportButtonState }
 
     UpdateExportButtonState()
 
@@ -892,6 +946,9 @@ do
 end
 
 RegEvent("ADDON_LOADED", function()
+    MySlot:ApplyIgnoreDefaults("import")
+    MySlot:ApplyIgnoreDefaults("export")
+
     do
         local t = CreateFrame("Frame", nil, f, BackdropTemplateMixin and "BackdropTemplate" or nil)
         t:SetWidth(600)

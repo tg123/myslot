@@ -60,7 +60,34 @@ RegEvent("ADDON_LOADED", function()
         end)
     end
 
-    local doffset = -160
+    do
+        local t = f:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+        t:SetText((DEFAULT or "Default") .. " " .. RED_FONT_COLOR:WrapTextInColorCode(L["IGNORE"]))
+        t:SetPoint("TOPLEFT", f, 15, -145)
+    end
+
+    -- Mirrors the main window: Export on the left, Import on the right.
+    local function AddIgnoreDefaultsButton(kind, text, x)
+        local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
+        b:SetWidth(150)
+        b:SetHeight(25)
+        b:SetPoint("TOPLEFT", x, -165)
+        b:SetText(text)
+
+        local icon = b:CreateTexture(nil, "ARTWORK")
+        icon:SetTexture("Interface\\ChatFrame\\ChatFrameExpandArrow")
+        icon:SetPoint("RIGHT", -6, 0)
+        icon:SetSize(16, 16)
+
+        b:SetScript("OnClick", function(self)
+            MySlot:ShowIgnoreDefaultsMenu(kind, self)
+        end)
+    end
+
+    AddIgnoreDefaultsButton("export", L["Export"], 15)
+    AddIgnoreDefaultsButton("import", L["Import"], 175)
+
+    local doffset = -210
     do
         local t = f:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
         t:SetText(RED_FONT_COLOR:WrapTextInColorCode(L["DANGEROUS"]))
