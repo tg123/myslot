@@ -175,6 +175,7 @@ read_globals = {
     "SaveBindings",
     "SetBinding",
     "Settings",
+    "SettingsPanel",
     "ShowUIPanel",
     "StaticPopup_Hide",
     "StaticPopup_Show",
