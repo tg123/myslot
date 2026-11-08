@@ -14,12 +14,14 @@ local t = {
    {6},
    {7},
    {38},
+   {46},
    ["Bind"]={6},
    ["Slot"]={4},
    ["Macro"]={5},
    ["Charactor"]={3},
    ["Key"]={7},
    ["ClickBinding"]={38},
+   ["CVar"]={46},
 },
 -- Table: {3}
 {
@@ -60,6 +62,7 @@ local t = {
    {17},
    {18},
    {40},
+   {48},
    {19},
    {20},
    ["ver"]={19},
@@ -70,6 +73,7 @@ local t = {
    ["name"]={20},
    ["cooldownManager"]={18},
    ["clickBinding"]={40},
+   ["cvar"]={48},
 },
 -- Table: {9}
 {
@@ -389,6 +393,43 @@ local t = {
    [".type"]="field",
    ["rule"]="repeated",
    ["tag"]=4,
+},
+-- Table: {46}
+{
+   ["fields"]={47},
+   ["name"]="CVar",
+   [".type"]="message",
+},
+-- Table: {47}
+{
+   {49},
+   {50},
+   ["name"]={49},
+   ["value"]={50},
+},
+-- Table: {48}
+{
+   ["ftype"]="CVar",
+   ["name"]="cvar",
+   [".type"]="field",
+   ["rule"]="repeated",
+   ["tag"]=7,
+},
+-- Table: {49}
+{
+   ["ftype"]="string",
+   ["name"]="name",
+   [".type"]="field",
+   ["rule"]="required",
+   ["tag"]=1,
+},
+-- Table: {50}
+{
+   ["ftype"]="string",
+   ["name"]="value",
+   [".type"]="field",
+   ["rule"]="required",
+   ["tag"]=2,
 },
 }
    local function loadast()

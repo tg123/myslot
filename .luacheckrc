@@ -49,6 +49,7 @@ read_globals = {
     "C_ClassTalents",
     "C_ClickBindings",
     "C_CooldownViewer",
+    "C_CVar",
     "C_EquipmentSet",
     "C_Item",
     "C_KeyBindings",

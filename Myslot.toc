@@ -52,6 +52,7 @@ tests\host.lua
 tests\cases\base64.lua
 tests\cases\crc32.lua
 tests\cases\protobuf.lua
+tests\cases\cvar.lua
 tests\cases\roundtrip.lua
 tests\cases\runasync.lua
 tests\cases\share.lua
