@@ -82,8 +82,9 @@ and Edit Mode layouts are not included. This is not a backup of every Blizzard s
 for example, modified-click casting keys are not CVars and are not transferred by this category.
 Values equal to Blizzard defaults are included so they can replace different destination preferences.
 
-Unavailable, locked, secure, or read-only CVars are skipped. Clients that do not expose sufficient
-permission metadata cannot transfer those settings; the category is hidden when the required APIs
+Unavailable, locked, secure, or read-only CVars are skipped. Settings are also skipped when the
+client does not report whether a CVar is locked or secure; if the read-only flag is not reported, a
+write to a read-only CVar is reported as failed. The category is hidden when the required APIs
 are absent. Each skipped or failed imported setting is reported, and other supported settings
 continue to apply. Some preferences are account-wide and can affect other characters on that account.
 Myslot uses Blizzard's CVar setter rather than resetting settings or running console commands.

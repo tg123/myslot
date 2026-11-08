@@ -404,7 +404,7 @@ T.describe("CVars", function()
         T.assert.equal(1, #stub.cvar_writes)
     end))
 
-    T.it("disables unsupported APIs and conservatively skips missing permission metadata", ci(function(stub)
+    T.it("disables unsupported APIs, accepts absent read-only metadata, and skips missing locked/secure", ci(function(stub)
         seed(stub, "autoLootDefault", "0")
         local entries = { { name = "autoLootDefault", value = "1" } }
         _G.C_CVar = nil
@@ -414,14 +414,40 @@ T.describe("CVars", function()
         local applied, skipped = MySlot:ApplyCVars(entries)
         T.assert.equal(0, applied)
         T.assert.equal(1, skipped)
-        _G.GetCVarInfo = function() return "0", "0", false, false, false, false end
-        _G.SetCVar = function() error("must not set without read-only metadata") end
+
+        local current = "0"
+        _G.GetCVarInfo = function() return current, "0", false, false, false, false end
+        _G.SetCVar = function(_, value) current = value end
         T.assert.is_true(MySlot:IsCVarSupported())
-        T.assert.equal(0, #MySlot:GetCVars())
+        local exported = false
+        for _, entry in ipairs(MySlot:GetCVars()) do
+            if entry.name == "autoLootDefault" and entry.value == "0" then exported = true end
+        end
+        T.assert.is_true(exported)
         applied, skipped = MySlot:ApplyCVars(entries)
-        T.assert.equal(0, applied)
-        T.assert.equal(1, skipped)
-        T.assert.is_true(notices(stub, "permissions are unavailable"))
+        T.assert.equal(1, applied)
+        T.assert.equal(0, skipped)
+        T.assert.equal("1", current)
+
+        local cases = {
+            function() return "0", "0", false, false, false end,
+            function() return "0", "0", false, false, false, true end,
+            function() return "0", "0", false, false, false, false, nil end,
+        }
+        for _, getter in ipairs(cases) do
+            local before = #stub.printed
+            _G.GetCVarInfo = getter
+            _G.SetCVar = function() error("must not set without complete permission metadata") end
+            T.assert.equal(0, #MySlot:GetCVars())
+            applied, skipped = MySlot:ApplyCVars(entries)
+            T.assert.equal(0, applied)
+            T.assert.equal(1, skipped)
+            local found = false
+            for i = before + 1, #stub.printed do
+                if stub.printed[i]:find("permissions are unavailable", 1, true) then found = true end
+            end
+            T.assert.is_true(found)
+        end
     end))
 
     T.it("supports legacy APIs with complete metadata and nil setter returns", ci(function(stub)

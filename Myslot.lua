@@ -1013,14 +1013,24 @@ do
         return type(info) == "function" and type(set) == "function"
     end
 
+    local function Pack(...)
+        return select("#", ...), { ... }
+    end
+
     local function Read(name)
         local info = APIs()
         if type(info) ~= "function" then return nil, L["CVar API unavailable"] end
-        local ok, value, _, _, _, locked, secure, readOnly = pcall(info, name)
+        local count, r = Pack(pcall(info, name))
+        local ok, value = r[1], r[2]
         if not ok then return nil, tostring(value), true end
         if type(value) ~= "string" then return nil, L["CVar not available on this client"] end
-        -- Older APIs may omit permission flags. Missing metadata is not permission.
-        if locked ~= false or secure ~= false or readOnly ~= false then
+        -- r[1] is pcall's status, so info's return i is r[i + 1].
+        local returned = count - 1
+        local locked, secure, readOnly = r[6], r[7], r[8]
+        -- Older clients omit readOnly; a read-only write is still caught by ApplyCVars'
+        -- read-back verification. locked/secure stay mandatory since those writes are unsafe.
+        if returned == 6 then readOnly = false end
+        if returned < 6 or locked ~= false or secure ~= false or readOnly ~= false then
             return nil, L["CVar is protected or its permissions are unavailable"]
         end
         return value
