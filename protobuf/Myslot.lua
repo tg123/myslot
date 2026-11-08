@@ -420,7 +420,7 @@ local t = {
    ["ftype"]="string",
    ["name"]="name",
    [".type"]="field",
-   ["rule"]="required",
+   ["rule"]="optional",
    ["tag"]=1,
 },
 -- Table: {50}
@@ -428,7 +428,7 @@ local t = {
    ["ftype"]="string",
    ["name"]="value",
    [".type"]="field",
-   ["rule"]="required",
+   ["rule"]="optional",
    ["tag"]=2,
 },
 }

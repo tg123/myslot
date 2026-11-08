@@ -133,7 +133,7 @@ local function gui()
 end
 
 T.describe("CVars", function()
-    T.it("round-trips required names and exact string values", function()
+    T.it("round-trips names and exact string values", function()
         local msg = Proto.Charactor()
         local entry = Proto.CVar()
         entry.name, entry.value = "statusTextDisplay", "BOTH"
@@ -144,6 +144,23 @@ T.describe("CVars", function()
         entry.value = ""
         out = Proto.Charactor():Parse(msg:Serialize())
         T.assert.equal("", out.cvar[1].value)
+    end)
+
+    T.it("parses entries missing a name or value without rejecting the profile", function()
+        local msg = Proto.Charactor()
+        msg.ver, msg.name = 42, "Partial"
+        local nameOnly, valueOnly = Proto.CVar(), Proto.CVar()
+        nameOnly.name = "autoLootDefault"
+        valueOnly.value = "1"
+        msg.cvar = { nameOnly, valueOnly }
+        local out = Proto.Charactor():Parse(msg:Serialize())
+        T.assert.not_nil(out)
+        T.assert.equal(42, out.ver)
+        T.assert.equal(2, #out.cvar)
+        T.assert.equal("autoLootDefault", out.cvar[1].name)
+        T.assert.equal(nil, out.cvar[1].value)
+        T.assert.equal(nil, out.cvar[2].name)
+        T.assert.equal("1", out.cvar[2].value)
     end)
 
     T.it("keeps legacy protobuf fields and profiles compatible", ci(function(stub)
@@ -270,6 +287,54 @@ T.describe("CVars", function()
         T.assert.equal("0", stub.cvars.autoSelfCast.value)
         T.assert.equal(1, #stub.cvar_writes)
         T.assert.is_true(notices(stub, "Duplicate CVar entry"))
+    end))
+
+    T.it("imports profiles with incomplete CVar entries and skips only those entries", ci(function(stub)
+        Host.set_action(1, "spell", 100)
+        seed(stub, "autoLootDefault", "1")
+        seed(stub, "autoSelfCast", "1")
+        seed(stub, "statusTextDisplay", "BOTH")
+        local getCVars = MySlot.GetCVars
+        MySlot.GetCVars = function(self)
+            local entries = getCVars(self)
+            for _, entry in ipairs(entries) do
+                if entry.name == "autoSelfCast" then
+                    entry.value = nil
+                elseif entry.name == "statusTextDisplay" then
+                    entry.name = nil
+                end
+            end
+            return entries
+        end
+        local opt = options(false)
+        opt.ignoreActionBars = {}
+        local ok, text = pcall(MySlot.Export, MySlot, opt)
+        MySlot.GetCVars = getCVars
+        if not ok then error(text, 0) end
+
+        local msg = MySlot:Import(text, {})
+        T.assert.not_nil(msg, "incomplete CVar entries must not reject the profile")
+        T.assert.equal(1, #msg.slot)
+        T.assert.equal(1, msg.slot[1].id)
+        T.assert.equal(100, msg.slot[1].index)
+        T.assert.equal(3, #msg.cvar)
+
+        stub.cvars.autoLootDefault.value = "0"
+        stub.cvars.autoSelfCast.value = "0"
+        stub.cvars.statusTextDisplay.value = "NONE"
+        MySlot:RecoverData(msg, { actionOpt = options(nil) })
+        MySlot:RecoverData(msg, { actionOpt = options(true) })
+        T.assert.equal(0, #stub.cvar_writes)
+
+        stub.printed = {}
+        MySlot:RecoverData(msg, { actionOpt = options(false) })
+        T.assert.equal("1", stub.cvars.autoLootDefault.value)
+        T.assert.equal("0", stub.cvars.autoSelfCast.value)
+        T.assert.equal("NONE", stub.cvars.statusTextDisplay.value)
+        T.assert.equal(1, #stub.cvar_writes)
+        T.assert.is_true(notices(stub, "Skipped CVar autoSelfCast"))
+        T.assert.is_true(notices(stub, "Skipped CVar ?"))
+        T.assert.is_true(notices(stub, "CVars: 1 applied, 2 skipped, 0 failed."))
     end))
 
     T.it("applies coupled presentation CVars in canonical order", ci(function(stub)
