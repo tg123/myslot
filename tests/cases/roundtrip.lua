@@ -528,15 +528,22 @@ T.describe("Export/Import round-trip", function()
         T.assert.equal(0, len(msg2.bind[1].keys))
     end)
 
-    T.it("export keeps ALT-CTRL-SHIFT-META bindings (macOS)", function()
-        if Host.in_wow then T.skip("CI-only (stub-backed)") end
-        Host.reset()
-        Host.set_binding("ALT-CTRL-SHIFT-META-J", "JUMP")
-        local msg = MySlot:Import(MySlot:Export(full_opt()), { force = true })
-        T.assert.equal(1, len(msg.bind))
-        T.assert.equal(MySlot.MOD_KEYS["ALT-CTRL-SHIFT-META"], msg.bind[1].key1.mod)
-        T.assert.equal(MySlot.KEYS["J"], msg.bind[1].key1.key)
-    end)
+    local mods = {}
+    for mod in pairs(MySlot.MOD_KEYS) do
+        if mod ~= "CUSTOM" then table.insert(mods, mod) end
+    end
+    table.sort(mods)
+    for _, mod in ipairs(mods) do
+        T.it("export round-trips modifier " .. mod, function()
+            if Host.in_wow then T.skip("CI-only (stub-backed)") end
+            Host.reset()
+            Host.set_binding(mod == "NONE" and "J" or (mod .. "-J"), "JUMP")
+            local msg = MySlot:Import(MySlot:Export(full_opt()), { force = true })
+            T.assert.equal(1, len(msg.bind))
+            T.assert.equal(MySlot.MOD_KEYS[mod], msg.bind[1].key1.mod)
+            T.assert.equal(MySlot.KEYS["J"], msg.bind[1].key1.key)
+        end)
+    end
 
     local function seed_mixed_binding()
         Host.reset()
