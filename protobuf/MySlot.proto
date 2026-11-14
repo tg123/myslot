@@ -75,5 +75,9 @@ message Key {
 	required uint32 key = 1;
 	required uint32 mod = 2;
 
+	// bitmask of modifiers: ALT=1, CTRL=2, SHIFT=4, META=8. Preferred over mod when present;
+	// mod keeps the legacy code (or CUSTOM) so older versions can still import.
+	optional uint32 modmask = 3;
+
 	optional string keycode = 15;
 }
