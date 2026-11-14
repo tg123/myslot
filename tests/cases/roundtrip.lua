@@ -555,7 +555,11 @@ T.describe("Export/Import round-trip", function()
             local mod = MySlot:DecodeModKey(nil, mask)
             local code, m = MySlot:EncodeModKey(mod)
             T.assert.equal(mask, m)
-            T.assert.equal(mod, MySlot:DecodeModKey(code))
+            if mask == 15 then
+                T.assert.equal(MySlot.MOD_KEYS["CUSTOM"], code)
+            else
+                T.assert.equal(mod, MySlot:DecodeModKey(code))
+            end
         end
     end)
 
@@ -698,13 +702,16 @@ T.describe("Export/Import round-trip", function()
             return b and b.action == "JUMP" and b.key1
         end
 
-        T.assert.equal("ALT-CTRL-SHIFT-META-J", recover(function() end))
+        local exportedMod
+        T.assert.equal("ALT-CTRL-SHIFT-META-J", recover(function(k) exportedMod = k.mod end))
+        T.assert.equal(MySlot.MOD_KEYS["CUSTOM"], exportedMod)
         -- older export: no modmask
-        T.assert.equal("ALT-CTRL-SHIFT-META-J", recover(function(k) k.modmask = nil end))
+        T.assert.equal("CTRL-SHIFT-META-J", recover(function(k) k.modmask = nil end, "CTRL-SHIFT-META-J"))
         -- modmask wins over a legacy code the reader doesn't know
-        T.assert.equal("ALT-CTRL-SHIFT-META-J", recover(function(k) k.mod = MySlot.MOD_KEYS["CUSTOM"] end))
-        -- unknown modifiers are skipped instead of erroring
-        T.assert.equal(nil, recover(function(k) k.modmask = nil; k.mod = MySlot.MOD_KEYS["CUSTOM"] end))
+        T.assert.equal("CTRL-SHIFT-META-J", recover(function(k) k.mod = 254 end, "CTRL-SHIFT-META-J"))
+        -- without modmask, CUSTOM / unknown legacy codes are skipped instead of erroring
+        T.assert.equal(nil, recover(function(k) k.modmask = nil end))
+        T.assert.equal(nil, recover(function(k) k.modmask = nil; k.mod = 254 end))
         -- gamepad chords use the same (emulated) modifiers
         for _, binding in ipairs({ "SHIFT-PAD1", "CTRL-SHIFT-PADDUP", "ALT-CTRL-SHIFT-PADLSHOULDER" }) do
             T.assert.equal(binding, recover(function() end, binding))
