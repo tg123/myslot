@@ -13,8 +13,8 @@ local Host = MySlot.host
 if Host.in_wow then return end
 
 local S = _G.WowStub
-local MAX_ACCOUNT = Constants.MacroConsts.MAX_ACCOUNT_MACROS
-local MAX_CHARACTER = Constants.MacroConsts.MAX_CHARACTER_MACROS
+local MAX_ACCOUNT = _G.Constants.MacroConsts.MAX_ACCOUNT_MACROS
+local MAX_CHARACTER = _G.Constants.MacroConsts.MAX_CHARACTER_MACROS
 
 -- Re-sort one macro range by name, keeping action slots attached to the same
 -- macro (as the real client does) and returning the new index of `track`.
