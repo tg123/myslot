@@ -76,7 +76,9 @@ message Key {
 	required uint32 mod = 2;
 
 	// bitmask of modifiers: ALT=1, CTRL=2, SHIFT=4, META=8. Preferred over mod when present;
-	// mod keeps the legacy code (or CUSTOM) so older versions can still import.
+	// mod keeps the legacy code (or CUSTOM). Pre-existing codes stay importable by older
+	// versions, but code 122 (ALT-CTRL-SHIFT-META) is new; older readers fail on exports
+	// containing it and need an updated reader.
 	optional uint32 modmask = 3;
 
 	optional string keycode = 15;

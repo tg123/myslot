@@ -604,6 +604,8 @@ local MYSLOT_MOD_KEYS = {
 
 -- Keys carry both the legacy mod code (read by older Myslot versions) and a
 -- modifier bitmask (modmask), which newer versions prefer on import.
+-- Pre-existing legacy codes stay importable by older versions, but code 122
+-- (ALT-CTRL-SHIFT-META) is new; older readers fail on exports containing it.
 local MOD_BITS = { ALT = 1, CTRL = 2, SHIFT = 4, META = 8 }
 local MOD_ORDER = { "ALT", "CTRL", "SHIFT", "META" } -- WoW's canonical order
 
