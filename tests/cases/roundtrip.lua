@@ -528,6 +528,52 @@ T.describe("Export/Import round-trip", function()
         T.assert.equal(0, len(msg2.bind[1].keys))
     end)
 
+    local mods = {}
+    for mod in pairs(MySlot.MOD_KEYS) do
+        if mod ~= "CUSTOM" then table.insert(mods, mod) end
+    end
+    table.sort(mods)
+    for _, mod in ipairs(mods) do
+        T.it("export round-trips modifier " .. mod, function()
+            if Host.in_wow then T.skip("CI-only (stub-backed)") end
+            Host.reset()
+            Host.set_binding(mod == "NONE" and "J" or (mod .. "-J"), "JUMP")
+            local msg = MySlot:Import(MySlot:Export(full_opt()), { force = true })
+            T.assert.equal(1, len(msg.bind))
+            local k = msg.bind[1].key1
+            T.assert.equal(MySlot.MOD_KEYS[mod], k.mod)
+            T.assert.equal(MySlot.KEYS["J"], k.key)
+            -- modmask and the legacy code decode to the same modifier set
+            local fromMask, fromLegacy = MySlot:DecodeModKey(k.mod, k.modmask), MySlot:DecodeModKey(k.mod)
+            T.assert.equal(select(2, MySlot:EncodeModKey(fromLegacy)), select(2, MySlot:EncodeModKey(fromMask)))
+            T.assert.equal(select(2, MySlot:EncodeModKey(mod)), k.modmask)
+        end)
+    end
+
+    T.it("modmask covers every combination of ALT/CTRL/SHIFT/META", function()
+        for mask = 0, 15 do
+            local mod = MySlot:DecodeModKey(nil, mask)
+            local code, m = MySlot:EncodeModKey(mod)
+            T.assert.equal(mask, m)
+            if mask == 15 then
+                T.assert.equal(MySlot.MOD_KEYS["CUSTOM"], code)
+            else
+                T.assert.equal(mod, MySlot:DecodeModKey(code))
+            end
+        end
+    end)
+
+    T.it("modifier encoding is order-insensitive and rejects unknown modifiers", function()
+        local code, mask = MySlot:EncodeModKey("META-SHIFT-ALT")
+        T.assert.equal(MySlot.MOD_KEYS["ALT-SHIFT-META"], code)
+        T.assert.equal("ALT-SHIFT-META", MySlot:DecodeModKey(code, mask))
+        T.assert.equal(nil, MySlot:EncodeModKey("ALT-ALT"))
+        T.assert.equal(nil, MySlot:EncodeModKey("HYPER"))
+        T.assert.equal(nil, MySlot:DecodeModKey(MySlot.MOD_KEYS["CUSTOM"]))
+        T.assert.equal(nil, MySlot:DecodeModKey(254))
+        T.assert.equal(nil, MySlot:DecodeModKey(0, 16))
+    end)
+
     local function seed_mixed_binding()
         Host.reset()
         table.insert(_G.WowStub.bindings, {
@@ -633,6 +679,44 @@ T.describe("Export/Import round-trip", function()
         T.assert.equal("JUMP", bound_to("SHIFT-PADDUP"))
         T.assert.equal("MOVEFORWARD", bound_to("SPACE"))
         T.assert.equal("MOVEFORWARD", bound_to("CTRL-J"))
+    end)
+
+    T.it("RecoverData restores modifiers from modmask, or legacy mod when absent", function()
+        if Host.in_wow then T.skip("CI-only (stub-backed)") end
+        local actionOpt = {
+            ignoreActionBars = {}, ignoreMacros = { ACCOUNT = true, CHARACTOR = true },
+            ignoreBinding = false, ignorePetActionBar = true,
+            ignoreCooldownManager = true, ignoreClickBindings = true,
+        }
+        for i = 1, 15 do actionOpt.ignoreActionBars[i] = true end
+
+        local function recover(mutate, binding)
+            binding = binding or "ALT-CTRL-SHIFT-META-J"
+            Host.reset()
+            Host.set_binding(binding, "JUMP")
+            local msg = MySlot:Import(MySlot:Export(full_opt()), { force = true })
+            mutate(msg.bind[1].key1)
+            _G.WowStub.bindings = {}
+            MySlot:RecoverData(msg, { actionOpt = actionOpt })
+            local b = _G.WowStub.bindings[1]
+            return b and b.action == "JUMP" and b.key1
+        end
+
+        local exportedMod
+        T.assert.equal("ALT-CTRL-SHIFT-META-J", recover(function(k) exportedMod = k.mod end))
+        T.assert.equal(MySlot.MOD_KEYS["CUSTOM"], exportedMod)
+        -- older export: no modmask
+        T.assert.equal("CTRL-SHIFT-META-J", recover(function(k) k.modmask = nil end, "CTRL-SHIFT-META-J"))
+        -- modmask wins over a legacy code the reader doesn't know
+        T.assert.equal("CTRL-SHIFT-META-J", recover(function(k) k.mod = 254 end, "CTRL-SHIFT-META-J"))
+        -- without modmask, CUSTOM / unknown legacy codes are skipped instead of erroring
+        T.assert.equal(nil, recover(function(k) k.modmask = nil end))
+        T.assert.equal(nil, recover(function(k) k.modmask = nil; k.mod = 254 end))
+        -- gamepad chords use the same (emulated) modifiers
+        for _, binding in ipairs({ "SHIFT-PAD1", "CTRL-SHIFT-PADDUP", "ALT-CTRL-SHIFT-PADLSHOULDER" }) do
+            T.assert.equal(binding, recover(function() end, binding))
+            T.assert.equal(binding, recover(function(k) k.modmask = nil end, binding))
+        end
     end)
 end)
 

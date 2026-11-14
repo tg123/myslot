@@ -365,7 +365,8 @@ local function KeyToByte(key, command)
 
     mod = mod or "NONE"
 
-    if not MySlot.MOD_KEYS[mod] then
+    local modCode, modMask = MySlot:EncodeModKey(mod)
+    if not modCode then
         MySlot:Print(L["[WARN] Ignore unsupported Key Binding [ %s ] , contact %s please"]:format(mod, MYSLOT_AUTHOR))
         return nil
     end
@@ -377,7 +378,8 @@ local function KeyToByte(key, command)
         msg.key = MySlot.KEYS["KEYCODE"]
         msg.keycode = key
     end
-    msg.mod = MySlot.MOD_KEYS[mod]
+    msg.mod = modCode
+    msg.modmask = modMask
 
     return msg
 end
@@ -2263,11 +2265,12 @@ function MySlot:RecoverData(msg, opt)
             -- key1/key2 may be nil, so iterate by index rather than ipairs
             for i = 1, table.maxn(keys) do
                 local k = keys[i]
-                if k then
-                    local mod, key = MySlot.R_MOD_KEYS[k.mod], MySlot.R_KEYS[k.key]
-                    if key == "KEYCODE" then
-                        key = k.keycode
-                    end
+                local mod = k and MySlot:DecodeModKey(k.mod, k.modmask)
+                local key = k and MySlot.R_KEYS[k.key]
+                if key == "KEYCODE" then
+                    key = k.keycode
+                end
+                if mod and key then
                     key = (mod ~= "NONE" and (mod .. "-") or "") .. key
                     if not self:IsBindingKeyIgnored(opt.actionOpt, key) then
                         SetBinding(key, command, bindingContext)

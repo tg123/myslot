@@ -601,6 +601,60 @@ local MYSLOT_MOD_KEYS = {
     ["CUSTOM"] = 255,
 }
 
+-- Keys carry both the legacy mod code (read by older Myslot versions) and a
+-- modifier bitmask (modmask), which newer versions prefer on import.
+-- Combos without a legacy code (e.g. ALT-CTRL-SHIFT-META) are written as CUSTOM:
+-- adding new codes would make older readers error out on import.
+local MOD_BITS = { ALT = 1, CTRL = 2, SHIFT = 4, META = 8 }
+local MOD_ORDER = { "ALT", "CTRL", "SHIFT", "META" } -- WoW's canonical order
+
+local function MaskToModString(mask)
+    if mask == 0 then
+        return "NONE"
+    end
+    local parts = {}
+    for _, name in ipairs(MOD_ORDER) do
+        if bit.band(mask, MOD_BITS[name]) ~= 0 then
+            table.insert(parts, name)
+        end
+    end
+    return table.concat(parts, "-")
+end
+
+-- mod string (e.g. "ALT-CTRL-SHIFT-META", "NONE") -> legacy code, modmask; nil if unsupported
+function MySlot:EncodeModKey(mod)
+    local mask = 0
+    if mod ~= "NONE" then
+        for name in string.gmatch(mod, "[^-]+") do
+            local b = MOD_BITS[name]
+            if not b or bit.band(mask, b) ~= 0 then
+                return nil
+            end
+            mask = bit.bor(mask, b)
+        end
+        if mask == 0 then
+            return nil
+        end
+    end
+
+    local code = MYSLOT_MOD_KEYS[mod] or MYSLOT_MOD_KEYS[MaskToModString(mask)] or MYSLOT_MOD_KEYS["CUSTOM"]
+    return code, mask
+end
+
+-- legacy code + optional modmask -> mod string, or nil if unknown
+function MySlot:DecodeModKey(code, mask)
+    if mask then
+        if mask < 0 or mask > 15 then
+            return nil
+        end
+        return MaskToModString(mask)
+    end
+    local mod = MySlot.R_MOD_KEYS[code]
+    if mod ~= "CUSTOM" then
+        return mod
+    end
+end
+
 local function r(d)
     local t = {}
     for k,v in pairs(d) do

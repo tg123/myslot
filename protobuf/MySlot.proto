@@ -75,5 +75,10 @@ message Key {
 	required uint32 key = 1;
 	required uint32 mod = 2;
 
+	// bitmask of modifiers: ALT=1, CTRL=2, SHIFT=4, META=8. Preferred over mod when present.
+	// mod keeps the legacy code so older versions can still import; combos without one
+	// (e.g. ALT-CTRL-SHIFT-META) are written as CUSTOM, which older versions don't apply.
+	optional uint32 modmask = 3;
+
 	optional string keycode = 15;
 }
