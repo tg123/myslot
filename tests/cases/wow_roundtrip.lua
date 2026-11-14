@@ -216,6 +216,44 @@ T.describe("in-game: macro round-trip (via WoW API)", function()
         T.assert.equal("macro", at)
         T.assert.equal(new_mid, ai)
     end))
+
+    -- Issue #142: WoW keeps macros sorted by name, so re-creating a macro that
+    -- sorts first shifts the later one. Each slot must still get its own macro.
+    T.it("places macros correctly when a created macro shifts another (#142)", in_game(function()
+        -- "MyslotT" + letter + 4 digits = 12 chars, within WoW's 16-char limit.
+        local suffix = tostring(math.random(1000, 9999))
+        local NAME_A, NAME_Z = "MyslotTA" .. suffix, "MyslotTZ" .. suffix
+        local BODY_A, BODY_Z = "/say a-" .. suffix, "/say z-" .. suffix
+
+        create_test_macro(NAME_A, "INV_MISC_QUESTIONMARK", BODY_A)
+        create_test_macro(NAME_Z, "INV_MISC_QUESTIONMARK", BODY_Z)
+        -- Index lookups only after both exist: creating Z can't move A, but
+        -- read both afterwards to stay independent of the sort order.
+        Host.clear_action(1)
+        Host.clear_action(2)
+        Host.set_action(1, "macro", find_macro_by_name(NAME_A))
+        Host.set_action(2, "macro", find_macro_by_name(NAME_Z))
+
+        local text = MySlot:Export(full_opt())
+
+        Host.clear_action(1)
+        Host.clear_action(2)
+        Host.delete_macro(find_macro_by_name(NAME_A))
+        T.yield()
+        T.assert.equal(nil, find_macro_by_name(NAME_A))
+
+        local msg = MySlot:Import(text, { force = true })
+        MySlot:RecoverData(msg, recover_opt())
+        T.yield()
+
+        local function macro_name_on(slot)
+            local t, idx = GetActionInfo(slot)
+            T.assert.equal("macro", t, "slot " .. slot .. " has no macro")
+            return (GetMacroInfo(idx))
+        end
+        T.assert.equal(NAME_A, macro_name_on(1))
+        T.assert.equal(NAME_Z, macro_name_on(2))
+    end))
 end)
 
 -- ---------------------------------------------------------------------------

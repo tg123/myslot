@@ -120,9 +120,11 @@ local t = {
    {34},
    {35},
    {36},
+   {51},
    ["mod"]={35},
    ["key"]={34},
    ["keycode"]={36},
+   ["modmask"]={51},
 },
 -- Table: {14}
 {
@@ -430,6 +432,14 @@ local t = {
    [".type"]="field",
    ["rule"]="optional",
    ["tag"]=2,
+},
+-- Table: {51}
+{
+   ["ftype"]="uint32",
+   ["name"]="modmask",
+   [".type"]="field",
+   ["rule"]="optional",
+   ["tag"]=3,
 },
 }
    local function loadast()
