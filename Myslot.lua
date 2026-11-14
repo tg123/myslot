@@ -1352,9 +1352,13 @@ end
 -- Build a lookup of the character's current macros keyed by both "name_body"
 -- and "body". Scanning all 138 macro slots is expensive, so callers that do
 -- many lookups (RecoverData) should build this once and reuse it instead of
--- rebuilding per lookup.
-function MySlot:BuildMacroIndex()
-    local localMacro = {}
+-- rebuilding per lookup. Pass `into` to refill an existing index in place, and
+-- `noYield` to scan within the current frame.
+function MySlot:BuildMacroIndex(into, noYield)
+    local localMacro = into or {}
+    for k in pairs(localMacro) do
+        localMacro[k] = nil
+    end
     for i = 1, MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS do
         local name, _, body = GetMacroInfo(i)
         if name then
@@ -1362,28 +1366,56 @@ function MySlot:BuildMacroIndex()
             localMacro[name .. "_" .. body] = i
             localMacro[body] = i
         end
-        if i % 30 == 0 then
+        if not noYield and i % 30 == 0 then
             MaybeYield()
         end
     end
     return localMacro
 end
 
+-- Look up a macro in the index, verifying the cached slot still holds it.
+-- Returns the index (or nil when absent) and whether the index was current.
+local function LookupMacro(localMacro, name, body)
+    local idx = localMacro[name .. "_" .. body]
+    local needName = idx ~= nil
+    idx = idx or localMacro[body]
+    if not idx then
+        return nil, true
+    end
+    local curName, _, curBody = GetMacroInfo(idx)
+    if curName and UnifyCRLF(curBody) == body and (not needName or curName == name) then
+        return idx, true
+    end
+    return nil, false
+end
+
 -- Find macro by index/name/body. Pass a prebuilt localMacro index (see
 -- BuildMacroIndex) to avoid rescanning every macro slot on each call.
+--
+-- WoW keeps macros sorted by name, so CreateMacro (ours or another addon's,
+-- e.g. between async import frames) shifts existing macros to new indices.
+-- A cached index that no longer holds the macro is stale: refill the index in
+-- place without yielding, so the result stays valid for the caller's
+-- immediate PickupMacro. https://github.com/tg123/myslot/issues/142
 function MySlot:FindMacro(macroInfo, localMacro)
     if not macroInfo then
         return
     end
 
-    localMacro = localMacro or MySlot:BuildMacroIndex()
+    localMacro = localMacro or MySlot:BuildMacroIndex(nil, true)
 
     local name = macroInfo["name"]
     local body = macroInfo["body"]
     body = UnifyCRLF(body)
 
+    local idx, current = LookupMacro(localMacro, name, body)
+    if not current then
+        MySlot:BuildMacroIndex(localMacro, true)
+        idx = LookupMacro(localMacro, name, body)
+    end
+
     -- Return index if found or nil
-    return localMacro[name .. "_" .. body] or localMacro[body]
+    return idx
 end
 
 -- {{{ FindOrCreateMacro
@@ -1982,9 +2014,10 @@ function MySlot:RecoverData(msg, opt)
     -- {{{ Macro
     local macro = {}
 
-    -- Maps an exported macro id (source character slot index) to the macro id
-    -- it resolved to on this character. Click bindings of type Macro reference a
-    -- macro by index, so they need this remap to survive import.
+    -- Maps an exported macro id (source character slot index) to the macro it
+    -- resolved to on this character. Click bindings of type Macro reference a
+    -- macro by index, so they re-resolve through this map when applied: later
+    -- macro creations may have shifted the index found here.
     local macroIdMap = {}
 
     -- Build the local macro index once and reuse it for every lookup below.
@@ -2034,7 +2067,7 @@ function MySlot:RecoverData(msg, opt)
         end
 
         if newid then
-            macroIdMap[macroId] = newid
+            macroIdMap[macroId] = info
             for _, slotId in pairs(macro[macroId] or {}) do
                 if not opt.actionOpt.ignoreActionBars[math.ceil(slotId / 12)] then
                     PickupMacro(newid)
@@ -2284,14 +2317,15 @@ function MySlot:RecoverData(msg, opt)
     if not opt.actionOpt.ignoreClickBindings and not IsEmptyTable(msg.clickBinding)
         and self:IsClickBindingSupported() then
         -- Enum.ClickBindingType.Macro; macros are referenced by index, which the
-        -- macro restore above may have relocated, so remap through macroIdMap.
+        -- macro restore above may have relocated, so re-resolve via macroIdMap.
         local MACRO_TYPE = (Enum and Enum.ClickBindingType and Enum.ClickBindingType.Macro) or 2
         local profile = {}
         for _, c in ipairs(msg.clickBinding) do
             local actionID = c.actionID
             local keep = true
             if c.type == MACRO_TYPE then
-                actionID = macroIdMap[c.actionID]
+                local info = macroIdMap[c.actionID]
+                actionID = info and self:FindMacro(info, localMacro)
                 keep = actionID ~= nil
             end
             if keep then
