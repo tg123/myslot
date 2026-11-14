@@ -189,4 +189,38 @@ T.describe("Macro restore across index shifts (issue #142)", function()
             T.assert.equal("Zeta", macro_on_slot(2))
         end)
     end)
+
+    T.it("does not duplicate a macro another addon creates mid-import", function()
+        with_macro_api(function()
+            local msg = export_bars({ "Alpha", "Zeta" })
+            seed_macro("Alpha")
+
+            -- Zeta is missing when the index is built, but another addon
+            -- creates it between frames; the cache miss must be refreshed.
+            local injected = false
+            _G.C_Timer = {
+                After = function(_, cb)
+                    if not injected and S.action_bars[1] then
+                        injected = true
+                        seed_macro("Zeta")
+                    end
+                    cb()
+                end,
+            }
+
+            local done
+            MySlot:RunAsync(function()
+                MySlot:RecoverData(msg, recover_opt())
+            end, nil, function(ok) done = ok end)
+
+            T.assert.is_true(injected, "external macro was never injected")
+            T.assert.equal(true, done)
+            local zetas = 0
+            for _, m in pairs(S.macros) do
+                if m.name == "Zeta" then zetas = zetas + 1 end
+            end
+            T.assert.equal(1, zetas)
+            T.assert.equal("Zeta", macro_on_slot(2))
+        end)
+    end)
 end)

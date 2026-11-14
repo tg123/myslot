@@ -1374,19 +1374,20 @@ function MySlot:BuildMacroIndex(into, noYield)
 end
 
 -- Look up a macro in the index, verifying the cached slot still holds it.
--- Returns the index (or nil when absent) and whether the index was current.
+-- Returns the index, or nil when the macro is missing from the index or the
+-- cached slot no longer holds it.
 local function LookupMacro(localMacro, name, body)
     local idx = localMacro[name .. "_" .. body]
     local needName = idx ~= nil
     idx = idx or localMacro[body]
     if not idx then
-        return nil, true
+        return nil
     end
     local curName, _, curBody = GetMacroInfo(idx)
     if curName and UnifyCRLF(curBody) == body and (not needName or curName == name) then
-        return idx, true
+        return idx
     end
-    return nil, false
+    return nil
 end
 
 -- Find macro by index/name/body. Pass a prebuilt localMacro index (see
@@ -1394,22 +1395,24 @@ end
 --
 -- WoW keeps macros sorted by name, so CreateMacro (ours or another addon's,
 -- e.g. between async import frames) shifts existing macros to new indices.
--- A cached index that no longer holds the macro is stale: refill the index in
--- place without yielding, so the result stays valid for the caller's
+-- Another addon may also create or delete macros, so a miss or a cached slot
+-- that no longer holds the macro means the index may be stale: refill it in
+-- place once, without yielding, so the result stays valid for the caller's
 -- immediate PickupMacro. https://github.com/tg123/myslot/issues/142
 function MySlot:FindMacro(macroInfo, localMacro)
     if not macroInfo then
         return
     end
 
+    local fresh = not localMacro
     localMacro = localMacro or MySlot:BuildMacroIndex(nil, true)
 
     local name = macroInfo["name"]
     local body = macroInfo["body"]
     body = UnifyCRLF(body)
 
-    local idx, current = LookupMacro(localMacro, name, body)
-    if not current then
+    local idx = LookupMacro(localMacro, name, body)
+    if not idx and not fresh then
         MySlot:BuildMacroIndex(localMacro, true)
         idx = LookupMacro(localMacro, name, body)
     end
