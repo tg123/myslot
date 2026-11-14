@@ -598,6 +598,7 @@ local MYSLOT_MOD_KEYS = {
     ["ALT-CTRL-META"] = 119,
     ["ALT-SHIFT-META"] = 120,
     ["CTRL-SHIFT-META"] = 121,
+    ["ALT-CTRL-SHIFT-META"] = 122,
     ["CUSTOM"] = 255,
 }
 
