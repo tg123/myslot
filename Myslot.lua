@@ -2288,28 +2288,63 @@ function MySlot:RecoverData(msg, opt)
 
 
     if not opt.actionOpt.ignorePetActionBar and IsPetActive() then
-        local pettoken = {}
-        for i = 1, NUM_PET_ACTION_SLOTS, 1 do
-            local name, _, isToken = GetPetActionInfo(i)
-            if isToken then
-                pettoken[name] = i
+        -- PickupPetAction on an occupied slot with an empty cursor lifts the
+        -- action off the bar, and placing onto an occupied slot swaps the old
+        -- action onto the cursor. Guard every step so a spell this pet does not
+        -- know (e.g. another hunter's pet family) never erases the slot, and
+        -- tokens (Attack/Follow/stances) are swapped rather than destroyed.
+        local function findToken(name)
+            for i = 1, NUM_PET_ACTION_SLOTS, 1 do
+                local n, _, isToken = GetPetActionInfo(i)
+                if isToken and n == name then
+                    return i
+                end
             end
         end
 
-        for _, p in pairs(msg.petslot or {}) do
-            if p.strindex then
-                local slot = pettoken[p.strindex]
-                if slot then
+        local function slotHasToken(slot)
+            local _, _, isToken = GetPetActionInfo(slot)
+            return isToken
+        end
+
+        local petslots = msg.petslot or {}
+
+        -- Tokens first, by swapping, so later spell placements land on their
+        -- final positions without displacing them.
+        for _, p in ipairs(petslots) do
+            if p.strindex and p.strindex ~= "" then
+                local slot = findToken(p.strindex)
+                if slot and slot ~= p.id then
                     PickupPetAction(slot)
-                    PickupPetAction(p.id)
+                    if GetCursorInfo() then
+                        PickupPetAction(p.id)
+                        if GetCursorInfo() then
+                            PickupPetAction(slot)
+                        end
+                    end
                 end
-            elseif p.index then
-                PickupPetSpell(p.index)
-                PickupPetAction(p.id)
-            elseif p.type == MYSLOT_EMPTY then
-                PickupPetAction(p.id)
+                ClearCursor()
             end
-            ClearCursor()
+        end
+
+        for _, p in ipairs(petslots) do
+            if not p.strindex or p.strindex == "" then
+                if p.type == MYSLOT_EMPTY then
+                    local name = GetPetActionInfo(p.id)
+                    if name and not slotHasToken(p.id) then
+                        PickupPetAction(p.id)
+                    end
+                elseif p.index and p.index ~= 0 and not slotHasToken(p.id) then
+                    local _, _, _, _, _, _, curSpellID = GetPetActionInfo(p.id)
+                    if curSpellID ~= p.index then
+                        PickupPetSpell(p.index)
+                        if GetCursorInfo() then
+                            PickupPetAction(p.id)
+                        end
+                    end
+                end
+                ClearCursor()
+            end
         end
     end
 
