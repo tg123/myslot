@@ -686,9 +686,10 @@ T.describe("Export/Import round-trip", function()
         }
         for i = 1, 15 do actionOpt.ignoreActionBars[i] = true end
 
-        local function recover(mutate)
+        local function recover(mutate, binding)
+            binding = binding or "ALT-CTRL-SHIFT-META-J"
             Host.reset()
-            Host.set_binding("ALT-CTRL-SHIFT-META-J", "JUMP")
+            Host.set_binding(binding, "JUMP")
             local msg = MySlot:Import(MySlot:Export(full_opt()), { force = true })
             mutate(msg.bind[1].key1)
             _G.WowStub.bindings = {}
@@ -704,6 +705,11 @@ T.describe("Export/Import round-trip", function()
         T.assert.equal("ALT-CTRL-SHIFT-META-J", recover(function(k) k.mod = MySlot.MOD_KEYS["CUSTOM"] end))
         -- unknown modifiers are skipped instead of erroring
         T.assert.equal(nil, recover(function(k) k.modmask = nil; k.mod = MySlot.MOD_KEYS["CUSTOM"] end))
+        -- gamepad chords use the same (emulated) modifiers
+        for _, binding in ipairs({ "SHIFT-PAD1", "CTRL-SHIFT-PADDUP", "ALT-CTRL-SHIFT-PADLSHOULDER" }) do
+            T.assert.equal(binding, recover(function() end, binding))
+            T.assert.equal(binding, recover(function(k) k.modmask = nil end, binding))
+        end
     end)
 end)
 
