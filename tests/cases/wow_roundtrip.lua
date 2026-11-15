@@ -629,6 +629,9 @@ T.describe("in-game: key binding round-trip (via WoW API)", function()
     end))
 
     T.it("restores a third (gamepad) key on the same command", in_game(function()
+        if not (C_CVar and C_CVar.GetCVar("GamePadEnable") == "1") then
+            T.skip("gamepad disabled (/console GamePadEnable 1)")
+        end
         local cmds = find_unbound_commands(1)
         if #cmds < 1 then T.skip("no unbound commands available") end
         local CMD = cmds[1]
