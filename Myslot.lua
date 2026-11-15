@@ -2329,7 +2329,7 @@ function MySlot:RecoverData(msg, opt)
 
         for _, p in ipairs(petslots) do
             if not p.strindex or p.strindex == "" then
-                if p.type == MYSLOT_EMPTY then
+                if _MySlot.Slot.SlotType[p.type] == MYSLOT_EMPTY then
                     local name = GetPetActionInfo(p.id)
                     if name and not slotHasToken(p.id) then
                         PickupPetAction(p.id)

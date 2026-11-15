@@ -111,4 +111,23 @@ T.describe("Pet action bar restore (issue #71)", function()
         T.assert.equal("PET_ACTION_ATTACK", bar[2] and bar[2].token)
         T.assert.equal("PET_MODE_ASSIST", bar[3] and bar[3].token, "empty slot cleared a token")
     end)
+
+    T.it("clears spells under exported empty slots but keeps tokens", function()
+        local msg = export_pet({
+            [1] = { token = "PET_ACTION_ATTACK" },
+        })
+
+        local bar = {
+            [1] = { token = "PET_ACTION_ATTACK" },
+            [2] = { token = "PET_MODE_ASSIST" },
+            [4] = { spell = 333 },
+        }
+        with_pet_api(bar, {}, function()
+            MySlot:RecoverData(msg, recover_opt())
+        end)
+
+        T.assert.equal(nil, bar[4], "exported empty slot left a spell in place")
+        T.assert.equal("PET_MODE_ASSIST", bar[2] and bar[2].token, "empty slot cleared a token")
+        T.assert.equal("PET_ACTION_ATTACK", bar[1] and bar[1].token)
+    end)
 end)
