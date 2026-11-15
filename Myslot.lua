@@ -1338,6 +1338,7 @@ function MySlot:Import(text, opt)
     if IsEmptyTable(msg.slot) and IsEmptyTable(msg.bind) and IsEmptyTable(msg.macro)
         and IsEmptyTable(msg.clickBinding)
         and IsEmptyTable(msg.cvar)
+        and IsEmptyTable(msg.petslot)
         and (msg.cooldownManager == nil or msg.cooldownManager == "") and not force then
         MySlot:Print(L["Nothing to import"])
         return
@@ -1985,6 +1986,125 @@ function MySlot:OrderLoadouts(exports, sort, filterClass, myClass)
     return rows
 end
 
+-- Pet action bar restore (issue #71).
+--
+-- PickupPetAction lifts a slot onto an empty cursor and swaps when the cursor
+-- holds an action; picking from the pet spellbook adds a copy without removing
+-- any existing one. So each wanted action is moved from where it already sits
+-- on the bar first (no duplicates), falling back to the pet spellbook (pet
+-- commands included) only when it is not on the bar. Slots whose action the
+-- current pet cannot provide are left untouched.
+local function PetSlotKey(slotId)
+    local name, _, isToken, _, _, _, spellID = GetPetActionInfo(slotId)
+    if isToken and name then
+        return "t:" .. name
+    elseif spellID then
+        return "s:" .. spellID
+    end
+end
+
+local function PickupPetCommandFromSpellBook(token)
+    local label = _G[token]
+    if not label or not (C_SpellBook and C_SpellBook.HasPetSpells and Enum and Enum.SpellBookSpellBank) then
+        return
+    end
+    local bank = Enum.SpellBookSpellBank.Pet
+    for i = 1, C_SpellBook.HasPetSpells() or 0 do
+        local info = C_SpellBook.GetSpellBookItemInfo(i, bank)
+        if info and info.itemType == Enum.SpellBookItemType.PetAction and info.name == label then
+            C_SpellBook.PickupSpellBookItem(i, bank)
+            return
+        end
+    end
+end
+
+function MySlot:RestorePetActionBar(petslots)
+    local want = {}
+    for _, p in ipairs(petslots) do
+        if p.id and p.id >= 1 and p.id <= NUM_PET_ACTION_SLOTS then
+            if p.strindex and p.strindex ~= "" then
+                want[p.id] = "t:" .. p.strindex
+            elseif _MySlot.Slot.SlotType[p.type] == MYSLOT_EMPTY then
+                want[p.id] = false
+            elseif p.index and p.index ~= 0 then
+                want[p.id] = "s:" .. p.index
+            end
+        end
+    end
+
+    local done = {}
+
+    local function findOnBar(key, target)
+        for i = 1, NUM_PET_ACTION_SLOTS, 1 do
+            if i ~= target and not done[i] and PetSlotKey(i) == key then
+                return i
+            end
+        end
+    end
+
+    local function findFreeSlot(target)
+        for i = 1, NUM_PET_ACTION_SLOTS, 1 do
+            if i ~= target and not done[i] and not GetPetActionInfo(i) then
+                return i
+            end
+        end
+    end
+
+    for slot = 1, NUM_PET_ACTION_SLOTS, 1 do
+        local key = want[slot]
+        if key then
+            if PetSlotKey(slot) ~= key then
+                local src = findOnBar(key, slot)
+                if src then
+                    PickupPetAction(src)
+                    if GetCursorInfo() then
+                        PickupPetAction(slot)
+                        if GetCursorInfo() then
+                            PickupPetAction(src)
+                        end
+                    end
+                else
+                    -- A pet command displaced with nowhere to park it would be
+                    -- destroyed by ClearCursor; leave the slot unchanged instead.
+                    local cur = PetSlotKey(slot)
+                    local stuck = cur and cur:sub(1, 2) == "t:" and not findFreeSlot(slot)
+                    if not stuck then
+                        if key:sub(1, 2) == "t:" then
+                            PickupPetCommandFromSpellBook(key:sub(3))
+                        else
+                            PickupPetSpell(tonumber(key:sub(3)))
+                        end
+                        if GetCursorInfo() then
+                            PickupPetAction(slot)
+                            -- Park the displaced action rather than dropping it.
+                            if GetCursorInfo() then
+                                local free = findFreeSlot(slot)
+                                if free then
+                                    PickupPetAction(free)
+                                end
+                            end
+                        end
+                    end
+                end
+                ClearCursor()
+            end
+            done[slot] = PetSlotKey(slot) == key
+        end
+    end
+
+    -- Clear slots exported as empty last, after everything wanted elsewhere has
+    -- been moved out. Pet commands are kept: some clients cannot re-add them.
+    for slot = 1, NUM_PET_ACTION_SLOTS, 1 do
+        if want[slot] == false then
+            local key = PetSlotKey(slot)
+            if key and key:sub(1, 2) == "s:" then
+                PickupPetAction(slot)
+                ClearCursor()
+            end
+        end
+    end
+end
+
 function MySlot:RecoverData(msg, opt)
     -- {{{ Cache Spells
     --cache spells
@@ -2288,29 +2408,7 @@ function MySlot:RecoverData(msg, opt)
 
 
     if not opt.actionOpt.ignorePetActionBar and IsPetActive() then
-        local pettoken = {}
-        for i = 1, NUM_PET_ACTION_SLOTS, 1 do
-            local name, _, isToken = GetPetActionInfo(i)
-            if isToken then
-                pettoken[name] = i
-            end
-        end
-
-        for _, p in pairs(msg.petslot or {}) do
-            if p.strindex then
-                local slot = pettoken[p.strindex]
-                if slot then
-                    PickupPetAction(slot)
-                    PickupPetAction(p.id)
-                end
-            elseif p.index then
-                PickupPetSpell(p.index)
-                PickupPetAction(p.id)
-            elseif p.type == MYSLOT_EMPTY then
-                PickupPetAction(p.id)
-            end
-            ClearCursor()
-        end
+        self:RestorePetActionBar(msg.petslot or {})
     end
 
 
