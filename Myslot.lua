@@ -2064,18 +2064,24 @@ function MySlot:RestorePetActionBar(petslots)
                         end
                     end
                 else
-                    if key:sub(1, 2) == "t:" then
-                        PickupPetCommandFromSpellBook(key:sub(3))
-                    else
-                        PickupPetSpell(tonumber(key:sub(3)))
-                    end
-                    if GetCursorInfo() then
-                        PickupPetAction(slot)
-                        -- Park the displaced action rather than dropping it.
+                    -- A pet command displaced with nowhere to park it would be
+                    -- destroyed by ClearCursor; leave the slot unchanged instead.
+                    local cur = PetSlotKey(slot)
+                    local stuck = cur and cur:sub(1, 2) == "t:" and not findFreeSlot(slot)
+                    if not stuck then
+                        if key:sub(1, 2) == "t:" then
+                            PickupPetCommandFromSpellBook(key:sub(3))
+                        else
+                            PickupPetSpell(tonumber(key:sub(3)))
+                        end
                         if GetCursorInfo() then
-                            local free = findFreeSlot(slot)
-                            if free then
-                                PickupPetAction(free)
+                            PickupPetAction(slot)
+                            -- Park the displaced action rather than dropping it.
+                            if GetCursorInfo() then
+                                local free = findFreeSlot(slot)
+                                if free then
+                                    PickupPetAction(free)
+                                end
                             end
                         end
                     end

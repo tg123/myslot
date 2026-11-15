@@ -251,6 +251,16 @@ T.describe("Pet action bar restore (issue #71)", function()
         T.assert.is_true(found, "displaced pet command was dropped")
     end)
 
+    T.it("keeps a pet command when a full bar leaves nowhere to park it", function()
+        local msg = export_pet({ [1] = { spell = 2649 } })
+        local bar = { [1] = { token = "PET_MODE_PASSIVE" } }
+        for i = 2, 10 do bar[i] = { spell = 1000 + i } end
+        with_pet_api(bar, { [2649] = true }, function()
+            MySlot:RecoverData(msg, recover_opt())
+        end)
+        T.assert.equal("PET_MODE_PASSIVE", at(bar, 1), "pet command dropped on a full bar")
+    end)
+
     T.it("clears duplicate spells left in slots exported as empty", function()
         local msg = export_pet({ [4] = { spell = 2649 } })
         local bar = { [4] = { spell = 2649 }, [6] = { spell = 2649 } }
