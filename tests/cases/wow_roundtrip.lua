@@ -651,6 +651,149 @@ T.describe("in-game: key binding round-trip (via WoW API)", function()
     end))
 end)
 
+T.describe("in-game: pet action bar round-trip (#71)", function()
+
+    -- Host.snapshot() does not cover the pet bar, so each test records the bar
+    -- itself and compares against that. A failing test logs the original
+    -- layout; commands can be dragged back from the pet spellbook.
+    local function pet_keys()
+        local keys = {}
+        for i = 1, NUM_PET_ACTION_SLOTS do
+            local name, _, isToken, _, _, _, spellID = GetPetActionInfo(i)
+            keys[i] = isToken and name or spellID or false
+        end
+        return keys
+    end
+
+    local function pet_opt()
+        local all = {}
+        for i = 1, 15 do all[i] = true end
+        return {
+            ignoreActionBars = all,
+            ignoreMacros = { ACCOUNT = true, CHARACTOR = true },
+            ignoreBinding = true,
+            ignorePetActionBar = false,
+            ignoreCooldownManager = true,
+            ignoreClickBindings = true,
+        }
+    end
+
+    local function require_pet()
+        if not (IsPetActive and IsPetActive()) then T.skip("no active pet") end
+        if InCombatLockdown() then T.skip("pet bar is protected in combat") end
+    end
+
+    local function wait_frames(n)
+        for _ = 1, n or 3 do T.yield() end
+    end
+
+    local function recover(text)
+        local msg = MySlot:Import(text, { force = true })
+        T.assert.not_nil(msg)
+        MySlot:RecoverData(msg, { actionOpt = pet_opt() })
+        wait_frames()
+    end
+
+    local function layout_str(keys)
+        local parts = {}
+        for i = 1, NUM_PET_ACTION_SLOTS do parts[i] = tostring(keys[i]) end
+        return table.concat(parts, ", ")
+    end
+
+    local function assert_layout(want, msg)
+        local got = pet_keys()
+        for i = 1, NUM_PET_ACTION_SLOTS do
+            if want[i] ~= got[i] then
+                T.log("pet bar expected: " .. layout_str(want))
+                T.log("pet bar got:      " .. layout_str(got))
+                break
+            end
+        end
+        for i = 1, NUM_PET_ACTION_SLOTS do
+            T.assert.equal(want[i], got[i], (msg or "pet slot") .. " " .. i)
+        end
+    end
+
+    local function find_slot(pred)
+        local keys = pet_keys()
+        for i = 1, NUM_PET_ACTION_SLOTS do
+            if pred(keys[i], i) then return i end
+        end
+    end
+
+    T.it("restores a shuffled pet bar without duplicating actions", in_game(function()
+        require_pet()
+        local original = pet_keys()
+        local text = MySlot:Export(pet_opt())
+
+        local a = find_slot(function(k) return k end)
+        local b = a and find_slot(function(k, i) return k and i ~= a and k ~= original[a] end)
+        if not b then T.skip("need two different pet actions on the bar") end
+
+        PickupPetAction(a)
+        PickupPetAction(b)
+        PickupPetAction(a)
+        ClearCursor()
+        wait_frames()
+        T.assert.equal(original[a], pet_keys()[b], "test setup: swap did not happen")
+
+        recover(text)
+        assert_layout(original)
+    end))
+
+    T.it("restores a removed pet spell", in_game(function()
+        require_pet()
+        local original = pet_keys()
+        local text = MySlot:Export(pet_opt())
+
+        local s = find_slot(function(k) return type(k) == "number" end)
+        if not s then T.skip("no pet spell on the bar") end
+        PickupPetAction(s)
+        ClearCursor()
+        wait_frames()
+        T.assert.equal(false, pet_keys()[s], "test setup: spell was not removed")
+
+        recover(text)
+        assert_layout(original)
+    end))
+
+    T.it("restores a removed pet command from the pet spellbook", in_game(function()
+        require_pet()
+        local original = pet_keys()
+        local text = MySlot:Export(pet_opt())
+
+        local s = find_slot(function(k) return type(k) == "string" end)
+        if not s then T.skip("no pet command on the bar") end
+        PickupPetAction(s)
+        ClearCursor()
+        wait_frames()
+        T.assert.equal(false, pet_keys()[s], "test setup: command was not removed")
+
+        recover(text)
+        assert_layout(original)
+    end))
+
+    T.it("leaves a slot alone when its exported spell is unknown to the pet", in_game(function()
+        require_pet()
+        local original = pet_keys()
+        local s = find_slot(function(k) return k end)
+        if not s then T.skip("no pet action on the bar") end
+
+        local msg = MySlot:Import(MySlot:Export(pet_opt()), { force = true })
+        T.assert.not_nil(msg)
+        for _, p in ipairs(msg.petslot) do
+            if p.id == s then
+                p.strindex = nil
+                p.type = "SPELL"
+                p.index = 6603 -- Auto Attack: a player spell, never a pet spell
+            end
+        end
+        MySlot:RecoverData(msg, { actionOpt = pet_opt() })
+        wait_frames()
+        assert_layout(original)
+    end))
+end)
+
 T.describe("in-game: cooldown manager round-trip (via WoW API)", function()
 
     T.it("restores the cooldown manager layout to the datastore", in_game(function()

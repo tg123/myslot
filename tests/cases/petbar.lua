@@ -2,7 +2,9 @@
 --
 -- The client's PickupPetAction lifts an occupied slot onto an empty cursor and
 -- swaps when the cursor already holds an action; ClearCursor then drops it.
--- These CI-only cases emulate that on top of the WoW stubs.
+-- Picking from the pet spellbook (PickupPetSpell / PickupSpellBookItem) puts a
+-- copy on the cursor without touching the bar. These CI-only cases emulate
+-- that on top of the WoW stubs.
 
 local _, MySlot = ...
 local T = MySlot.test
@@ -11,9 +13,17 @@ local Host = MySlot.host
 if Host.in_wow then return end
 
 -- bar[i] = { token = "PET_ACTION_ATTACK" } or { spell = id } or nil
+-- known[spellID] / known[token] = true when the pet spellbook offers it.
 local function with_pet_api(bar, known, fn)
     local names = { "IsPetActive", "GetPetActionInfo", "PickupPetAction",
-        "PickupPetSpell", "GetCursorInfo", "ClearCursor" }
+        "PickupPetSpell", "GetCursorInfo", "ClearCursor", "C_SpellBook", "Enum" }
+    local book = {}
+    for k in pairs(known) do
+        if type(k) == "string" then
+            book[#book + 1] = k
+            names[#names + 1] = k
+        end
+    end
     local saved = {}
     for _, k in ipairs(names) do saved[k] = _G[k] end
 
@@ -37,6 +47,21 @@ local function with_pet_api(bar, known, fn)
         if cursor then return "petaction", 1 end
     end
     _G.ClearCursor = function() cursor = nil end
+    _G.Enum = setmetatable({
+        SpellBookSpellBank = { Player = 0, Pet = 1 },
+        SpellBookItemType = { Spell = 1, PetAction = 3 },
+    }, { __index = saved.Enum })
+    for _, token in ipairs(book) do _G[token] = "Label " .. token end
+    _G.C_SpellBook = {
+        HasPetSpells = function() return #book, "PET" end,
+        GetSpellBookItemInfo = function(i, bank)
+            if bank ~= 1 or not book[i] then return nil end
+            return { itemType = 3, name = _G[book[i]], actionID = i }
+        end,
+        PickupSpellBookItem = function(i, bank)
+            if bank == 1 and book[i] then cursor = { token = book[i] } end
+        end,
+    }
 
     Host.reset()
     local ok, err = pcall(fn)
@@ -142,5 +167,97 @@ T.describe("Pet action bar restore (issue #71)", function()
         T.assert.equal(nil, bar[4], "exported empty slot left a spell in place")
         T.assert.equal("PET_MODE_ASSIST", bar[2] and bar[2].token, "empty slot cleared a token")
         T.assert.equal("PET_ACTION_ATTACK", bar[1] and bar[1].token)
+    end)
+
+    -- In-game state from the issue #71 repro: duplicated spells, missing
+    -- commands. Import must move rather than copy, and refill commands from
+    -- the pet spellbook.
+    T.it("moves duplicates into place and restores missing pet commands", function()
+        local msg = export_pet({
+            [1] = { token = "PET_ACTION_ATTACK" }, [2] = { token = "PET_ACTION_FOLLOW" },
+            [3] = { token = "PET_ACTION_MOVE_TO" }, [4] = { spell = 49966 },
+            [5] = { spell = 16827 }, [6] = { spell = 2649 }, [7] = { spell = 61684 },
+            [8] = { token = "PET_MODE_ASSIST" }, [9] = { token = "PET_MODE_DEFENSIVEASSIST" },
+            [10] = { token = "PET_MODE_PASSIVE" },
+        })
+
+        local bar = {
+            [1] = { token = "PET_ACTION_ATTACK" }, [3] = { spell = 61684 },
+            [4] = { spell = 2649 }, [5] = { spell = 61684 }, [6] = { spell = 2649 },
+            [10] = { token = "PET_MODE_ASSIST" },
+        }
+        local known = { [2649] = true, [61684] = true, [17253] = true,
+            PET_ACTION_ATTACK = true, PET_ACTION_FOLLOW = true, PET_ACTION_MOVE_TO = true,
+            PET_MODE_ASSIST = true, PET_MODE_DEFENSIVEASSIST = true, PET_MODE_PASSIVE = true }
+        with_pet_api(bar, known, function()
+            MySlot:RecoverData(msg, recover_opt())
+        end)
+
+        local function at(i) return bar[i] and (bar[i].token or bar[i].spell) end
+        T.assert.equal("PET_ACTION_ATTACK", at(1))
+        T.assert.equal("PET_ACTION_FOLLOW", at(2))
+        T.assert.equal("PET_ACTION_MOVE_TO", at(3))
+        T.assert.equal(2649, at(6))
+        T.assert.equal(61684, at(7))
+        T.assert.equal("PET_MODE_ASSIST", at(8))
+        T.assert.equal("PET_MODE_DEFENSIVEASSIST", at(9))
+        T.assert.equal("PET_MODE_PASSIVE", at(10))
+        local assists = 0
+        for i = 1, 10 do if at(i) == "PET_MODE_ASSIST" then assists = assists + 1 end end
+        T.assert.equal(1, assists, "pet command duplicated")
+    end)
+
+    local function at(bar, i) return bar[i] and (bar[i].token or bar[i].spell) end
+
+    T.it("moves a spell already on the bar instead of copying it", function()
+        local msg = export_pet({ [4] = { spell = 2649 }, [6] = { spell = 49966 } })
+        local bar = { [4] = { spell = 61684 }, [6] = { spell = 2649 } }
+        with_pet_api(bar, { [2649] = true, [61684] = true }, function()
+            MySlot:RecoverData(msg, recover_opt())
+        end)
+        T.assert.equal(2649, at(bar, 4))
+        T.assert.equal(61684, at(bar, 6), "displaced spell should swap into the source slot")
+    end)
+
+    T.it("restores a missing pet command from the pet spellbook", function()
+        local msg = export_pet({ [2] = { token = "PET_ACTION_FOLLOW" } })
+        local bar = {}
+        with_pet_api(bar, { PET_ACTION_FOLLOW = true }, function()
+            MySlot:RecoverData(msg, recover_opt())
+        end)
+        T.assert.equal("PET_ACTION_FOLLOW", at(bar, 2))
+    end)
+
+    T.it("leaves the slot untouched when a missing command is not in the spellbook", function()
+        local msg = export_pet({ [2] = { token = "PET_ACTION_FOLLOW" } })
+        local bar = { [2] = { spell = 2649 } }
+        with_pet_api(bar, { [2649] = true }, function()
+            MySlot:RecoverData(msg, recover_opt())
+        end)
+        T.assert.equal(2649, at(bar, 2))
+    end)
+
+    T.it("parks an action displaced by a spellbook pick into a free slot", function()
+        local msg = export_pet({ [1] = { spell = 2649 } })
+        local bar = { [1] = { token = "PET_MODE_PASSIVE" } }
+        with_pet_api(bar, { [2649] = true }, function()
+            MySlot:RecoverData(msg, recover_opt())
+        end)
+        T.assert.equal(2649, at(bar, 1))
+        local found = false
+        for i = 2, 10 do
+            if at(bar, i) == "PET_MODE_PASSIVE" then found = true end
+        end
+        T.assert.is_true(found, "displaced pet command was dropped")
+    end)
+
+    T.it("clears duplicate spells left in slots exported as empty", function()
+        local msg = export_pet({ [4] = { spell = 2649 } })
+        local bar = { [4] = { spell = 2649 }, [6] = { spell = 2649 } }
+        with_pet_api(bar, { [2649] = true }, function()
+            MySlot:RecoverData(msg, recover_opt())
+        end)
+        T.assert.equal(2649, at(bar, 4))
+        T.assert.equal(nil, at(bar, 6))
     end)
 end)
