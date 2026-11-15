@@ -71,6 +71,19 @@ end
 
 T.describe("Pet action bar restore (issue #71)", function()
 
+    T.it("imports a pet-bar-only export without force", function()
+        local all = {}
+        for i = 1, 15 do all[i] = true end
+        local opt = export_opt()
+        opt.ignoreActionBars = all
+        opt.ignoreMacros = { ACCOUNT = true, CHARACTOR = true }
+        local msg
+        with_pet_api({ [1] = { token = "PET_ACTION_ATTACK" } }, {}, function()
+            msg = MySlot:Import(MySlot:Export(opt), {})
+        end)
+        T.assert.not_nil(msg, "pet-only export rejected as empty")
+    end)
+
     T.it("keeps slots whose exported spell the current pet does not know", function()
         local msg = export_pet({
             [1] = { token = "PET_ACTION_ATTACK" },

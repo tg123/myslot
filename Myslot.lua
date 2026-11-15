@@ -1338,6 +1338,7 @@ function MySlot:Import(text, opt)
     if IsEmptyTable(msg.slot) and IsEmptyTable(msg.bind) and IsEmptyTable(msg.macro)
         and IsEmptyTable(msg.clickBinding)
         and IsEmptyTable(msg.cvar)
+        and IsEmptyTable(msg.petslot)
         and (msg.cooldownManager == nil or msg.cooldownManager == "") and not force then
         MySlot:Print(L["Nothing to import"])
         return
