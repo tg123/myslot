@@ -807,6 +807,18 @@ do
         if clearOpt.ignoreClickBindings then
             opt.ignoreClickBindings = false
         end
+
+        -- Action slots and click bindings reference macros through msg.macro, so
+        -- the backup needs the macro definitions to restore them.
+        local refsMacros = clearOpt.ignoreClickBindings
+        for _, vv in pairs(clearOpt.ignoreActionBars or {}) do
+            refsMacros = refsMacros or vv
+        end
+        if refsMacros then
+            opt.ignoreMacros = opt.ignoreMacros or {}
+            opt.ignoreMacros["ACCOUNT"] = false
+            opt.ignoreMacros["CHARACTOR"] = false
+        end
         return opt
     end
 

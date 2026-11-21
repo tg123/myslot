@@ -58,6 +58,27 @@ T.describe("GUI", function()
         T.assert.is_true(recovered.actionOpt.ignoreMacros.ACCOUNT)
     end))
 
+    T.it("backs up macros referenced by click bindings selected for CLEAR", ci(function(ui)
+        local exported, recovered
+        ui.addon.Import = function() return {} end
+        ui.addon.IsTalentStringSupported = function() return false end
+        ui.addon.Export = function(_, opt) exported = opt; return "backup" end
+        ui.addon.Clear = function() end
+        ui.addon.RecoverData = function(_, _, opt) recovered = opt end
+        ui.MyslotSettings.defaultIgnore = {
+            import = { ignoreMacros = { ACCOUNT = true, CHARACTOR = true } },
+            clear = { ignoreClickBindings = true },
+        }
+        ui.addon:ApplyIgnoreDefaults("import")
+        ui.addon:ApplyIgnoreDefaults("clear")
+        ui.importButton.scripts.OnClick()
+        ui.StaticPopupDialogs.MYSLOT_MSGBOX.OnAccept()
+        T.assert.is_false(exported.ignoreMacros.ACCOUNT)
+        T.assert.is_false(exported.ignoreMacros.CHARACTOR)
+        T.assert.is_true(recovered.actionOpt.ignoreMacros.ACCOUNT)
+        T.assert.is_true(recovered.actionOpt.ignoreMacros.CHARACTOR)
+    end))
+
     T.it("keeps one-off CLEAR selections when an unrelated CLEAR default changes", ci(function(ui)
         local macro = _G.MACRO or "MACRO"
         local account = _G.GENERAL_MACROS or "GENERAL_MACROS"
