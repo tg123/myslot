@@ -682,6 +682,46 @@ function MySlot:ApplyIgnoreDefaults(kind)
     end
 end
 
+-- Entries for the "CLEAR before Import" section. Pet Action Bar, Cooldown Manager
+-- and CVars have no per-category clear here (pet isn't supported yet; cooldown is
+-- offered as an explicit "Remove all" below), so drop them by identity rather than
+-- by position to stay robust against any future change to CreateSettingMenu's
+-- entry order.
+local function CreateClearMenu(opt, onChanged)
+    local menu = CreateSettingMenu(opt, onChanged)
+    local excluded = {
+        [PET .. " " .. ACTIONBARS_LABEL] = true,
+        [L["Cooldown Manager"]] = true,
+        [L["CVars"]] = true,
+    }
+    for i = #menu, 1, -1 do
+        if menu[i].text and excluded[menu[i].text] then
+            table.remove(menu, i)
+        end
+    end
+
+    -- Cooldown Manager "remove all" only makes sense on clients that have it.
+    if MySlot:IsCooldownManagerSupported() then
+        table.insert(menu, {
+            text = L["Cooldown Manager"],
+            notCheckable = false,
+            isNotRadio = true,
+            keepShownOnClick = true,
+            func = function ()
+                opt.removeCooldownManager = not opt.removeCooldownManager
+                if onChanged then
+                    onChanged()
+                end
+            end,
+            checked = function ()
+                return opt.removeCooldownManager
+            end,
+        })
+    end
+
+    return menu
+end
+
 function MySlot:ShowIgnoreDefaultsMenu(kind, owner)
     local title = kind == "import" and L[" during Import"] or L[" during Export"]
     local settings = {
@@ -694,6 +734,18 @@ function MySlot:ShowIgnoreDefaultsMenu(kind, owner)
     tAppendAll(settings, CreateSettingMenu(self:GetIgnoreDefaults(kind), function()
         self:ApplyIgnoreDefaults(kind)
     end))
+
+    if kind == "import" and MyslotSettings.allowclearonimport then
+        table.insert(settings, {
+            isTitle = true,
+            text = (DEFAULT or "Default") .. ": |cffff0000" .. L["CLEAR"] .. "|r" .. L[" before Import"],
+            notCheckable = true,
+        })
+        tAppendAll(settings, CreateClearMenu(self:GetIgnoreDefaults("clear"), function()
+            self:ApplyIgnoreDefaults("clear")
+        end))
+    end
+
     EasyMenu(settings, owner)
 end
 
@@ -765,16 +817,20 @@ do
                 end
             end
 
-            MySlot:Clear("MACRO", clearOpt.ignoreMacros)
-            MySlot:Clear("ACTION", clearOpt.ignoreActionBars)
-            if clearOpt.ignoreBindings.KEYBOARD or clearOpt.ignoreBindings.GAMEPAD then
-                MySlot:Clear("BINDING", clearOpt.ignoreBindings)
-            end
-            if clearOpt.removeCooldownManager then
-                MySlot:Clear("COOLDOWNMANAGER")
-            end
-            if clearOpt.ignoreClickBindings then
-                MySlot:Clear("CLICKBINDING")
+            -- Saved CLEAR defaults must not wipe anything once the user has
+            -- turned "Allow CLEAR before Import" off.
+            if MyslotSettings.allowclearonimport then
+                MySlot:Clear("MACRO", clearOpt.ignoreMacros)
+                MySlot:Clear("ACTION", clearOpt.ignoreActionBars)
+                if clearOpt.ignoreBindings.KEYBOARD or clearOpt.ignoreBindings.GAMEPAD then
+                    MySlot:Clear("BINDING", clearOpt.ignoreBindings)
+                end
+                if clearOpt.removeCooldownManager then
+                    MySlot:Clear("COOLDOWNMANAGER")
+                end
+                if clearOpt.ignoreClickBindings then
+                    MySlot:Clear("CLICKBINDING")
+                end
             end
 
             ShowImportProgress()
@@ -819,40 +875,8 @@ do
             notCheckable = true,
         }
     })
-    -- Pet Action Bar and Cooldown Manager have no per-category clear here (pet
-    -- isn't supported yet; cooldown is offered as an explicit "Remove all" below),
-    -- so drop them by identity rather than by position to stay robust against any
-    -- future change to CreateSettingMenu's entry order.
-    local clearMenu = CreateSettingMenu(clearOpt)
-    local clearExcludedText = {
-        [PET .. " " .. ACTIONBARS_LABEL] = true,
-        [L["Cooldown Manager"]] = true,
-        [L["CVars"]] = true,
-    }
-    for i = #clearMenu, 1, -1 do
-        if clearMenu[i].text and clearExcludedText[clearMenu[i].text] then
-            table.remove(clearMenu, i)
-        end
-    end
-    tAppendAll(settings, clearMenu)
-
-    -- Cooldown Manager "remove all" only makes sense on clients that have it.
-    if MySlot:IsCooldownManagerSupported() then
-        tAppendAll(settings, {
-            {
-                text = L["Cooldown Manager"],
-                notCheckable = false,
-                isNotRadio = true,
-                keepShownOnClick = true,
-                func = function ()
-                    clearOpt.removeCooldownManager = not clearOpt.removeCooldownManager
-                end,
-                checked = function ()
-                    return clearOpt.removeCooldownManager
-                end,
-            },
-        })
-    end
+    tAppendAll(settings, CreateClearMenu(clearOpt))
+    ignoreDefaultTargets.clear = { opt = clearOpt }
 
     local clearend = #settings
 
@@ -948,6 +972,7 @@ end
 RegEvent("ADDON_LOADED", function()
     MySlot:ApplyIgnoreDefaults("import")
     MySlot:ApplyIgnoreDefaults("export")
+    MySlot:ApplyIgnoreDefaults("clear")
 
     do
         local t = CreateFrame("Frame", nil, f, BackdropTemplateMixin and "BackdropTemplate" or nil)

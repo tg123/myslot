@@ -10,6 +10,7 @@
 dofile((arg[0]:match("(.-)[/\\][^/\\]+$") or ".") .. "/wow_stubs.lua")
 
 local MySlot = dofile((arg[0]:match("(.-)[/\\][^/\\]+$") or ".") .. "/loader.lua")
+MySlot.guiHarness = dofile((arg[0]:match("(.-)[/\\][^/\\]+$") or ".") .. "/gui_harness.lua")
 
 -- Same calling convention as addon files.
 local function load_test(rel)
@@ -32,6 +33,7 @@ load_test("cases/base64.lua")
 load_test("cases/crc32.lua")
 load_test("cases/protobuf.lua")
 load_test("cases/cvar.lua")
+load_test("cases/gui.lua")
 load_test("cases/macro.lua")
 load_test("cases/petbar.lua")
 load_test("cases/roundtrip.lua")
