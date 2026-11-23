@@ -178,7 +178,15 @@ do
     b:SetScript("OnClick", function() f:Hide() end)
 end
 
+-- onChanged(key, subkey) is told which opt field (and, for a single child entry,
+-- which sub-entry) was toggled.
 local function CreateSettingMenu(opt, onChanged)
+
+    local tablekey = {
+        action = "ignoreActionBars",
+        binding = "ignoreBindings",
+        macro = "ignoreMacros",
+    }
 
     local tableref = function (name)
         if name == "action" then
@@ -204,7 +212,7 @@ local function CreateSettingMenu(opt, onChanged)
         UIDropDownMenu_RefreshAll(menuFrame)
 
         if onChanged then
-            onChanged()
+            onChanged(tablekey[self.arg1], self.arg2)
         end
     end
 
@@ -230,7 +238,7 @@ local function CreateSettingMenu(opt, onChanged)
         UIDropDownMenu_RefreshAll(menuFrame)
 
         if onChanged then
-            onChanged()
+            onChanged(tablekey[self.arg1])
         end
     end
 
@@ -480,7 +488,7 @@ local function CreateSettingMenu(opt, onChanged)
                 opt.ignorePetActionBar = not opt.ignorePetActionBar
 
                 if onChanged then
-                    onChanged()
+                    onChanged("ignorePetActionBar")
                 end
             end,
             checked = function ()
@@ -496,7 +504,7 @@ local function CreateSettingMenu(opt, onChanged)
                 opt.ignoreCooldownManager = not opt.ignoreCooldownManager
 
                 if onChanged then
-                    onChanged()
+                    onChanged("ignoreCooldownManager")
                 end
             end,
             checked = function ()
@@ -512,7 +520,7 @@ local function CreateSettingMenu(opt, onChanged)
                 opt.ignoreClickBindings = not opt.ignoreClickBindings
 
                 if onChanged then
-                    onChanged()
+                    onChanged("ignoreClickBindings")
                 end
             end,
             checked = function ()
@@ -526,7 +534,7 @@ local function CreateSettingMenu(opt, onChanged)
             keepShownOnClick = true,
             func = function()
                 opt.ignoreCVars = not opt.ignoreCVars
-                if onChanged then onChanged() end
+                if onChanged then onChanged("ignoreCVars") end
             end,
             checked = function()
                 return opt.ignoreCVars
@@ -659,7 +667,10 @@ function MySlot:GetIgnoreDefaults(kind)
     return MyslotSettings.defaultIgnore[kind]
 end
 
-function MySlot:ApplyIgnoreDefaults(kind)
+-- Copies the saved defaults of kind into its dropdown's opt. When key (and
+-- optionally subkey) is given, only that option is copied, so a change in the
+-- defaults menu doesn't undo unrelated one-off selections in the dropdown.
+function MySlot:ApplyIgnoreDefaults(kind, key, subkey)
     local target = ignoreDefaultTargets[kind]
     if not target then
         return
@@ -667,19 +678,63 @@ function MySlot:ApplyIgnoreDefaults(kind)
 
     local dst = target.opt
     for k, v in pairs(self:GetIgnoreDefaults(kind)) do
-        if type(v) == "table" then
-            dst[k] = dst[k] or {}
-            for kk, vv in pairs(v) do
-                dst[k][kk] = vv
+        if key == nil or k == key then
+            if type(v) == "table" then
+                dst[k] = dst[k] or {}
+                for kk, vv in pairs(v) do
+                    if subkey == nil or kk == subkey then
+                        dst[k][kk] = vv
+                    end
+                end
+            else
+                dst[k] = v
             end
-        else
-            dst[k] = v
         end
     end
 
     if target.onChanged then
         target.onChanged()
     end
+end
+
+-- Entries for the "CLEAR before Import" section. Pet Action Bar, Cooldown Manager
+-- and CVars have no per-category clear here (pet isn't supported yet; cooldown is
+-- offered as an explicit "Remove all" below), so drop them by identity rather than
+-- by position to stay robust against any future change to CreateSettingMenu's
+-- entry order.
+local function CreateClearMenu(opt, onChanged)
+    local menu = CreateSettingMenu(opt, onChanged)
+    local excluded = {
+        [PET .. " " .. ACTIONBARS_LABEL] = true,
+        [L["Cooldown Manager"]] = true,
+        [L["CVars"]] = true,
+    }
+    for i = #menu, 1, -1 do
+        if menu[i].text and excluded[menu[i].text] then
+            table.remove(menu, i)
+        end
+    end
+
+    -- Cooldown Manager "remove all" only makes sense on clients that have it.
+    if MySlot:IsCooldownManagerSupported() then
+        table.insert(menu, {
+            text = L["Cooldown Manager"],
+            notCheckable = false,
+            isNotRadio = true,
+            keepShownOnClick = true,
+            func = function ()
+                opt.removeCooldownManager = not opt.removeCooldownManager
+                if onChanged then
+                    onChanged("removeCooldownManager")
+                end
+            end,
+            checked = function ()
+                return opt.removeCooldownManager
+            end,
+        })
+    end
+
+    return menu
 end
 
 function MySlot:ShowIgnoreDefaultsMenu(kind, owner)
@@ -691,9 +746,21 @@ function MySlot:ShowIgnoreDefaultsMenu(kind, owner)
             notCheckable = true,
         }
     }
-    tAppendAll(settings, CreateSettingMenu(self:GetIgnoreDefaults(kind), function()
-        self:ApplyIgnoreDefaults(kind)
+    tAppendAll(settings, CreateSettingMenu(self:GetIgnoreDefaults(kind), function(key, subkey)
+        self:ApplyIgnoreDefaults(kind, key, subkey)
     end))
+
+    if kind == "import" and MyslotSettings.allowclearonimport then
+        table.insert(settings, {
+            isTitle = true,
+            text = (DEFAULT or "Default") .. ": |cffff0000" .. L["CLEAR"] .. "|r" .. L[" before Import"],
+            notCheckable = true,
+        })
+        tAppendAll(settings, CreateClearMenu(self:GetIgnoreDefaults("clear"), function(key, subkey)
+            self:ApplyIgnoreDefaults("clear", key, subkey)
+        end))
+    end
+
     EasyMenu(settings, owner)
 end
 
@@ -703,6 +770,57 @@ do
     local actionOpt = {}
     local clearOpt  = {}
     local forceImport = false
+
+    -- The backup must cover everything about to be cleared, even categories
+    -- the import itself ignores, or those clears could not be undone.
+    local function BackupOpt()
+        local opt = {}
+        for k, v in pairs(actionOpt) do
+            if type(v) == "table" then
+                opt[k] = {}
+                for kk, vv in pairs(v) do
+                    opt[k][kk] = vv
+                end
+            else
+                opt[k] = v
+            end
+        end
+
+        if not MyslotSettings.allowclearonimport then
+            return opt
+        end
+
+        for _, key in ipairs({ "ignoreMacros", "ignoreActionBars", "ignoreBindings" }) do
+            for kk, vv in pairs(clearOpt[key] or {}) do
+                if vv then
+                    opt[key] = opt[key] or {}
+                    opt[key][kk] = false
+                    if key == "ignoreBindings" then
+                        opt.ignoreBinding = nil
+                    end
+                end
+            end
+        end
+        if clearOpt.removeCooldownManager then
+            opt.ignoreCooldownManager = false
+        end
+        if clearOpt.ignoreClickBindings then
+            opt.ignoreClickBindings = false
+        end
+
+        -- Action slots and click bindings reference macros through msg.macro, so
+        -- the backup needs the macro definitions to restore them.
+        local refsMacros = clearOpt.ignoreClickBindings
+        for _, vv in pairs(clearOpt.ignoreActionBars or {}) do
+            refsMacros = refsMacros or vv
+        end
+        if refsMacros then
+            opt.ignoreMacros = opt.ignoreMacros or {}
+            opt.ignoreMacros["ACCOUNT"] = false
+            opt.ignoreMacros["CHARACTOR"] = false
+        end
+        return opt
+    end
 
     local b = CreateFrame("Button", nil, f, "GameMenuButtonTemplate")
     b:SetWidth(125)
@@ -748,7 +866,7 @@ do
             StaticPopup_Hide("MYSLOT_MSGBOX")
 
             MySlot:Print(L["Starting backup..."])
-            local backup = MySlot:Export(actionOpt)
+            local backup = MySlot:Export(BackupOpt())
 
             if not backup then
                 MySlot:Print(L["Backup failed"])
@@ -765,16 +883,20 @@ do
                 end
             end
 
-            MySlot:Clear("MACRO", clearOpt.ignoreMacros)
-            MySlot:Clear("ACTION", clearOpt.ignoreActionBars)
-            if clearOpt.ignoreBindings.KEYBOARD or clearOpt.ignoreBindings.GAMEPAD then
-                MySlot:Clear("BINDING", clearOpt.ignoreBindings)
-            end
-            if clearOpt.removeCooldownManager then
-                MySlot:Clear("COOLDOWNMANAGER")
-            end
-            if clearOpt.ignoreClickBindings then
-                MySlot:Clear("CLICKBINDING")
+            -- Saved CLEAR defaults must not wipe anything once the user has
+            -- turned "Allow CLEAR before Import" off.
+            if MyslotSettings.allowclearonimport then
+                MySlot:Clear("MACRO", clearOpt.ignoreMacros)
+                MySlot:Clear("ACTION", clearOpt.ignoreActionBars)
+                if clearOpt.ignoreBindings.KEYBOARD or clearOpt.ignoreBindings.GAMEPAD then
+                    MySlot:Clear("BINDING", clearOpt.ignoreBindings)
+                end
+                if clearOpt.removeCooldownManager then
+                    MySlot:Clear("COOLDOWNMANAGER")
+                end
+                if clearOpt.ignoreClickBindings then
+                    MySlot:Clear("CLICKBINDING")
+                end
             end
 
             ShowImportProgress()
@@ -800,90 +922,57 @@ do
         icon:SetSize(16, 16)
     end
 
-    local settings = {
-        {
-            isTitle = true,
-            text = "|cffff0000" .. L["IGNORE"] .. "|r" .. L[" during Import"],
-            notCheckable = true,
+    -- Built on every open (not once at load) so the entries track current
+    -- client support, e.g. Blizzard_CooldownViewer loading after this file.
+    local function BuildMenu()
+        local settings = {
+            {
+                isTitle = true,
+                text = "|cffff0000" .. L["IGNORE"] .. "|r" .. L[" during Import"],
+                notCheckable = true,
+            }
         }
-    }
 
-    tAppendAll(settings, CreateSettingMenu(actionOpt))
-    ignoreDefaultTargets.import = { opt = actionOpt }
+        tAppendAll(settings, CreateSettingMenu(actionOpt))
 
-    local clearbegin = #settings + 1
-    tAppendAll(settings, {
-        {
-            isTitle = true,
-            text = "|cffff0000" .. L["CLEAR"] .. "|r" .. L[" before Import"],
-            notCheckable = true,
-        }
-    })
-    -- Pet Action Bar and Cooldown Manager have no per-category clear here (pet
-    -- isn't supported yet; cooldown is offered as an explicit "Remove all" below),
-    -- so drop them by identity rather than by position to stay robust against any
-    -- future change to CreateSettingMenu's entry order.
-    local clearMenu = CreateSettingMenu(clearOpt)
-    local clearExcludedText = {
-        [PET .. " " .. ACTIONBARS_LABEL] = true,
-        [L["Cooldown Manager"]] = true,
-        [L["CVars"]] = true,
-    }
-    for i = #clearMenu, 1, -1 do
-        if clearMenu[i].text and clearExcludedText[clearMenu[i].text] then
-            table.remove(clearMenu, i)
+        if MyslotSettings.allowclearonimport then
+            table.insert(settings, {
+                isTitle = true,
+                text = "|cffff0000" .. L["CLEAR"] .. "|r" .. L[" before Import"],
+                notCheckable = true,
+            })
+            tAppendAll(settings, CreateClearMenu(clearOpt))
         end
-    end
-    tAppendAll(settings, clearMenu)
 
-    -- Cooldown Manager "remove all" only makes sense on clients that have it.
-    if MySlot:IsCooldownManagerSupported() then
         tAppendAll(settings, {
             {
-                text = L["Cooldown Manager"],
-                notCheckable = false,
+                isTitle = true,
+                text = OTHER,
+                notCheckable = true,
+            },
+            {
+                text = L["Force Import"],
                 isNotRadio = true,
                 keepShownOnClick = true,
-                func = function ()
-                    clearOpt.removeCooldownManager = not clearOpt.removeCooldownManager
+                checked = function()
+                    return forceImport
                 end,
-                checked = function ()
-                    return clearOpt.removeCooldownManager
-                end,
-            },
+                func = function()
+                    forceImport = not forceImport
+                end
+            }
         })
+        return settings
     end
 
-    local clearend = #settings
-
-    tAppendAll(settings, {
-        {
-            isTitle = true,
-            text = OTHER,
-            notCheckable = true,
-        },
-        {
-            text = L["Force Import"],
-            isNotRadio = true,
-            keepShownOnClick = true,
-            checked = function()
-                return forceImport
-            end,
-            func = function()
-                forceImport = not forceImport
-            end
-        }
-    })
-
-    local settingswithoutclear = {}
-    tAppendAll(settingswithoutclear, settings)
-    for i = clearend, clearbegin, -1 do
-        table.remove(settingswithoutclear, i)
-    end
-
+    -- Seed the option tables with their defaults before anything reads them.
+    CreateSettingMenu(actionOpt)
+    CreateClearMenu(clearOpt)
+    ignoreDefaultTargets.import = { opt = actionOpt }
+    ignoreDefaultTargets.clear = { opt = clearOpt }
 
     ba:SetScript("OnClick", function(self, button)
-        EasyMenu(MyslotSettings.allowclearonimport and settings or settingswithoutclear, self);
+        EasyMenu(BuildMenu(), self);
     end)
 end
 
@@ -948,6 +1037,7 @@ end
 RegEvent("ADDON_LOADED", function()
     MySlot:ApplyIgnoreDefaults("import")
     MySlot:ApplyIgnoreDefaults("export")
+    MySlot:ApplyIgnoreDefaults("clear")
 
     do
         local t = CreateFrame("Frame", nil, f, BackdropTemplateMixin and "BackdropTemplate" or nil)
