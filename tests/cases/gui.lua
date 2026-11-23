@@ -39,6 +39,28 @@ T.describe("GUI", function()
         ui.addon:ShowIgnoreDefaultsMenu("import")
         T.assert.equal(nil, ui.menu:Find(title))
     end))
+
+    T.it("clears before import only while CLEAR before Import is allowed", ci(function(ui)
+        local cleared = {}
+        ui.addon.Import = function() return {} end
+        ui.addon.IsTalentStringSupported = function() return false end
+        ui.addon.Export = function() return "backup" end
+        ui.addon.Clear = function(_, what) cleared[#cleared + 1] = what end
+        ui.addon.RecoverData = function() end
+        ui.MyslotSettings.defaultIgnore = { clear = { ignoreMacros = { ACCOUNT = true } } }
+        ui.addon:ApplyIgnoreDefaults("clear")
+
+        ui.MyslotSettings.allowclearonimport = false
+        ui.importButton.scripts.OnClick()
+        ui.StaticPopupDialogs.MYSLOT_MSGBOX.OnAccept()
+        T.assert.equal(0, #cleared)
+
+        ui.MyslotSettings.allowclearonimport = true
+        ui.importButton.scripts.OnClick()
+        ui.StaticPopupDialogs.MYSLOT_MSGBOX.OnAccept()
+        T.assert.is_true(#cleared > 0)
+    end))
+
     T.it("backs up categories selected for CLEAR even when the import ignores them", ci(function(ui)
         local exported, recovered
         ui.addon.Import = function() return {} end
